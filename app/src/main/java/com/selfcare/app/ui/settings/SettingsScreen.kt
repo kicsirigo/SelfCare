@@ -45,6 +45,7 @@ import com.selfcare.app.BuildConfig
 import com.selfcare.app.R
 import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlin.math.roundToInt
@@ -112,6 +113,7 @@ fun SettingsScreen(
         },
         onAdjustEveningTime = viewModel::adjustEveningReminderTime,
         onSaveGeminiApiKey = viewModel::setGeminiApiKey,
+        onTestGeminiApiKey = viewModel::testGeminiApiKey,
         onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
         modifier = modifier
@@ -130,6 +132,7 @@ fun SettingsScreenContent(
     onToggleEveningReminder: (Boolean) -> Unit,
     onAdjustEveningTime: (Int) -> Unit,
     onSaveGeminiApiKey: (String) -> Unit = {},
+    onTestGeminiApiKey: (String) -> Unit = {},
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     modifier: Modifier = Modifier
@@ -415,14 +418,25 @@ fun SettingsScreenContent(
                         ) {
                             Text(text = stringResource(R.string.action_save))
                         }
-                        if (settings.geminiApiKey.isNotBlank() || keyInput.isNotBlank()) {
+                        if (keyInput.isNotBlank()) {
                             OutlinedButton(
+                                onClick = {
+                                    savedNotice = false
+                                    onTestGeminiApiKey(keyInput)
+                                },
+                                enabled = !state.isTestingGeminiKey,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(text = stringResource(R.string.settings_gemini_test_btn))
+                            }
+                        }
+                        if (settings.geminiApiKey.isNotBlank() || keyInput.isNotBlank()) {
+                            TextButton(
                                 onClick = {
                                     keyInput = ""
                                     onSaveGeminiApiKey("")
                                     savedNotice = true
-                                },
-                                modifier = Modifier.weight(1f)
+                                }
                             ) {
                                 Text(text = stringResource(R.string.settings_gemini_key_clear))
                             }
@@ -434,6 +448,23 @@ fun SettingsScreenContent(
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
+                    }
+                    when (val testResult = state.geminiTestResult) {
+                        is GeminiKeyTestResult.Success -> {
+                            Text(
+                                text = stringResource(R.string.settings_gemini_test_ok, testResult.modelUsed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is GeminiKeyTestResult.Failure -> {
+                            Text(
+                                text = stringResource(R.string.settings_gemini_test_fail, testResult.reason),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        null -> Unit
                     }
                 }
             }

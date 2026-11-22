@@ -272,4 +272,8 @@
     <string name="shelf_scan_your_photo">Your photo</string>
     <string name="shelf_scan_matched_photo">AI match photo</string>
     <string name="shelf_scan_no_ref_photo">No catalog photo</string>
+    <string name="shelf_gemini_fallback_error">Gemini AI error (used Offline OCR instead): %1$s</string>
+    <string name="settings_gemini_test_btn">Test Key</string>
+    <string name="settings_gemini_test_ok">Connected successfully (%1$s)</string>
+    <string name="settings_gemini_test_fail">API key error: %1$s</string>
 </resources>

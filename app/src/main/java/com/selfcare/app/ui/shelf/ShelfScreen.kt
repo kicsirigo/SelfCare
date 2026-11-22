@@ -229,6 +229,25 @@ fun ShelfScreenContent(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (pending.geminiErrorDetail != null) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.shelf_gemini_fallback_error,
+                                    pending.geminiErrorDetail
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+
                     // Side-by-side visual comparison: Your captured photo vs AI matched product photo
                     if (pending.capturedPhoto != null || pending.referencePhoto != null) {
                         Row(
@@ -531,6 +550,41 @@ fun ShelfScreenContent(
             exit = fadeOut()
         ) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+
+        if (state.geminiErrorBanner != null && state.pendingScanConfirmation == null) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.shelf_gemini_fallback_error,
+                            state.geminiErrorBanner
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismissOfflineFallback, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = stringResource(R.string.action_close),
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
         }
 
         if (state.offlineFallbackMessage != null) {

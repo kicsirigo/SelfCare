@@ -7,9 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -34,12 +33,18 @@ data class IdentifiedProductInfo(
 )
 
 sealed interface GeminiVisionResult {
-    data class Success(val product: IdentifiedProductInfo) : GeminiVisionResult
+    data class Success(val product: IdentifiedProductInfo, val modelUsed: String = "") : GeminiVisionResult
     data class Error(val reason: String) : GeminiVisionResult
+}
+
+sealed interface GeminiKeyTestResult {
+    data class Success(val modelUsed: String) : GeminiKeyTestResult
+    data class Failure(val reason: String) : GeminiKeyTestResult
 }
 
 interface ProductVisionClient {
     suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
+    suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
 }
 
 class GeminiVisionProductClient(
@@ -52,32 +57,101 @@ class GeminiVisionProductClient(
         isLenient = true
     }
 
+    override suspend fun testApiKey(apiKey: String): GeminiKeyTestResult =
+        withContext(Dispatchers.IO) {
+            val cleanKey = apiKey.trim()
+            if (cleanKey.isEmpty()) {
+                return@withContext GeminiKeyTestResult.Failure("API key is empty")
+            }
+
+            var lastError = "Unknown error"
+            for (model in MODEL_FALLBACK_CHAIN) {
+                try {
+                    val payload = buildJsonObject {
+                        put("contents", buildJsonArray {
+                            add(buildJsonObject {
+                                put("parts", buildJsonArray {
+                                    add(buildJsonObject {
+                                        put("text", JsonPrimitive("Reply with OK"))
+                                    })
+                                })
+                            })
+                        })
+                    }.toString()
+
+                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent?key=$cleanKey"
+                    val request = Request.Builder()
+                        .url(url)
+                        .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                        .build()
+
+                    httpClient.newCall(request).execute().use { response ->
+                        val bodyStr = response.body?.string().orEmpty()
+                        if (response.isSuccessful) {
+                            return@withContext GeminiKeyTestResult.Success(model)
+                        }
+                        val apiMsg = extractApiErrorMessage(bodyStr)
+                        lastError = "HTTP ${response.code} ($model): $apiMsg"
+                        // Auth/key errors won't be fixed by trying another model
+                        if (response.code == 400 || response.code == 401 || response.code == 403) {
+                            return@withContext GeminiKeyTestResult.Failure(lastError)
+                        }
+                    }
+                } catch (e: Exception) {
+                    lastError = "${e::class.simpleName}: ${e.message}"
+                }
+            }
+            GeminiKeyTestResult.Failure(lastError)
+        }
+
     override suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult =
         withContext(Dispatchers.IO) {
             val cleanKey = apiKey.trim()
             if (cleanKey.isEmpty()) {
-                return@withContext GeminiVisionResult.Error("API_KEY_EMPTY")
+                return@withContext GeminiVisionResult.Error("API key is empty")
             }
 
-            try {
-                val base64Image = encodeBitmapToBase64Jpeg(bitmap)
-                val payload = buildRequestPayload(base64Image)
-                val url = "${baseUrl.trimEnd('/')}/v1beta/models/$MODEL_ID:generateContent?key=$cleanKey"
-                val request = Request.Builder()
-                    .url(url)
-                    .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
-                    .build()
-
-                httpClient.newCall(request).execute().use { response ->
-                    val bodyStr = response.body?.string().orEmpty()
-                    if (!response.isSuccessful) {
-                        return@withContext GeminiVisionResult.Error("HTTP_${response.code}")
-                    }
-                    parseGeminiResponseJson(bodyStr)
-                }
+            val base64Image = try {
+                encodeBitmapToBase64Jpeg(bitmap)
             } catch (e: Exception) {
-                GeminiVisionResult.Error(e.message ?: "NETWORK_ERROR")
+                return@withContext GeminiVisionResult.Error("Image encode error: ${e.message}")
             }
+
+            var lastError = "Unknown Gemini error"
+            for (model in MODEL_FALLBACK_CHAIN) {
+                try {
+                    val payload = buildRequestPayload(base64Image, disableThinking = model.startsWith("gemini-2.5"))
+                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent?key=$cleanKey"
+                    val request = Request.Builder()
+                        .url(url)
+                        .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                        .build()
+
+                    httpClient.newCall(request).execute().use { response ->
+                        val bodyStr = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val apiMsg = extractApiErrorMessage(bodyStr)
+                            lastError = "HTTP ${response.code} ($model): $apiMsg"
+                            // If 404/429/503, try next fallback model; if 400/401/403 key error, stop immediately
+                            if (response.code == 401 || response.code == 403) {
+                                return@withContext GeminiVisionResult.Error(lastError)
+                            }
+                            return@use
+                        }
+                        when (val parsed = parseGeminiResponseJson(bodyStr)) {
+                            is GeminiVisionResult.Success -> {
+                                return@withContext parsed.copy(modelUsed = model)
+                            }
+                            is GeminiVisionResult.Error -> {
+                                lastError = "$model: ${parsed.reason}"
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    lastError = "$model ${e::class.simpleName}: ${e.message}"
+                }
+            }
+            GeminiVisionResult.Error(lastError)
         }
 
     fun parseGeminiResponseJson(responseBody: String): GeminiVisionResult {
@@ -87,11 +161,21 @@ class GeminiVisionProductClient(
             val firstCandidate = candidates?.firstOrNull()?.jsonObject
                 ?: return GeminiVisionResult.Error("EMPTY_CANDIDATES")
             val parts = firstCandidate["content"]?.jsonObject?.get("parts")?.jsonArray
-            val rawText = parts?.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull
+                ?: return GeminiVisionResult.Error("EMPTY_PARTS")
+
+            // Skip any thinking parts (gemini-2.5) and extract the actual JSON text part
+            val rawText = parts
+                .mapNotNull { it.jsonObject }
+                .firstOrNull { part ->
+                    part["thought"]?.jsonPrimitive?.booleanOrNull != true &&
+                        !part["text"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()
+                }
+                ?.get("text")?.jsonPrimitive?.contentOrNull
                 ?.trim()
+                ?: parts.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.contentOrNull?.trim()
                 ?: return GeminiVisionResult.Error("EMPTY_TEXT")
 
-            val cleanedJson = stripCodeFences(rawText)
+            val cleanedJson = extractJsonObject(stripCodeFences(rawText))
             val dto = json.decodeFromString<GeminiProductDto>(cleanedJson)
             val name = dto.name.trim()
             if (name.isEmpty()) {
@@ -108,11 +192,20 @@ class GeminiVisionProductClient(
                 )
             )
         } catch (e: Exception) {
-            GeminiVisionResult.Error("PARSE_ERROR:${e.message}")
+            GeminiVisionResult.Error("PARSE_ERROR: ${e.message}")
         }
     }
 
-    private fun buildRequestPayload(base64Image: String): String {
+    private fun extractApiErrorMessage(body: String): String {
+        if (body.isBlank()) return "Empty error response"
+        return runCatching {
+            val root = json.parseToJsonElement(body).jsonObject
+            root["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
+                ?.take(140)
+        }.getOrNull() ?: body.take(140)
+    }
+
+    private fun buildRequestPayload(base64Image: String, disableThinking: Boolean): String {
         val body = buildJsonObject {
             put("contents", buildJsonArray {
                 add(buildJsonObject {
@@ -121,8 +214,8 @@ class GeminiVisionProductClient(
                             put("text", JsonPrimitive(SYSTEM_PROMPT))
                         })
                         add(buildJsonObject {
-                            put("inline_data", buildJsonObject {
-                                put("mime_type", JsonPrimitive("image/jpeg"))
+                            put("inlineData", buildJsonObject {
+                                put("mimeType", JsonPrimitive("image/jpeg"))
                                 put("data", JsonPrimitive(base64Image))
                             })
                         })
@@ -132,6 +225,11 @@ class GeminiVisionProductClient(
             put("generationConfig", buildJsonObject {
                 put("responseMimeType", JsonPrimitive("application/json"))
                 put("temperature", JsonPrimitive(0.1))
+                if (disableThinking) {
+                    put("thinkingConfig", buildJsonObject {
+                        put("thinkingBudget", JsonPrimitive(0))
+                    })
+                }
             })
         }
         return body.toString()
@@ -169,12 +267,16 @@ class GeminiVisionProductClient(
 
     companion object {
         const val DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
-        const val MODEL_ID = "gemini-2.5-flash"
+        val MODEL_FALLBACK_CHAIN = listOf(
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite"
+        )
 
         private const val SYSTEM_PROMPT =
             "Identify the skincare, haircare, or pharmacy/prescription topical product in this photo. " +
-                "Return ONLY valid JSON with keys: " +
-                "\"name\" (exact product name, empty string if no product visible), " +
+                "Return ONLY a single JSON object with keys: " +
+                "\"name\" (exact product name without promotional tags like NEW, empty string if no product visible), " +
                 "\"brand\" (brand/manufacturer), " +
                 "\"category\" (one of: OTHER, RX_TREATMENT, SHAMPOO), " +
                 "\"routineSlot\" (one of: MORNING, EVENING, BOTH, HAIR, NONE), " +
@@ -188,6 +290,12 @@ class GeminiVisionProductClient(
                 .removePrefix("```")
                 .removeSuffix("```")
                 .trim()
+        }
+
+        private fun extractJsonObject(raw: String): String {
+            val start = raw.indexOf('{')
+            val end = raw.lastIndexOf('}')
+            return if (start >= 0 && end > start) raw.substring(start, end + 1) else raw
         }
 
         private fun normalizeCategory(raw: String): String = when (raw.trim().uppercase()) {

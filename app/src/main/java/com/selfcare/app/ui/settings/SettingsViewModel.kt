@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.data.remote.GeminiKeyTestResult
+import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BackupRepository
 import com.selfcare.app.data.repository.ImportSummary
 import com.selfcare.app.notifications.ReminderScheduler
@@ -29,27 +31,36 @@ sealed interface BackupStatus {
 data class SettingsUiState(
     val settings: UserSettings = UserSettings(),
     val backupStatus: BackupStatus = BackupStatus.Idle,
-    val isBusy: Boolean = false
+    val isBusy: Boolean = false,
+    val isTestingGeminiKey: Boolean = false,
+    val geminiTestResult: GeminiKeyTestResult? = null
 )
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
     private val backupRepository: BackupRepository,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val productVisionClient: ProductVisionClient? = null
 ) : ViewModel() {
 
     private val backupStatus = MutableStateFlow<BackupStatus>(BackupStatus.Idle)
     private val isBusy = MutableStateFlow(false)
+    private val isTestingGeminiKey = MutableStateFlow(false)
+    private val geminiTestResult = MutableStateFlow<GeminiKeyTestResult?>(null)
 
     val uiState: StateFlow<SettingsUiState> = combine(
         settingsRepository.settings,
         backupStatus,
-        isBusy
-    ) { settings, status, busy ->
+        isBusy,
+        isTestingGeminiKey,
+        geminiTestResult
+    ) { settings, status, busy, testingKey, keyResult ->
         SettingsUiState(
             settings = settings,
             backupStatus = status,
-            isBusy = busy
+            isBusy = busy,
+            isTestingGeminiKey = testingKey,
+            geminiTestResult = keyResult
         )
     }.stateIn(
         scope = viewModelScope,
@@ -84,6 +95,18 @@ class SettingsViewModel(
     fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
             settingsRepository.setGeminiApiKey(apiKey)
+            geminiTestResult.value = null
+        }
+    }
+
+    fun testGeminiApiKey(apiKey: String) {
+        val client = productVisionClient ?: return
+        viewModelScope.launch {
+            isTestingGeminiKey.value = true
+            geminiTestResult.value = null
+            settingsRepository.setGeminiApiKey(apiKey)
+            geminiTestResult.value = client.testApiKey(apiKey)
+            isTestingGeminiKey.value = false
         }
     }
 
@@ -200,14 +223,16 @@ class SettingsViewModel(
         fun factory(
             settingsRepository: SettingsRepository,
             backupRepository: BackupRepository,
-            reminderScheduler: ReminderScheduler
+            reminderScheduler: ReminderScheduler,
+            productVisionClient: ProductVisionClient? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return SettingsViewModel(
                     settingsRepository = settingsRepository,
                     backupRepository = backupRepository,
-                    reminderScheduler = reminderScheduler
+                    reminderScheduler = reminderScheduler,
+                    productVisionClient = productVisionClient
                 ) as T
             }
         }

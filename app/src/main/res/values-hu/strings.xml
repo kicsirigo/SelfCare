@@ -272,4 +272,8 @@
     <string name="shelf_scan_your_photo">A fotód</string>
     <string name="shelf_scan_matched_photo">Talált termékfotó</string>
     <string name="shelf_scan_no_ref_photo">Nincs katalóguskép</string>
+    <string name="shelf_gemini_fallback_error">Gemini AI hiba (Offline OCR futott helyette): %1$s</string>
+    <string name="settings_gemini_test_btn">Kulcs teszt</string>
+    <string name="settings_gemini_test_ok">Sikeres kapcsolat (%1$s)</string>
+    <string name="settings_gemini_test_fail">API kulcs hiba: %1$s</string>
 </resources>

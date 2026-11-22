@@ -68,7 +68,8 @@ data class PendingScanConfirmation(
     val ingredientsText: String,
     val parsedMatches: List<InciMatch>,
     val capturedPhoto: Bitmap? = null,
-    val referencePhoto: Bitmap? = null
+    val referencePhoto: Bitmap? = null,
+    val geminiErrorDetail: String? = null
 )
 
 data class ShelfUiState(
@@ -87,7 +88,8 @@ data class ShelfUiState(
     val isLiveScannerOpen: Boolean = false,
     val liveProductDetected: Boolean = false,
     val isGeminiVisionConfigured: Boolean = false,
-    val pendingScanConfirmation: PendingScanConfirmation? = null
+    val pendingScanConfirmation: PendingScanConfirmation? = null,
+    val geminiErrorBanner: String? = null
 )
 
 class ShelfViewModel(
@@ -182,7 +184,8 @@ class ShelfViewModel(
             isLiveScannerOpen = lookup.isLiveScannerOpen,
             liveProductDetected = lookup.liveProductDetected,
             isGeminiVisionConfigured = geminiConfigured,
-            pendingScanConfirmation = lookup.pendingScanConfirmation
+            pendingScanConfirmation = lookup.pendingScanConfirmation,
+            geminiErrorBanner = lookup.geminiErrorBanner
         )
     }.stateIn(
         scope = viewModelScope,
@@ -381,6 +384,7 @@ class ShelfViewModel(
             }
 
             // Option 1 (Primary): If Gemini API key is configured in Settings, identify the product directly from the photo
+            var geminiFailureReason: String? = null
             val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey.orEmpty().trim()
             if (apiKey.isNotEmpty() && productVisionClient != null) {
                 when (val visionResult = productVisionClient.identifyProduct(bitmap, apiKey)) {
@@ -394,6 +398,7 @@ class ShelfViewModel(
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
+                                geminiErrorBanner = null,
                                 pendingScanConfirmation = PendingScanConfirmation(
                                     source = "GEMINI_VISION",
                                     name = info.name,
@@ -410,7 +415,8 @@ class ShelfViewModel(
                         return@launch
                     }
                     is GeminiVisionResult.Error -> {
-                        // Fall through cleanly to Option 3 (100% on-device OCR + presets/OBF)
+                        geminiFailureReason = visionResult.reason
+                        lookupStateFlow.update { it.copy(geminiErrorBanner = visionResult.reason) }
                     }
                 }
             }
@@ -419,7 +425,11 @@ class ShelfViewModel(
             val recognized = ocrScanner.recognizeText(bitmap).trim()
             if (recognized.isEmpty()) {
                 lookupStateFlow.update {
-                    it.copy(isLookingUp = false, offlineFallbackMessage = "SMART_SCAN_EMPTY")
+                    it.copy(
+                        isLookingUp = false,
+                        offlineFallbackMessage = "SMART_SCAN_EMPTY",
+                        geminiErrorBanner = geminiFailureReason
+                    )
                 }
                 return@launch
             }
@@ -452,7 +462,8 @@ class ShelfViewModel(
                                 isLookingUp = false,
                                 remoteResults = result.products,
                                 presetMatches = presetHits,
-                                offlineFallbackMessage = null
+                                offlineFallbackMessage = null,
+                                geminiErrorBanner = geminiFailureReason
                             )
                         }
                     } else {
@@ -468,7 +479,8 @@ class ShelfViewModel(
                                     routineSlot = InciConflictDetector.SLOT_NONE,
                                     ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
                                     parsedMatches = inciMatches,
-                                    capturedPhoto = preview
+                                    capturedPhoto = preview,
+                                    geminiErrorDetail = geminiFailureReason
                                 )
                             )
                         }
@@ -480,7 +492,8 @@ class ShelfViewModel(
                             it.copy(
                                 isLookingUp = false,
                                 presetMatches = presetHits,
-                                offlineFallbackMessage = null
+                                offlineFallbackMessage = null,
+                                geminiErrorBanner = geminiFailureReason
                             )
                         }
                     } else {
@@ -496,7 +509,8 @@ class ShelfViewModel(
                                     routineSlot = InciConflictDetector.SLOT_NONE,
                                     ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
                                     parsedMatches = inciMatches,
-                                    capturedPhoto = preview
+                                    capturedPhoto = preview,
+                                    geminiErrorDetail = geminiFailureReason
                                 )
                             )
                         }
@@ -653,7 +667,7 @@ class ShelfViewModel(
     }
 
     fun dismissOfflineFallback() {
-        lookupStateFlow.update { it.copy(offlineFallbackMessage = null) }
+        lookupStateFlow.update { it.copy(offlineFallbackMessage = null, geminiErrorBanner = null) }
     }
 
     fun openNewProductEditor(
@@ -765,7 +779,8 @@ class ShelfViewModel(
         val presetMatches: List<PresetProduct> = emptyList(),
         val isLiveScannerOpen: Boolean = false,
         val liveProductDetected: Boolean = false,
-        val pendingScanConfirmation: PendingScanConfirmation? = null
+        val pendingScanConfirmation: PendingScanConfirmation? = null,
+        val geminiErrorBanner: String? = null
     )
 
     companion object {
