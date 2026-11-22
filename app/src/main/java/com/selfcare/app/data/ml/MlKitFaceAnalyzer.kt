@@ -131,13 +131,14 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
             lipRoi = rois.lip
         )
 
-        val hairToFaceRatio = maskResult.getOrNull()?.let { mask ->
+        val hairDetails = maskResult.getOrNull()?.let { mask ->
             val buffer = mask.buffer
             buffer.rewind()
             val floatBuffer = buffer.asFloatBuffer()
             val maskValues = FloatArray(mask.width * mask.height)
             floatBuffer.get(maskValues)
-            FaceMetricCalculator.computeHairToFaceRatio(
+            FaceMetricCalculator.computeDetailedHairMetrics(
+                pixels = pixels,
                 foregroundMask = maskValues,
                 maskWidth = mask.width,
                 maskHeight = mask.height,
@@ -145,7 +146,7 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
                 imageHeight = height,
                 faceBox = facePixelRect
             )
-        } ?: 0f
+        }
 
         val warningReason = lightingAssessment.warningReason
             .takeIf { it != LightingWarningReason.OK }
@@ -156,10 +157,14 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
             skinRednessIndex = skinRednessIndex,
             skinTextureVariance = skinTextureVariance,
             lipDrynessScore = lipDrynessScore,
-            hairToFaceRatio = hairToFaceRatio,
+            hairToFaceRatio = hairDetails?.hairToFaceRatio ?: 0f,
             lightingQualityScore = lightingAssessment.lightingQualityScore,
             isLightingAcceptable = lightingAssessment.isAcceptable,
-            lightingWarningReason = warningReason
+            lightingWarningReason = warningReason,
+            hairCrownVolumeScore = hairDetails?.crownVolumeScore ?: 0f,
+            hairShineScore = hairDetails?.shineSmoothnessScore ?: 0f,
+            hairForeheadCoverage = hairDetails?.foreheadCoverageRatio ?: 0f,
+            hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f
         )
     }
 

@@ -48,8 +48,10 @@ class RoutineViewModel(
             product.isDefaultInRoutine && when (product.routineSlot.uppercase()) {
                 RoutineRepository.PERIOD_MORNING -> period == RoutineRepository.PERIOD_MORNING
                 RoutineRepository.PERIOD_EVENING -> period == RoutineRepository.PERIOD_EVENING
-                RoutineRepository.SLOT_BOTH -> true
-                else -> false
+                RoutineRepository.SLOT_BOTH ->
+                    period == RoutineRepository.PERIOD_MORNING || period == RoutineRepository.PERIOD_EVENING
+                RoutineRepository.PERIOD_HAIR -> period == RoutineRepository.PERIOD_HAIR
+                else -> period == RoutineRepository.PERIOD_HAIR && RoutineRepository.isHairCategory(product.category)
             }
         }
         val currentLog = logs.firstOrNull { it.period == period }

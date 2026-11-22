@@ -154,7 +154,7 @@
     {
       "id": "azelaic_acid",
       "canonicalName": "Azelaic Acid",
-      "synonyms": ["Nonanedioic Acid"],
+      "synonyms": ["Nonanedioic Acid", "Skinoren", "Finacea"],
       "category": "AHA",
       "effectSummary": "Dicarboxylic acid that calms redness, targets blemish-causing bacteria, and fades post-inflammatory hyperpigmentation.",
       "cautionLevel": "ACTIVE",
@@ -560,6 +560,136 @@
       "cautionLevel": "CAUTION",
       "comedogenicRating": 0,
       "irritancyRating": 4
+    },
+    {
+      "id": "erythromycin",
+      "canonicalName": "Erythromycin",
+      "synonyms": ["Erythromycin Cyclocarbonate", "Davercin", "Zineryt", "Aknemycin"],
+      "category": "ANTIBIOTIC_RX",
+      "effectSummary": "Topical macrolide antibiotic used in prescription acne treatments (such as Davercin) to target inflammatory blemishes.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "clindamycin",
+      "canonicalName": "Clindamycin",
+      "synonyms": ["Clindamycin Phosphate", "Dalacin T", "Duac"],
+      "category": "ANTIBIOTIC_RX",
+      "effectSummary": "Prescription topical antibiotic that suppresses acne-causing bacteria and inflammation.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "ivermectin",
+      "canonicalName": "Ivermectin",
+      "synonyms": ["Soolantra"],
+      "category": "SOOTHING",
+      "effectSummary": "Prescription anti-inflammatory antiparasitic active targeting rosacea redness and papules.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "metronidazole",
+      "canonicalName": "Metronidazole",
+      "synonyms": ["Rozex"],
+      "category": "SOOTHING",
+      "effectSummary": "Prescription topical gel/cream active used to reduce rosacea erythema and flare-ups.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "ketoconazole",
+      "canonicalName": "Ketoconazole",
+      "synonyms": ["Nizoral"],
+      "category": "SCALP_ACTIVE",
+      "effectSummary": "Antifungal scalp active that targets dandruff, seborrheic flaking, and scalp irritation.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "caffeine",
+      "canonicalName": "Caffeine",
+      "synonyms": ["Alpecin", "Methyltheobromine"],
+      "category": "SCALP_ACTIVE",
+      "effectSummary": "Energizing scalp stimulant used in shampoos and tonics to support hair root vitality.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "minoxidil",
+      "canonicalName": "Minoxidil",
+      "synonyms": ["Regaine", "Carexidil"],
+      "category": "SCALP_ACTIVE",
+      "effectSummary": "Topical vasodilator scalp solution supporting hair follicle growth phase.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "rosemary_oil",
+      "canonicalName": "Rosmarinus Officinalis Leaf Oil",
+      "synonyms": ["Rosemary Oil", "Rozmaring olaj"],
+      "category": "SCALP_ACTIVE",
+      "effectSummary": "Botanical scalp oil used to stimulate microcirculation and support healthy hair density.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 1,
+      "irritancyRating": 1
+    },
+    {
+      "id": "biotin",
+      "canonicalName": "Biotin",
+      "synonyms": ["Vitamin B7"],
+      "category": "HYDRATOR",
+      "effectSummary": "Water-soluble B vitamin supporting keratin infrastructure in hair strands.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "hydrolyzed_keratin",
+      "canonicalName": "Hydrolyzed Keratin",
+      "synonyms": ["Keratin"],
+      "category": "OCCLUSIVE",
+      "effectSummary": "Structural hair protein fragments that smooth cuticles and reduce breakage.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "argan_oil",
+      "canonicalName": "Argania Spinosa Kernel Oil",
+      "synonyms": ["Argan Oil", "Argan olaj"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Lightweight fatty-acid rich hair oil that boosts shine and softens dry hair ends.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "selenium_sulfide",
+      "canonicalName": "Selenium Sulfide",
+      "synonyms": ["Dercos"],
+      "category": "SCALP_ACTIVE",
+      "effectSummary": "Targeted anti-dandruff scalp active that slows excessive flaking and scalp oiliness.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "zinc_pca",
+      "canonicalName": "Zinc PCA",
+      "synonyms": ["Zinc Acetate"],
+      "category": "SOOTHING",
+      "effectSummary": "Sebum-balancing zinc salt pairing well with topical acne treatments and scalp serums.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
     }
   ],
   "conflicts": [
@@ -572,6 +702,16 @@
       "severity": "HIGH",
       "title": "Retinoid + Exfoliating Acid",
       "recommendation": "Use on alternating evenings or separate AM/PM routines to avoid barrier irritation."
+    },
+    {
+      "id": "rx_antibiotic_strong_acid",
+      "categoriesA": ["ANTIBIOTIC_RX"],
+      "categoriesB": ["AHA", "BHA", "RETINOID"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": [],
+      "severity": "MODERATE",
+      "title": "Prescription Antibiotic + Strong Acid/Retinoid",
+      "recommendation": "Separate topical prescription gels (e.g. Davercin) from strong acids or retinoids by using AM vs PM or buffering with moisturizer."
     },
     {
       "id": "benzoyl_peroxide_vitamin_c",

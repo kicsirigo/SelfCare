@@ -36,8 +36,9 @@ class RoutineRepository(
             when (product.routineSlot.uppercase()) {
                 PERIOD_MORNING -> normalized == PERIOD_MORNING
                 PERIOD_EVENING -> normalized == PERIOD_EVENING
-                SLOT_BOTH -> true
-                else -> product.isDefaultInRoutine
+                SLOT_BOTH -> normalized == PERIOD_MORNING || normalized == PERIOD_EVENING
+                PERIOD_HAIR -> normalized == PERIOD_HAIR
+                else -> normalized == PERIOD_HAIR && isHairCategory(product.category)
             }
         }
     }
@@ -162,13 +163,22 @@ class RoutineRepository(
     private fun normalizePeriod(period: String): String = when (period.trim().uppercase()) {
         PERIOD_MORNING -> PERIOD_MORNING
         PERIOD_EVENING -> PERIOD_EVENING
+        PERIOD_HAIR -> PERIOD_HAIR
         else -> throw IllegalArgumentException("Unsupported routine period: $period")
     }
 
     companion object {
         const val PERIOD_MORNING = "MORNING"
         const val PERIOD_EVENING = "EVENING"
+        const val PERIOD_HAIR = "HAIR"
         const val SLOT_BOTH = "BOTH"
         const val SLOT_NONE = "NONE"
+
+        private val HAIR_CATEGORIES = setOf(
+            "SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR"
+        )
+
+        fun isHairCategory(category: String): Boolean =
+            category.trim().uppercase() in HAIR_CATEGORIES
     }
 }

@@ -92,7 +92,7 @@ private val AmoledColorScheme = darkColorScheme(
 
 @Composable
 fun SelfCareTheme(
-    themeMode: ThemeMode = ThemeMode.DARK,
+    themeMode: ThemeMode = ThemeMode.AMOLED,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (themeMode) {

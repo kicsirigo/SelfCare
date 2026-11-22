@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v1.0.1-10B981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.1)
+[![Version](https://img.shields.io/badge/Release-v1.1.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.1.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-46%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-50%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -26,9 +26,9 @@
 
 <div align="center">
 
-| Daily Routine *(Dark)* | Product Shelf & INCI *(Dark)* | Face Check-In *(AMOLED)* | Personal Trends *(Light)* |
+| Daily Routine *(AMOLED Neon)* | Shelf & Rx/Hair *(AMOLED Neon)* | Face & Hair Scan *(AMOLED Neon)* | Personal Trends *(AMOLED Neon)* |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_daily_routine_dark.png" alt="Daily Routine - Dark" width="210" /> | <img src="docs/screenshots/02_product_shelf_inci.png" alt="Product Shelf & INCI - Dark" width="210" /> | <img src="docs/screenshots/03_face_checkin_amoled.png" alt="Face Check-In - AMOLED" width="210" /> | <img src="docs/screenshots/04_personal_trends_light.png" alt="Personal Trends - Light" width="210" /> |
+| <img src="docs/screenshots/01_daily_routine_dark.png" alt="Daily Routine - AMOLED Neon" width="210" /> | <img src="docs/screenshots/02_product_shelf_inci.png" alt="Product Shelf & INCI - AMOLED Neon" width="210" /> | <img src="docs/screenshots/03_face_checkin_amoled.png" alt="Face Check-In - AMOLED Neon" width="210" /> | <img src="docs/screenshots/04_personal_trends_light.png" alt="Personal Trends - AMOLED Neon" width="210" /> |
 
 </div>
 
@@ -37,29 +37,31 @@
 ## Key Features
 
 ### Daily Routine & Hygiene Tracker
-- **1-Tap Morning & Evening Routine Completion** — Configure your default Morning, Evening, or Both-slot products and log an entire routine in a single tap, with per-product skip/override toggles and duplicate-log prevention.
+- **1-Tap Morning, Evening & Hair Care Routine Completion** — Configure your default Morning, Evening, Both, or Hair Care products and log an entire routine in a single tap, with per-product skip/override toggles and duplicate-log prevention.
 - **Quick Daily Hygiene Logging** — Track Shower/Bath, Morning & Evening Teeth Brushing, Lip Balm, and custom habits with automatic midnight date rollover.
 - **Local Routine Reminders** — Optional on-device notifications scheduled via `AlarmManager` / `BroadcastReceiver` (gracefully handled when notification permission is not granted).
 - **Portable SAF JSON Backup** — Export and import all 5 Room tables (`routine_logs`, `products`, `face_check_ins`, `hygiene_logs`, `haircut_baselines`) and app preferences via Android's Storage Access Framework (`kotlinx.serialization.json`).
 
-### Product Shelf & Offline INCI Conflict Engine
-- **Bundled 56-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, occlusives, peptides, irritants, and **6 active conflict rules** (e.g., *Retinoid + Exfoliating Acid*, *Benzoyl Peroxide + Vitamin C*, *Retinoid + Benzoyl Peroxide*).
+### Product Shelf, Rx/Hair Presets & Offline INCI Conflict Engine
+- **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, occlusives, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`, `Selenium Sulfide`), and **7 active conflict rules** (including *Prescription Antibiotic + Strong Acid/Retinoid*).
+- **Offline Prescription (`Rx`) & Hair/Scalp Preset Catalog (`PresetProductCatalog`)** — One-tap quick-add and offline search for barcode-less prescription treatments (**Davercin**, **Skinoren 20%/15%**, **Epiduo**, **Differin**, **Duac**, **Zineryt**, **Soolantra**, **Rozex**) and hair care (**Nizoral 2%**, **Alpecin C1**, **Vichy Dercos**, **Rosemary Scalp Serum**, **Minoxidil 5%**, **Keratin Mask**, **Argan Hair Oil**).
 - **Anonymous Read-Only Open Beauty Facts Lookup** — Optional barcode and product-name search using the URL configured via `.env` / `BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`, cached locally in Room with zero user/device identifiers.
 - **100% Offline ML Kit Barcode & OCR Fallbacks** — Bundled `MlKitBarcodeScanner` and `MlKitOcrScanner` parse noisy label text directly on-device, alongside manual add/edit.
 
 ### 100% Offline CameraX + Bundled ML Kit Face & Hair Check-In
-- **Guided CameraX Capture & Real-Time Lighting Check** — Evaluates frame luminance, clipping, and left/right illumination asymmetry (`LightingQualityChecker`) before capture and warns if lighting is `TOO_DARK`, `UNEVEN`, or `TOO_BRIGHT`.
+- **Guided CameraX Capture & Animated Lighting Check** — Pulsing neon scanner guide with real-time frame luminance, clipping, and left/right illumination asymmetry (`LightingQualityChecker`) before capture.
 - **Real On-Device Computer Vision Math (`FaceMetricCalculator` + `MlKitFaceAnalyzer`)**:
   - **Under-Eye Dark Circles:** sRGB-to-CIELAB conversion and $\Delta E / \Delta L^*$ delta between under-eye ROIs and cheek baselines.
   - **Skin Health:** Erythema/redness index and local spatial texture variance across cheek and forehead ROIs.
   - **Lip Dryness:** Lip ROI color uniformity and gradient/edge roughness.
-  - **Hair Growth & Haircut Reminder (`HaircutTracker`):** Foreground/hair segmentation ratio relative to face height compared against an active haircut baseline, with **"Just had a haircut"** baseline reset and configurable growth reminder threshold (`5%–60%`).
+  - **Multi-Zone Hair & Scalp Health (`HairDetailedMetrics` + `HaircutTracker`):** Evaluates **Crown Volume & Density %**, **Hair Shine & Smoothness %**, **Hairline & Temple Symmetry %**, plus **Growth Since Haircut** with **"Just had a haircut"** baseline reset.
+- **Human-Readable Qualitative Gauges (`MetricInterpreter`)** — Translates raw scores into clear status pills (`Optimal`, `Good`, `Moderate`, `High`), animated progress bars, and everyday explanations alongside personal rolling baselines.
 - **Private Check-In Photo Storage** — Photos are saved exclusively inside app-private `filesDir/checkins` (with `.nomedia`), hidden from the device gallery, and can be automatically deleted immediately after numeric metrics are extracted.
 
-### Personal Rolling Trends & Handcrafted UI
-- **Personal Baseline Trends (Never Medical Diagnoses)** — Displays under-eye, redness, texture, lip dryness, and hair growth metrics relative to your own rolling **7-day and 30-day personal baseline**, alongside routine/hygiene adherence correlation.
-- **Zero-Emoji Monochrome Iconography & 3 Themes** — Unified 24dp monochrome vector paths centralized in `AppIcons.kt` across **Light**, **Dark**, and **AMOLED Black** Material 3 themes.
-- **Bilingual Localization (`EN` / `HU`)** — Full English and Hungarian string parity with in-app **Auto / English / Magyar** switching.
+### Personal Rolling Trends, AMOLED Neon UI & Smooth Animations
+- **Personal Baseline Trends (Never Medical Diagnoses)** — Displays under-eye, redness, texture, lip dryness, and multi-zone hair metrics relative to your own rolling **7-day and 30-day personal baseline**, alongside routine/hygiene adherence correlation.
+- **AMOLED Pure Black + Cyber Neon Green Default Theme** — Pure `#000000` AMOLED backdrop with `#00FF66` neon green accents (plus Dark & Light modes), unified 24dp monochrome icons in `AppIcons.kt`, and 120Hz `AnimatedContent` / `animateFloatAsState` transitions.
+- **Bilingual Localization (`EN` / `HU`)** — Full English and Hungarian string parity (`196/196` keys) with flicker-free in-app **Auto / English / Magyar** switching.
 
 ---
 
@@ -74,7 +76,7 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.1) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.1.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
 
 - **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
 - **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.
@@ -146,7 +148,7 @@ cp .env.example .env
 # Compile debug Kotlin sources
 ./gradlew compileDebugKotlin
 
-# Run all 46 unit & Robolectric E2E tests
+# Run all 50 unit & Robolectric E2E tests
 ./gradlew testDebugUnitTest
 
 # Build Debug APK
@@ -157,16 +159,16 @@ cp .env.example .env
 
 ## Testing
 
-The test suite includes **46 automated tests** across **12 test suites** (`app/src/test/java/com/selfcare/app/`):
-- **Unit Suites (29 tests):**
+The test suite includes **50 automated tests** across **13 test suites** (`app/src/test/java/com/selfcare/app/`):
+- **Unit Suites (33 tests):**
   - `RoutineRepositoryTest` (1-tap completion, skip overrides, midnight rollover, duplicate prevention)
   - `BackupRepositoryTest` (full JSON export/import roundtrip across all 5 Room tables & settings)
-  - `InciEngineTest` & `OpenBeautyFactsTest` (noisy OCR parsing, 56-ingredient matching, active conflict detection, `MockWebServer` anonymous lookups)
-  - `FaceMetricCalculatorTest`, `LightingQualityTest`, `HaircutTrackerTest`, `FaceCheckInRepositoryTest` (CIELAB D65 conversion, redness/texture/lip math, lighting thresholds, baseline reset & private photo auto-delete)
-- **Robolectric + Compose UI E2E Suites (15 tests, injecting deterministic `FaceAnalyzer` / `OcrScanner` / `BarcodeScanner` fakes):**
+  - `InciEngineTest`, `OpenBeautyFactsTest` & `PresetCatalogAndMetricInterpreterTest` (noisy OCR parsing, 69-ingredient matching, active conflict detection, Davercin/Skinoren/Nizoral offline presets, qualitative gauges & multi-zone hair analysis)
+  - `FaceMetricCalculatorTest`, `LightingQualityTest`, `HaircutTrackerTest`, `FaceCheckInRepositoryTest` (CIELAB D65 conversion, redness/texture/lip/hair math, lighting thresholds, baseline reset & private photo auto-delete)
+- **Robolectric + Compose UI E2E Suites (17 tests, injecting deterministic `FaceAnalyzer` / `OcrScanner` / `BarcodeScanner` fakes):**
   - `Tier1FeatureCoverageTest` — Core routine, OBF + OCR + INCI, face check-in, and haircut flows
   - `Tier2BoundaryCornerTest` — Empty states, missing camera permission, poor lighting warning, offline API fallback, midnight rollover, duplicate logs, auto-delete verification
-  - `Tier3PersistenceAndLocalizationTest` — Room 5-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, and EN/HU 153-key parity + zero-emoji verification
+  - `Tier3PersistenceAndLocalizationTest` — Room 5-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, launcher icon & flicker-free locale checks, and EN/HU 196-key parity + zero-emoji verification
   - `Tier4UserJourneyTest` — Full cross-screen skincare -> routine -> hygiene -> check-in -> personal trends journey
 
 ---

@@ -5,10 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.selfcare.app.data.local.entity.ProductEntity
+import com.selfcare.app.data.preset.PresetGroup
+import com.selfcare.app.data.preset.PresetProduct
+import com.selfcare.app.data.preset.PresetProductCatalog
 import com.selfcare.app.data.remote.OpenBeautyFactsProduct
 import com.selfcare.app.data.remote.OpenBeautyFactsSearchResult
 import com.selfcare.app.data.repository.BarcodeLookupOutcome
 import com.selfcare.app.data.repository.ProductRepository
+import com.selfcare.app.data.repository.RoutineRepository
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
@@ -22,6 +26,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ShelfCategoryFilter {
+    ALL,
+    FACE,
+    RX,
+    HAIR
+}
+
 data class ShelfProductItem(
     val entity: ProductEntity,
     val matches: List<InciMatch>
@@ -32,6 +43,7 @@ data class ProductEditorState(
     val name: String = "",
     val brand: String = "",
     val barcode: String = "",
+    val category: String = "OTHER",
     val routineSlot: String = InciConflictDetector.SLOT_NONE,
     val isDefaultInRoutine: Boolean = false,
     val rawIngredientsText: String = "",
@@ -41,6 +53,11 @@ data class ProductEditorState(
 
 data class ShelfUiState(
     val searchQuery: String = "",
+    val categoryFilter: ShelfCategoryFilter = ShelfCategoryFilter.ALL,
+    val selectedPresetGroup: PresetGroup = PresetGroup.RX,
+    val visiblePresets: List<PresetProduct> = PresetProductCatalog.byGroup(PresetGroup.RX),
+    val presetMatchesForSearch: List<PresetProduct> = emptyList(),
+    val addedPresetIds: Set<String> = emptySet(),
     val products: List<ShelfProductItem> = emptyList(),
     val conflicts: List<DetectedConflict> = emptyList(),
     val isLookingUp: Boolean = false,
@@ -56,25 +73,52 @@ class ShelfViewModel(
 ) : ViewModel() {
 
     private val searchQueryFlow = MutableStateFlow("")
+    private val categoryFilterFlow = MutableStateFlow(ShelfCategoryFilter.ALL)
+    private val presetGroupFlow = MutableStateFlow(PresetGroup.RX)
     private val lookupStateFlow = MutableStateFlow(LookupTransientState())
     private val editorFlow = MutableStateFlow<ProductEditorState?>(null)
 
     val uiState: StateFlow<ShelfUiState> = combine(
         productRepository.observeAllProducts(),
         searchQueryFlow,
+        categoryFilterFlow,
+        presetGroupFlow,
         lookupStateFlow,
         editorFlow
-    ) { allProducts, query, lookup, editor ->
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val allProducts = values[0] as List<ProductEntity>
+        val query = values[1] as String
+        val catFilter = values[2] as ShelfCategoryFilter
+        val presetGroup = values[3] as PresetGroup
+        val lookup = values[4] as LookupTransientState
+        val editor = values[5] as ProductEditorState?
+
         val trimmed = query.trim()
-        val filtered = if (trimmed.isEmpty()) {
-            allProducts
-        } else {
-            allProducts.filter { p ->
-                p.name.contains(trimmed, ignoreCase = true) ||
-                    p.brand.contains(trimmed, ignoreCase = true) ||
-                    (p.barcode?.contains(trimmed, ignoreCase = true) == true)
+        val filteredByCategory = allProducts.filter { product ->
+            when (catFilter) {
+                ShelfCategoryFilter.ALL -> true
+                ShelfCategoryFilter.RX -> product.category.equals("RX_TREATMENT", ignoreCase = true)
+                ShelfCategoryFilter.HAIR ->
+                    product.routineSlot.equals(InciConflictDetector.SLOT_HAIR, ignoreCase = true) ||
+                        RoutineRepository.isHairCategory(product.category)
+                ShelfCategoryFilter.FACE ->
+                    !product.category.equals("RX_TREATMENT", ignoreCase = true) &&
+                        !product.routineSlot.equals(InciConflictDetector.SLOT_HAIR, ignoreCase = true) &&
+                        !RoutineRepository.isHairCategory(product.category)
             }
         }
+        val filtered = if (trimmed.isEmpty()) {
+            filteredByCategory
+        } else {
+            filteredByCategory.filter { p ->
+                p.name.contains(trimmed, ignoreCase = true) ||
+                    p.brand.contains(trimmed, ignoreCase = true) ||
+                    (p.barcode?.contains(trimmed, ignoreCase = true) == true) ||
+                    p.rawIngredientsText.contains(trimmed, ignoreCase = true)
+            }
+        }
+
         val items = filtered.map { entity ->
             ShelfProductItem(
                 entity = entity,
@@ -82,8 +126,20 @@ class ShelfViewModel(
             )
         }
         val conflicts = productRepository.computeShelfConflicts(allProducts)
+
+        val existingNames = allProducts.map { it.name.lowercase() }.toSet()
+        val addedPresetIds = PresetProductCatalog.allPresets
+            .filter { it.name.lowercase() in existingNames }
+            .map { it.id }
+            .toSet()
+
         ShelfUiState(
             searchQuery = query,
+            categoryFilter = catFilter,
+            selectedPresetGroup = presetGroup,
+            visiblePresets = PresetProductCatalog.byGroup(presetGroup),
+            presetMatchesForSearch = lookup.presetMatches,
+            addedPresetIds = addedPresetIds,
             products = items,
             conflicts = conflicts,
             isLookingUp = lookup.isLookingUp,
@@ -101,6 +157,35 @@ class ShelfViewModel(
         searchQueryFlow.value = query
     }
 
+    fun selectCategoryFilter(filter: ShelfCategoryFilter) {
+        categoryFilterFlow.value = filter
+    }
+
+    fun selectPresetGroup(group: PresetGroup) {
+        presetGroupFlow.value = group
+    }
+
+    fun addPresetProduct(preset: PresetProduct, autoAssignToRoutine: Boolean = true) {
+        viewModelScope.launch {
+            productRepository.saveProduct(
+                name = preset.name,
+                brand = preset.brand,
+                barcode = null,
+                category = preset.category,
+                routineSlot = preset.defaultSlot,
+                isDefaultInRoutine = autoAssignToRoutine && preset.defaultSlot != InciConflictDetector.SLOT_NONE,
+                rawIngredientsText = preset.ingredientsText,
+                source = "PRESET_${preset.group.name}"
+            )
+            lookupStateFlow.update {
+                it.copy(
+                    presetMatches = emptyList(),
+                    offlineFallbackMessage = null
+                )
+            }
+        }
+    }
+
     fun performLookup() {
         val query = searchQueryFlow.value.trim()
         if (query.isEmpty()) return
@@ -108,7 +193,7 @@ class ShelfViewModel(
         if (query.all { it.isDigit() } && query.length >= 4) {
             lookupBarcode(query)
         } else {
-            searchRemoteByName(query)
+            searchRemoteAndPresetsByName(query)
         }
     }
 
@@ -118,7 +203,12 @@ class ShelfViewModel(
 
         viewModelScope.launch {
             lookupStateFlow.update {
-                it.copy(isLookingUp = true, offlineFallbackMessage = null, remoteResults = emptyList())
+                it.copy(
+                    isLookingUp = true,
+                    offlineFallbackMessage = null,
+                    remoteResults = emptyList(),
+                    presetMatches = emptyList()
+                )
             }
             when (val outcome = productRepository.lookupByBarcode(clean)) {
                 is BarcodeLookupOutcome.LocalFound -> {
@@ -156,10 +246,16 @@ class ShelfViewModel(
         }
     }
 
-    private fun searchRemoteByName(query: String) {
+    private fun searchRemoteAndPresetsByName(query: String) {
+        val localPresetHits = PresetProductCatalog.search(query)
         viewModelScope.launch {
             lookupStateFlow.update {
-                it.copy(isLookingUp = true, offlineFallbackMessage = null, remoteResults = emptyList())
+                it.copy(
+                    isLookingUp = true,
+                    offlineFallbackMessage = null,
+                    remoteResults = emptyList(),
+                    presetMatches = localPresetHits
+                )
             }
             when (val result = productRepository.searchRemoteByName(query)) {
                 is OpenBeautyFactsSearchResult.Success -> {
@@ -167,7 +263,10 @@ class ShelfViewModel(
                         it.copy(
                             isLookingUp = false,
                             remoteResults = result.products,
-                            offlineFallbackMessage = if (result.products.isEmpty()) "NOT_FOUND:$query" else null
+                            presetMatches = localPresetHits,
+                            offlineFallbackMessage = if (result.products.isEmpty() && localPresetHits.isEmpty()) {
+                                "NOT_FOUND:$query"
+                            } else null
                         )
                     }
                 }
@@ -175,7 +274,10 @@ class ShelfViewModel(
                     lookupStateFlow.update {
                         it.copy(
                             isLookingUp = false,
-                            offlineFallbackMessage = result.reason.ifBlank { "OFFLINE" }
+                            presetMatches = localPresetHits,
+                            offlineFallbackMessage = if (localPresetHits.isEmpty()) {
+                                result.reason.ifBlank { "OFFLINE" }
+                            } else null
                         )
                     }
                 }
@@ -237,7 +339,9 @@ class ShelfViewModel(
             parsedMatches = matches,
             source = "OPEN_BEAUTY_FACTS"
         )
-        lookupStateFlow.update { it.copy(remoteResults = emptyList(), offlineFallbackMessage = null) }
+        lookupStateFlow.update {
+            it.copy(remoteResults = emptyList(), presetMatches = emptyList(), offlineFallbackMessage = null)
+        }
     }
 
     fun dismissOfflineFallback() {
@@ -263,6 +367,7 @@ class ShelfViewModel(
             name = product.name,
             brand = product.brand,
             barcode = product.barcode.orEmpty(),
+            category = product.category,
             routineSlot = product.routineSlot,
             isDefaultInRoutine = product.isDefaultInRoutine,
             rawIngredientsText = product.rawIngredientsText,
@@ -285,6 +390,22 @@ class ShelfViewModel(
 
     fun updateEditorBarcode(value: String) {
         editorFlow.update { it?.copy(barcode = value) }
+    }
+
+    fun updateEditorCategory(category: String) {
+        editorFlow.update { current ->
+            if (current == null) null
+            else {
+                val suggestedSlot = if (RoutineRepository.isHairCategory(category) &&
+                    current.routineSlot == InciConflictDetector.SLOT_NONE
+                ) {
+                    InciConflictDetector.SLOT_HAIR
+                } else {
+                    current.routineSlot
+                }
+                current.copy(category = category, routineSlot = suggestedSlot)
+            }
+        }
     }
 
     fun updateEditorIngredients(value: String) {
@@ -310,13 +431,16 @@ class ShelfViewModel(
                 name = current.name,
                 brand = current.brand,
                 barcode = current.barcode.takeIf { it.isNotBlank() },
+                category = current.category,
                 routineSlot = current.routineSlot,
                 isDefaultInRoutine = current.isDefaultInRoutine,
                 rawIngredientsText = current.rawIngredientsText,
                 source = current.source
             )
             editorFlow.value = null
-            lookupStateFlow.update { it.copy(offlineFallbackMessage = null, remoteResults = emptyList()) }
+            lookupStateFlow.update {
+                it.copy(offlineFallbackMessage = null, remoteResults = emptyList(), presetMatches = emptyList())
+            }
         }
     }
 
@@ -329,7 +453,8 @@ class ShelfViewModel(
     private data class LookupTransientState(
         val isLookingUp: Boolean = false,
         val offlineFallbackMessage: String? = null,
-        val remoteResults: List<OpenBeautyFactsProduct> = emptyList()
+        val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
+        val presetMatches: List<PresetProduct> = emptyList()
     )
 
     companion object {

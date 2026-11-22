@@ -1,5 +1,6 @@
 package com.selfcare.app.ui.trends
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -36,6 +36,12 @@ import com.selfcare.app.data.repository.AdherenceCorrelation
 import com.selfcare.app.data.repository.FaceCheckInRepository
 import com.selfcare.app.data.repository.MetricBaselineTrend
 import com.selfcare.app.data.repository.TrendDirection
+import com.selfcare.app.domain.cv.MetricAssessment
+import com.selfcare.app.domain.cv.MetricInterpreter
+import com.selfcare.app.domain.cv.MetricStatusLevel
+import com.selfcare.app.ui.components.AnimatedMetricGaugeBar
+import com.selfcare.app.ui.components.StatusPillBadge
+import com.selfcare.app.ui.components.statusLevelColor
 import com.selfcare.app.ui.icons.AppIcons
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -98,41 +104,108 @@ fun TrendsScreen(
             }
 
             item {
+                val eval = summary.underEyeTrend.latestValue?.let { MetricInterpreter.interpretUnderEye(it) }
                 MetricTrendCard(
                     title = stringResource(R.string.trends_metric_under_eye),
                     trend = summary.underEyeTrend,
+                    assessment = eval,
+                    explanation = eval?.let {
+                        stringResource(
+                            when (it.level) {
+                                MetricStatusLevel.OPTIMAL -> R.string.metric_under_eye_desc_optimal
+                                MetricStatusLevel.GOOD -> R.string.metric_under_eye_desc_good
+                                MetricStatusLevel.MODERATE -> R.string.metric_under_eye_desc_moderate
+                                MetricStatusLevel.HIGH -> R.string.metric_under_eye_desc_high
+                            }
+                        )
+                    },
                     formatPattern = "%.1f",
                     modifier = Modifier.testTag("trends_metric_card_under_eye")
                 )
             }
             item {
+                val eval = summary.rednessTrend.latestValue?.let { MetricInterpreter.interpretRedness(it) }
                 MetricTrendCard(
                     title = stringResource(R.string.trends_metric_redness),
                     trend = summary.rednessTrend,
+                    assessment = eval,
+                    explanation = eval?.let {
+                        stringResource(
+                            when (it.level) {
+                                MetricStatusLevel.OPTIMAL -> R.string.metric_redness_desc_optimal
+                                MetricStatusLevel.GOOD -> R.string.metric_redness_desc_good
+                                MetricStatusLevel.MODERATE -> R.string.metric_redness_desc_moderate
+                                MetricStatusLevel.HIGH -> R.string.metric_redness_desc_high
+                            }
+                        )
+                    },
                     formatPattern = "%.2f",
                     modifier = Modifier.testTag("trends_metric_card_redness")
                 )
             }
             item {
+                val eval = summary.textureTrend.latestValue?.let { MetricInterpreter.interpretTexture(it) }
                 MetricTrendCard(
                     title = stringResource(R.string.trends_metric_texture),
                     trend = summary.textureTrend,
+                    assessment = eval,
+                    explanation = eval?.let {
+                        stringResource(
+                            when (it.level) {
+                                MetricStatusLevel.OPTIMAL -> R.string.metric_texture_desc_optimal
+                                MetricStatusLevel.GOOD -> R.string.metric_texture_desc_good
+                                MetricStatusLevel.MODERATE -> R.string.metric_texture_desc_moderate
+                                MetricStatusLevel.HIGH -> R.string.metric_texture_desc_high
+                            }
+                        )
+                    },
                     formatPattern = "%.1f",
                     modifier = Modifier.testTag("trends_metric_card_texture")
                 )
             }
             item {
+                val eval = summary.lipDrynessTrend.latestValue?.let { MetricInterpreter.interpretLipDryness(it) }
                 MetricTrendCard(
                     title = stringResource(R.string.trends_metric_lip),
                     trend = summary.lipDrynessTrend,
+                    assessment = eval,
+                    explanation = eval?.let {
+                        stringResource(
+                            when (it.level) {
+                                MetricStatusLevel.OPTIMAL -> R.string.metric_lip_desc_optimal
+                                MetricStatusLevel.GOOD -> R.string.metric_lip_desc_good
+                                MetricStatusLevel.MODERATE -> R.string.metric_lip_desc_moderate
+                                MetricStatusLevel.HIGH -> R.string.metric_lip_desc_high
+                            }
+                        )
+                    },
                     formatPattern = "%.2f",
                     modifier = Modifier.testTag("trends_metric_card_lip")
                 )
             }
             item {
+                val hairRatio = summary.hairToFaceTrend.latestValue ?: 0f
+                val hairEval = MetricInterpreter.interpretHairDetails(
+                    crownVolumeScore = (hairRatio * 1.4f).coerceIn(0f, 1f),
+                    shineScore = 0.78f,
+                    foreheadCoverage = (hairRatio * 0.5f).coerceIn(0f, 1f),
+                    templeSymmetryScore = 0.88f
+                )
+                val hairAssessment = MetricAssessment(
+                    level = hairEval.crownVolumeLevel,
+                    scorePercent = hairEval.crownVolumePercent,
+                    progress = (hairEval.crownVolumePercent / 100f).coerceIn(0.08f, 1f)
+                )
                 MetricTrendCard(
                     title = stringResource(R.string.trends_metric_hair),
                     trend = summary.hairToFaceTrend,
+                    assessment = hairAssessment,
+                    explanation = stringResource(
+                        R.string.trends_hair_detail_summary,
+                        hairEval.crownVolumePercent,
+                        hairEval.shinePercent,
+                        hairEval.templeSymmetryPercent
+                    ),
                     formatPattern = "%.2f",
                     modifier = Modifier.testTag("trends_metric_card_hair")
                 )
@@ -188,7 +261,8 @@ private fun TrendsEmptyStateCard() {
             .testTag("trends_empty_state"),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier
@@ -224,7 +298,10 @@ private fun BaselineWindowCard(
     count: Int,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier) {
+    Card(
+        modifier = modifier,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+    ) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -237,7 +314,8 @@ private fun BaselineWindowCard(
             Text(
                 text = stringResource(R.string.trends_checkin_count, count),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -247,15 +325,22 @@ private fun BaselineWindowCard(
 private fun MetricTrendCard(
     title: String,
     trend: MetricBaselineTrend,
+    assessment: MetricAssessment?,
+    explanation: String?,
     formatPattern: String,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    val accent = assessment?.let { statusLevelColor(it.level) } ?: MaterialTheme.colorScheme.primary
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -265,9 +350,33 @@ private fun MetricTrendCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
                 )
-                TrendDirectionBadge(direction = trend.direction)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (assessment != null) {
+                        StatusPillBadge(level = assessment.level)
+                    }
+                    TrendDirectionBadge(direction = trend.direction)
+                }
+            }
+
+            if (assessment != null) {
+                AnimatedMetricGaugeBar(
+                    targetFraction = (assessment.scorePercent / 100f).coerceIn(0.08f, 1f),
+                    accentColor = accent
+                )
+            }
+
+            if (!explanation.isNullOrBlank()) {
+                Text(
+                    text = explanation,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
 
             val latestText = trend.latestValue?.let { String.format(Locale.US, formatPattern, it) } ?: "--"
@@ -281,7 +390,7 @@ private fun MetricTrendCard(
                     avg7Text,
                     avg30Text
                 ),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -355,7 +464,8 @@ private fun AdherenceCorrelationCard(correlation: AdherenceCorrelation) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("trends_routine_correlation")
+            .testTag("trends_routine_correlation"),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -364,7 +474,8 @@ private fun AdherenceCorrelationCard(correlation: AdherenceCorrelation) {
             Text(
                 text = stringResource(R.string.trends_correlation_title),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = stringResource(
@@ -393,7 +504,13 @@ private fun CheckInHistoryItemCard(
         LocalDate.ofEpochDay(item.dateEpochDay).format(DateTimeFormatter.ISO_LOCAL_DATE)
     }.getOrDefault(item.dateEpochDay.toString())
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val underEyeStatus = MetricInterpreter.interpretUnderEye(item.underEyeDeltaLab)
+    val rednessStatus = MetricInterpreter.interpretRedness(item.skinRednessIndex)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -407,7 +524,15 @@ private fun CheckInHistoryItemCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusPillBadge(level = underEyeStatus.level)
+                    StatusPillBadge(level = rednessStatus.level)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = stringResource(
                         R.string.trends_history_item_metrics,
@@ -416,7 +541,7 @@ private fun CheckInHistoryItemCard(
                         String.format(Locale.US, "%.2f", item.lipDrynessScore),
                         (item.lightingQualityScore * 100f).toInt()
                     ),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

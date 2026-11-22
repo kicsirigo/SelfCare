@@ -15,8 +15,10 @@
     <string name="routine_title">Daily Routine</string>
     <string name="routine_morning">Morning</string>
     <string name="routine_evening">Evening</string>
+    <string name="routine_hair">Hair Care</string>
     <string name="routine_complete_morning">Complete Morning Routine</string>
     <string name="routine_complete_evening">Complete Evening Routine</string>
+    <string name="routine_complete_hair">Complete Hair Routine</string>
     <string name="routine_completed_today">Completed today</string>
     <string name="routine_not_completed_today">Not logged today</string>
     <string name="routine_override_hint">Tap any item to adjust or skip</string>
@@ -64,7 +66,16 @@
     <string name="shelf_slot_morning">Morning</string>
     <string name="shelf_slot_evening">Evening</string>
     <string name="shelf_slot_both">Both</string>
+    <string name="shelf_slot_hair">Hair</string>
     <string name="shelf_slot_none">None</string>
+    <string name="shelf_category_label">Category</string>
+    <string name="shelf_cat_all">All</string>
+    <string name="shelf_cat_face">Skincare</string>
+    <string name="shelf_cat_rx">Rx Creams</string>
+    <string name="shelf_cat_hair">Hair &amp; Scalp</string>
+    <string name="shelf_presets_title">Quick-Add Presets (Rx, Hair &amp; Skincare)</string>
+    <string name="shelf_presets_subtitle">Prescription creams (e.g. Davercin, Skinoren) have no retail barcode — tap to add</string>
+    <string name="shelf_preset_added">Added to Shelf</string>
     <string name="shelf_default_in_routine">Include as routine default</string>
     <string name="shelf_parsed_inci">Recognized INCI Ingredients</string>
     <string name="shelf_no_inci_matches">No known INCI actives matched yet</string>
@@ -170,4 +181,37 @@
     <string name="action_refresh">Refresh</string>
     <string name="action_close">Close</string>
     <string name="action_back">Back</string>
+
+    <!-- Human-Readable Metric Interpretation & Hair Analysis -->
+    <string name="metric_status_optimal">Optimal</string>
+    <string name="metric_status_good">Good</string>
+    <string name="metric_status_moderate">Moderate</string>
+    <string name="metric_status_high">High</string>
+    <string name="metric_score_label">Score: %d%%</string>
+    <string name="metric_under_eye_desc_optimal">Under-eye area looks bright and rested compared to cheeks.</string>
+    <string name="metric_under_eye_desc_good">Mild natural under-eye shadow within normal personal range.</string>
+    <string name="metric_under_eye_desc_moderate">Noticeable under-eye darkening — prioritize hydration and sleep.</string>
+    <string name="metric_under_eye_desc_high">Pronounced under-eye contrast compared to your cheek tone.</string>
+    <string name="metric_redness_desc_optimal">Calm, even skin tone with minimal redness.</string>
+    <string name="metric_redness_desc_good">Low baseline redness across cheeks and forehead.</string>
+    <string name="metric_redness_desc_moderate">Moderate surface redness — soothe with barrier-repair care.</string>
+    <string name="metric_redness_desc_high">High redness index — pause harsh exfoliants or strong actives.</string>
+    <string name="metric_texture_desc_optimal">Smooth skin surface texture with low micro-roughness.</string>
+    <string name="metric_texture_desc_good">Balanced skin texture variance across check-in zones.</string>
+    <string name="metric_texture_desc_moderate">Slightly uneven skin texture — mild hydration or gentle care advised.</string>
+    <string name="metric_texture_desc_high">Elevated surface roughness — avoid over-exfoliating.</string>
+    <string name="metric_lip_desc_optimal">Well-hydrated, smooth lip surface.</string>
+    <string name="metric_lip_desc_good">Healthy lip moisture with minimal dryness.</string>
+    <string name="metric_lip_desc_moderate">Slightly dry lips — apply occlusive lip balm regularly.</string>
+    <string name="metric_lip_desc_high">High lip dryness and chapping — intensive night balm needed.</string>
+    <string name="hair_analysis_title">Hair &amp; Scalp Health</string>
+    <string name="hair_crown_volume_label">Crown Volume &amp; Density</string>
+    <string name="hair_shine_label">Hair Shine &amp; Smoothness</string>
+    <string name="hair_hairline_label">Hairline &amp; Forehead</string>
+    <string name="hair_hairline_open">Open forehead / balanced temples (%d%%)</string>
+    <string name="hair_hairline_fringe">Forehead covered / fringe (%d%% sym)</string>
+    <string name="hair_growth_label">Growth Since Haircut</string>
+    <string name="hair_growth_fresh">Fresh cut (+%1$.1f%%)</string>
+    <string name="hair_growth_due">Trim due soon (+%1$.1f%%)</string>
+    <string name="trends_hair_detail_summary">Volume %1$d%% | Shine %2$d%% | Symmetry %3$d%%</string>
 </resources>

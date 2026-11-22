@@ -25,7 +25,7 @@ enum class AppLanguage(val languageTag: String?) {
 }
 
 data class UserSettings(
-    val themeMode: ThemeMode = ThemeMode.DARK,
+    val themeMode: ThemeMode = ThemeMode.AMOLED,
     val appLanguage: AppLanguage = AppLanguage.AUTO,
     val morningReminderEnabled: Boolean = false,
     val morningReminderHour: Int = 8,
@@ -55,7 +55,7 @@ class SettingsRepository(
         UserSettings(
             themeMode = ThemeMode.entries.firstOrNull {
                 it.name == prefs[KEY_THEME_MODE]
-            } ?: ThemeMode.DARK,
+            } ?: ThemeMode.AMOLED,
             appLanguage = AppLanguage.fromName(prefs[KEY_APP_LANGUAGE]),
             morningReminderEnabled = prefs[KEY_MORNING_REMINDER_ENABLED] ?: false,
             morningReminderHour = (prefs[KEY_MORNING_REMINDER_HOUR] ?: 8).coerceIn(0, 23),

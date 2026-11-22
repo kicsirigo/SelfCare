@@ -132,6 +132,7 @@ class InciConflictDetector(private val database: InciDatabase) {
         SLOT_MORNING -> setOf(SLOT_MORNING)
         SLOT_EVENING -> setOf(SLOT_EVENING)
         SLOT_BOTH -> setOf(SLOT_MORNING, SLOT_EVENING)
+        SLOT_HAIR -> setOf(SLOT_HAIR)
         else -> emptySet()
     }
 
@@ -160,6 +161,7 @@ class InciConflictDetector(private val database: InciDatabase) {
         const val SLOT_MORNING = "MORNING"
         const val SLOT_EVENING = "EVENING"
         const val SLOT_BOTH = "BOTH"
+        const val SLOT_HAIR = "HAIR"
         const val SLOT_NONE = "NONE"
     }
 }

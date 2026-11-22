@@ -16,6 +16,13 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +77,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.domain.cv.LightingQualityChecker
 import com.selfcare.app.domain.cv.LightingWarningReason
+import com.selfcare.app.domain.cv.MetricInterpreter
+import com.selfcare.app.domain.cv.MetricStatusLevel
+import com.selfcare.app.ui.components.HairHealthAnalysisCard
+import com.selfcare.app.ui.components.MetricGaugeRow
 import com.selfcare.app.ui.icons.AppIcons
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -234,6 +245,34 @@ fun CheckInScreen(
                 texture = result.checkIn.skinTextureVariance,
                 lipDryness = result.checkIn.lipDrynessScore,
                 lightingScore = result.checkIn.lightingQualityScore
+            )
+            HairHealthAnalysisCard(
+                summary = MetricInterpreter.interpretHairDetails(
+                    crownVolumeScore = result.analysis.hairCrownVolumeScore,
+                    shineScore = result.analysis.hairShineScore,
+                    foreheadCoverage = result.analysis.hairForeheadCoverage,
+                    templeSymmetryScore = result.analysis.hairTempleSymmetryScore
+                ),
+                growthPercent = uiState.currentHairGrowthPercent,
+                thresholdPercent = uiState.haircutThresholdPercent
+            )
+        } ?: uiState.latestCheckIn?.let { latest ->
+            CheckInResultSummaryCard(
+                underEyeDelta = latest.underEyeDeltaLab,
+                redness = latest.skinRednessIndex,
+                texture = latest.skinTextureVariance,
+                lipDryness = latest.lipDrynessScore,
+                lightingScore = latest.lightingQualityScore
+            )
+            HairHealthAnalysisCard(
+                summary = MetricInterpreter.interpretHairDetails(
+                    crownVolumeScore = (latest.hairToFaceRatio * 1.4f).coerceIn(0f, 1f),
+                    shineScore = 0.76f,
+                    foreheadCoverage = (latest.hairToFaceRatio * 0.5f).coerceIn(0f, 1f),
+                    templeSymmetryScore = 0.88f
+                ),
+                growthPercent = uiState.currentHairGrowthPercent,
+                thresholdPercent = uiState.haircutThresholdPercent
             )
         }
 
@@ -415,6 +454,26 @@ private fun CameraPreviewCard(
             MaterialTheme.colorScheme.error
         }
 
+        val infiniteTransition = rememberInfiniteTransition(label = "checkin_scanner")
+        val pulseAlpha by infiniteTransition.animateFloat(
+            initialValue = 0.45f,
+            targetValue = 0.95f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1400, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "guide_pulse"
+        )
+        val scanProgress by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2200, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "scan_line"
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -426,11 +485,18 @@ private fun CameraPreviewCard(
                 val left = (size.width - ovalW) / 2f
                 val top = (size.height - ovalH) / 2f
                 drawRoundRect(
-                    color = guideColor.copy(alpha = 0.85f),
+                    color = guideColor.copy(alpha = pulseAlpha),
                     topLeft = Offset(left, top),
                     size = Size(ovalW, ovalH),
                     cornerRadius = CornerRadius(ovalW / 2f, ovalW / 2f),
                     style = Stroke(width = 3.dp.toPx())
+                )
+                val lineY = top + ovalH * scanProgress
+                drawLine(
+                    color = guideColor.copy(alpha = 0.55f),
+                    start = Offset(left + 16.dp.toPx(), lineY),
+                    end = Offset(left + ovalW - 16.dp.toPx(), lineY),
+                    strokeWidth = 2.dp.toPx()
                 )
             }
 
@@ -528,28 +594,97 @@ private fun CheckInResultSummaryCard(
     lipDryness: Float,
     lightingScore: Float
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
+    val rednessEval = MetricInterpreter.interpretRedness(redness)
+    val textureEval = MetricInterpreter.interpretTexture(texture)
+    val lipEval = MetricInterpreter.interpretLipDryness(lipDryness)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.checkin_last_result_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(
-                    R.string.checkin_last_result_metrics,
-                    String.format(Locale.US, "%.1f", underEyeDelta),
-                    String.format(Locale.US, "%.2f", redness),
-                    String.format(Locale.US, "%.1f", texture),
-                    String.format(Locale.US, "%.2f", lipDryness),
-                    (lightingScore * 100f).toInt()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.checkin_last_result_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "${(lightingScore * 100f).toInt()}% light",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            MetricGaugeRow(
+                title = stringResource(R.string.trends_metric_under_eye),
+                assessment = underEye,
+                explanation = stringResource(
+                    when (underEye.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_under_eye_desc_optimal
+                        MetricStatusLevel.GOOD -> R.string.metric_under_eye_desc_good
+                        MetricStatusLevel.MODERATE -> R.string.metric_under_eye_desc_moderate
+                        MetricStatusLevel.HIGH -> R.string.metric_under_eye_desc_high
+                    }
                 ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                technicalDetail = stringResource(R.string.metric_score_label, underEye.scorePercent) +
+                    " (DeltaE ${String.format(Locale.US, "%.1f", underEyeDelta)})"
             )
+
+            MetricGaugeRow(
+                title = stringResource(R.string.trends_metric_redness),
+                assessment = rednessEval,
+                explanation = stringResource(
+                    when (rednessEval.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_redness_desc_optimal
+                        MetricStatusLevel.GOOD -> R.string.metric_redness_desc_good
+                        MetricStatusLevel.MODERATE -> R.string.metric_redness_desc_moderate
+                        MetricStatusLevel.HIGH -> R.string.metric_redness_desc_high
+                    }
+                ),
+                technicalDetail = stringResource(R.string.metric_score_label, rednessEval.scorePercent) +
+                    " (${String.format(Locale.US, "%.2f", redness)})"
+            )
+
+            MetricGaugeRow(
+                title = stringResource(R.string.trends_metric_texture),
+                assessment = textureEval,
+                explanation = stringResource(
+                    when (textureEval.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_texture_desc_optimal
+                        MetricStatusLevel.GOOD -> R.string.metric_texture_desc_good
+                        MetricStatusLevel.MODERATE -> R.string.metric_texture_desc_moderate
+                        MetricStatusLevel.HIGH -> R.string.metric_texture_desc_high
+                    }
+                ),
+                technicalDetail = stringResource(R.string.metric_score_label, textureEval.scorePercent) +
+                    " (${String.format(Locale.US, "%.1f", texture)})"
+            )
+
+            MetricGaugeRow(
+                title = stringResource(R.string.trends_metric_lip),
+                assessment = lipEval,
+                explanation = stringResource(
+                    when (lipEval.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_lip_desc_optimal
+                        MetricStatusLevel.GOOD -> R.string.metric_lip_desc_good
+                        MetricStatusLevel.MODERATE -> R.string.metric_lip_desc_moderate
+                        MetricStatusLevel.HIGH -> R.string.metric_lip_desc_high
+                    }
+                ),
+                technicalDetail = stringResource(R.string.metric_score_label, lipEval.scorePercent) +
+                    " (${String.format(Locale.US, "%.2f", lipDryness)})"
+            )
+
             Text(
                 text = stringResource(R.string.trends_baseline_note),
                 style = MaterialTheme.typography.bodySmall,

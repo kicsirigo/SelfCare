@@ -1,5 +1,12 @@
 package com.selfcare.app.ui.routine
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
@@ -61,7 +69,7 @@ fun RoutineScreenContent(
     onToggleProduct: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isMorning = state.selectedPeriod == RoutineRepository.PERIOD_MORNING
+    val period = state.selectedPeriod
 
     Column(
         modifier = modifier
@@ -77,42 +85,103 @@ fun RoutineScreenContent(
 
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
-                selected = isMorning,
+                selected = period == RoutineRepository.PERIOD_MORNING,
                 onClick = { onSelectPeriod(RoutineRepository.PERIOD_MORNING) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 3),
                 icon = {
                     Icon(
                         imageVector = AppIcons.Sun,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 },
                 modifier = Modifier.testTag("routine_period_morning")
             ) {
-                Text(stringResource(R.string.routine_morning))
+                Text(
+                    text = stringResource(R.string.routine_morning),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             SegmentedButton(
-                selected = !isMorning,
+                selected = period == RoutineRepository.PERIOD_EVENING,
                 onClick = { onSelectPeriod(RoutineRepository.PERIOD_EVENING) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 3),
                 icon = {
                     Icon(
                         imageVector = AppIcons.Moon,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 },
                 modifier = Modifier.testTag("routine_period_evening")
             ) {
-                Text(stringResource(R.string.routine_evening))
+                Text(
+                    text = stringResource(R.string.routine_evening),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+            SegmentedButton(
+                selected = period == RoutineRepository.PERIOD_HAIR,
+                onClick = { onSelectPeriod(RoutineRepository.PERIOD_HAIR) },
+                shape = SegmentedButtonDefaults.itemShape(index = 2, count = 3),
+                icon = {
+                    Icon(
+                        imageVector = AppIcons.Haircut,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                modifier = Modifier.testTag("routine_period_hair")
+            ) {
+                Text(
+                    text = stringResource(R.string.routine_hair),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        val bannerContainerColor by animateColorAsState(
+            targetValue = if (state.isCompletedToday) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+            animationSpec = tween(durationMillis = 300),
+            label = "routine_banner_bg"
+        )
+        val bannerBorderColor by animateColorAsState(
+            targetValue = if (state.isCompletedToday) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.75f)
+            } else {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+            },
+            animationSpec = tween(durationMillis = 300),
+            label = "routine_banner_border"
+        )
+
+        val periodIcon = when (period) {
+            RoutineRepository.PERIOD_MORNING -> AppIcons.Sun
+            RoutineRepository.PERIOD_EVENING -> AppIcons.Moon
+            else -> AppIcons.Haircut
+        }
+        val completeBtnTag = when (period) {
+            RoutineRepository.PERIOD_MORNING -> "routine_complete_morning_btn"
+            RoutineRepository.PERIOD_EVENING -> "routine_complete_evening_btn"
+            else -> "routine_complete_hair_btn"
+        }
+        val completeBtnLabelRes = when (period) {
+            RoutineRepository.PERIOD_MORNING -> R.string.routine_complete_morning
+            RoutineRepository.PERIOD_EVENING -> R.string.routine_complete_evening
+            else -> R.string.routine_complete_hair
         }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+            colors = CardDefaults.cardColors(containerColor = bannerContainerColor),
+            border = BorderStroke(1.dp, bannerBorderColor)
         ) {
             Column(
                 modifier = Modifier
@@ -125,9 +194,7 @@ fun RoutineScreenContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = if (state.isCompletedToday) AppIcons.CheckCircle else {
-                            if (isMorning) AppIcons.Sun else AppIcons.Moon
-                        },
+                        imageVector = if (state.isCompletedToday) AppIcons.CheckCircle else periodIcon,
                         contentDescription = null,
                         tint = if (state.isCompletedToday) {
                             MaterialTheme.colorScheme.primary
@@ -162,13 +229,7 @@ fun RoutineScreenContent(
                     onClick = onCompleteRoutine,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag(
-                            if (isMorning) {
-                                "routine_complete_morning_btn"
-                            } else {
-                                "routine_complete_evening_btn"
-                            }
-                        )
+                        .testTag(completeBtnTag)
                 ) {
                     Icon(
                         imageVector = AppIcons.Check,
@@ -176,15 +237,7 @@ fun RoutineScreenContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text(
-                        text = stringResource(
-                            if (isMorning) {
-                                R.string.routine_complete_morning
-                            } else {
-                                R.string.routine_complete_evening
-                            }
-                        )
-                    )
+                    Text(text = stringResource(completeBtnLabelRes))
                 }
             }
         }
@@ -195,63 +248,74 @@ fun RoutineScreenContent(
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        if (state.defaultProducts.isEmpty()) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("routine_empty_state"),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Column(
+        AnimatedContent(
+            targetState = state.selectedPeriod to state.defaultProducts,
+            transitionSpec = {
+                fadeIn(tween(220)) togetherWith fadeOut(tween(150))
+            },
+            label = "routine_period_content"
+        ) { (_, products) ->
+            if (products.isEmpty()) {
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .testTag("routine_empty_state"),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 ) {
-                    Icon(
-                        imageVector = AppIcons.Bottle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Bottle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.routine_empty),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = stringResource(R.string.routine_no_products_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = stringResource(R.string.routine_empty),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.routine_no_products_hint),
+                        text = stringResource(R.string.routine_override_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-        } else {
-            Text(
-                text = stringResource(R.string.routine_override_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(
-                    items = state.defaultProducts,
-                    key = { it.id }
-                ) { product ->
-                    val isSkipped = product.id in state.skippedProductIds
-                    RoutineProductRow(
-                        product = product,
-                        isIncluded = !isSkipped,
-                        onToggle = { onToggleProduct(product.id) }
-                    )
-                }
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(
+                            items = products,
+                            key = { it.id }
+                        ) { product ->
+                            val isSkipped = product.id in state.skippedProductIds
+                            RoutineProductRow(
+                                product = product,
+                                isIncluded = !isSkipped,
+                                onToggle = { onToggleProduct(product.id) }
+                            )
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
                 }
             }
         }
@@ -264,13 +328,24 @@ private fun RoutineProductRow(
     isIncluded: Boolean,
     onToggle: () -> Unit
 ) {
+    val borderColor by animateColorAsState(
+        targetValue = if (isIncluded) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        } else {
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+        },
+        animationSpec = tween(220),
+        label = "routine_row_border"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggle),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Row(
             modifier = Modifier

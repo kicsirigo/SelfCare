@@ -5,6 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -180,13 +186,23 @@ private fun SelfCareScaffold(container: AppContainer) {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            when (currentDestination) {
-                AppDestination.ROUTINE -> RoutineScreen(viewModel = routineViewModel)
-                AppDestination.HYGIENE -> HygieneScreen(viewModel = hygieneViewModel)
-                AppDestination.SHELF -> ShelfScreen(viewModel = shelfViewModel)
-                AppDestination.CHECKIN -> CheckInScreen(viewModel = checkInViewModel)
-                AppDestination.TRENDS -> TrendsScreen(viewModel = trendsViewModel)
-                AppDestination.SETTINGS -> SettingsScreen(viewModel = settingsViewModel)
+            AnimatedContent(
+                targetState = currentDestination,
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(220)) +
+                        slideInVertically(animationSpec = tween(220)) { it / 28 }) togetherWith
+                        fadeOut(animationSpec = tween(150))
+                },
+                label = "nav_tab_transition"
+            ) { targetDestination ->
+                when (targetDestination) {
+                    AppDestination.ROUTINE -> RoutineScreen(viewModel = routineViewModel)
+                    AppDestination.HYGIENE -> HygieneScreen(viewModel = hygieneViewModel)
+                    AppDestination.SHELF -> ShelfScreen(viewModel = shelfViewModel)
+                    AppDestination.CHECKIN -> CheckInScreen(viewModel = checkInViewModel)
+                    AppDestination.TRENDS -> TrendsScreen(viewModel = trendsViewModel)
+                    AppDestination.SETTINGS -> SettingsScreen(viewModel = settingsViewModel)
+                }
             }
         }
     }

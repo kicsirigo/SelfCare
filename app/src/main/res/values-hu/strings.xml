@@ -15,8 +15,10 @@
     <string name="routine_title">Napi rutin</string>
     <string name="routine_morning">Reggel</string>
     <string name="routine_evening">Este</string>
+    <string name="routine_hair">Hajápolás</string>
     <string name="routine_complete_morning">Reggeli rutin kész</string>
     <string name="routine_complete_evening">Esti rutin kész</string>
+    <string name="routine_complete_hair">Hajápolás kész</string>
     <string name="routine_completed_today">Ma teljesítve</string>
     <string name="routine_not_completed_today">Ma még nincs naplózva</string>
     <string name="routine_override_hint">Érintse meg a tételt a módosításhoz vagy kihagyáshoz</string>
@@ -64,7 +66,16 @@
     <string name="shelf_slot_morning">Reggel</string>
     <string name="shelf_slot_evening">Este</string>
     <string name="shelf_slot_both">Mindkettő</string>
+    <string name="shelf_slot_hair">Haj</string>
     <string name="shelf_slot_none">Nincs</string>
+    <string name="shelf_category_label">Kategória</string>
+    <string name="shelf_cat_all">Összes</string>
+    <string name="shelf_cat_face">Arcápolás</string>
+    <string name="shelf_cat_rx">Vényköteles (Rx)</string>
+    <string name="shelf_cat_hair">Haj &amp; Fejbőr</string>
+    <string name="shelf_presets_title">Gyors felvétel (Vényköteles, Haj &amp; Arc)</string>
+    <string name="shelf_presets_subtitle">A vényköteles krémeknek (pl. Davercin, Skinoren) nincs vonalkódjuk — koppints a felvételhez</string>
+    <string name="shelf_preset_added">Hozzáadva a polchoz</string>
     <string name="shelf_default_in_routine">Alapértelmezett a rutinban</string>
     <string name="shelf_parsed_inci">Felismert INCI összetevők</string>
     <string name="shelf_no_inci_matches">Még nincs felismert ismert INCI hatóanyag</string>
@@ -170,4 +181,37 @@
     <string name="action_refresh">Frissítés</string>
     <string name="action_close">Bezárás</string>
     <string name="action_back">Vissza</string>
+
+    <!-- Human-Readable Metric Interpretation & Hair Analysis -->
+    <string name="metric_status_optimal">Kiváló</string>
+    <string name="metric_status_good">Jó / Normál</string>
+    <string name="metric_status_moderate">Közepes</string>
+    <string name="metric_status_high">Magas</string>
+    <string name="metric_score_label">Állapot: %d%%</string>
+    <string name="metric_under_eye_desc_optimal">A szem alatti terület világos és kipihent az orcákhoz képest.</string>
+    <string name="metric_under_eye_desc_good">Enyhe, természetes szem alatti árnyék a normál tartományban.</string>
+    <string name="metric_under_eye_desc_moderate">Észrevehető sötétedés a szem alatt — érdemes alvásra és hidratálásra figyelni.</string>
+    <string name="metric_under_eye_desc_high">Erősebb kontraszt és sötétebb árnyék a szem alatt az arcbőrhöz képest.</string>
+    <string name="metric_redness_desc_optimal">Nyugodt, egyenletes bőrtónus minimális bőrpírral.</string>
+    <string name="metric_redness_desc_good">Alacsony alap bőrpír az orcákon és a homlokon.</string>
+    <string name="metric_redness_desc_moderate">Mérsékelt bőrpír — nyugtató, barrier-erősítő ápolás javasolt.</string>
+    <string name="metric_redness_desc_high">Magasabb bőrpír — szüneteltesd az erős savakat vagy irritáló hatóanyagokat.</string>
+    <string name="metric_texture_desc_optimal">Sima, egyenletes bőrfelszín alacsony érdességgel.</string>
+    <string name="metric_texture_desc_good">Kiegyensúlyozott bőrtextúra a vizsgált területeken.</string>
+    <string name="metric_texture_desc_moderate">Kissé egyenetlen textúra — gyengéd hidratálás ajánlott.</string>
+    <string name="metric_texture_desc_high">Magasabb felszíni érdesség — kerüld a túlzott hámlasztást.</string>
+    <string name="metric_lip_desc_optimal">Jól hidratált, sima ajakfelszín.</string>
+    <string name="metric_lip_desc_good">Egészséges ajakhidratáltság, minimális szárazság.</string>
+    <string name="metric_lip_desc_moderate">Enyhén száraz ajkak — használj rendszeresen ajakbalzsamot.</string>
+    <string name="metric_lip_desc_high">Magas ajakszárazság — intenzív éjszakai ajakápolás szükséges.</string>
+    <string name="hair_analysis_title">Haj &amp; Fejbőr Állapot</string>
+    <string name="hair_crown_volume_label">Korona-dússág és hajtömeg</string>
+    <string name="hair_shine_label">Haj fényessége és száltextúra</string>
+    <string name="hair_hairline_label">Hajvonal és homlok</string>
+    <string name="hair_hairline_open">Szabad homlok / kiegyensúlyozott halánték (%d%%)</string>
+    <string name="hair_hairline_fringe">Homlokba lógó / frufru (%d%% szimmetria)</string>
+    <string name="hair_growth_label">Növekedés vágás óta</string>
+    <string name="hair_growth_fresh">Friss fazon (+%1$.1f%%)</string>
+    <string name="hair_growth_due">Vágás esedékes (+%1$.1f%%)</string>
+    <string name="trends_hair_detail_summary">Dússág %1$d%% | Fény %2$d%% | Szimmetria %3$d%%</string>
 </resources>

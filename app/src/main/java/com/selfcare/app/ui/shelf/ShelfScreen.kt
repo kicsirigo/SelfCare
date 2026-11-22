@@ -3,6 +3,11 @@ package com.selfcare.app.ui.shelf
 import android.content.ActivityNotFoundException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -14,7 +19,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -38,9 +45,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
+import com.selfcare.app.data.preset.PresetGroup
+import com.selfcare.app.data.preset.PresetProduct
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
@@ -69,6 +80,9 @@ fun ShelfScreen(
         state = state,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onLookupClick = viewModel::performLookup,
+        onSelectCategoryFilter = viewModel::selectCategoryFilter,
+        onSelectPresetGroup = viewModel::selectPresetGroup,
+        onAddPreset = viewModel::addPresetProduct,
         onScanBarcodeClick = {
             try {
                 barcodeLauncher.launch(null)
@@ -91,6 +105,7 @@ fun ShelfScreen(
         onEditorNameChange = viewModel::updateEditorName,
         onEditorBrandChange = viewModel::updateEditorBrand,
         onEditorBarcodeChange = viewModel::updateEditorBarcode,
+        onEditorCategoryChange = viewModel::updateEditorCategory,
         onEditorIngredientsChange = viewModel::updateEditorIngredients,
         onEditorSlotChange = viewModel::updateEditorSlot,
         onEditorDefaultChange = viewModel::updateEditorDefault,
@@ -105,6 +120,9 @@ fun ShelfScreenContent(
     state: ShelfUiState,
     onSearchQueryChange: (String) -> Unit,
     onLookupClick: () -> Unit,
+    onSelectCategoryFilter: (ShelfCategoryFilter) -> Unit,
+    onSelectPresetGroup: (PresetGroup) -> Unit,
+    onAddPreset: (PresetProduct) -> Unit,
     onScanBarcodeClick: () -> Unit,
     onScanOcrClick: () -> Unit,
     onAddProductClick: () -> Unit,
@@ -115,6 +133,7 @@ fun ShelfScreenContent(
     onEditorNameChange: (String) -> Unit,
     onEditorBrandChange: (String) -> Unit,
     onEditorBarcodeChange: (String) -> Unit,
+    onEditorCategoryChange: (String) -> Unit,
     onEditorIngredientsChange: (String) -> Unit,
     onEditorSlotChange: (String) -> Unit,
     onEditorDefaultChange: (Boolean) -> Unit,
@@ -129,6 +148,7 @@ fun ShelfScreenContent(
             onNameChange = onEditorNameChange,
             onBrandChange = onEditorBrandChange,
             onBarcodeChange = onEditorBarcodeChange,
+            onCategoryChange = onEditorCategoryChange,
             onIngredientsChange = onEditorIngredientsChange,
             onSlotChange = onEditorSlotChange,
             onDefaultChange = onEditorDefaultChange,
@@ -233,7 +253,11 @@ fun ShelfScreenContent(
             }
         }
 
-        if (state.isLookingUp) {
+        AnimatedVisibility(
+            visible = state.isLookingUp,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
@@ -246,76 +270,125 @@ fun ShelfScreenContent(
             )
         }
 
-        if (state.conflicts.isNotEmpty()) {
-            ConflictBanner(conflicts = state.conflicts)
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (state.conflicts.isNotEmpty()) {
+                item {
+                    ConflictBanner(conflicts = state.conflicts)
+                }
+            }
 
-        if (state.remoteResults.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.shelf_remote_results),
-                style = MaterialTheme.typography.titleSmall
-            )
-            state.remoteResults.take(3).forEach { remote ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = remote.name.ifBlank { remote.barcode },
-                                style = MaterialTheme.typography.titleSmall
+            if (state.presetMatchesForSearch.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = stringResource(R.string.shelf_presets_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        state.presetMatchesForSearch.take(4).forEach { preset ->
+                            PresetMatchRowCard(
+                                preset = preset,
+                                alreadyAdded = preset.id in state.addedPresetIds,
+                                onAdd = { onAddPreset(preset) }
                             )
-                            if (remote.brand.isNotBlank()) {
-                                Text(
-                                    text = remote.brand,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        TextButton(onClick = { onSelectRemoteProduct(remote) }) {
-                            Text(text = stringResource(R.string.shelf_use_result))
                         }
                     }
                 }
             }
-        }
 
-        if (state.products.isEmpty()) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("shelf_empty_state")
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Bottle,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = stringResource(R.string.shelf_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            if (state.remoteResults.isNotEmpty()) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = stringResource(R.string.shelf_remote_results),
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        state.remoteResults.take(3).forEach { remote ->
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = remote.name.ifBlank { remote.barcode },
+                                            style = MaterialTheme.typography.titleSmall
+                                        )
+                                        if (remote.brand.isNotBlank()) {
+                                            Text(
+                                                text = remote.brand,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    TextButton(onClick = { onSelectRemoteProduct(remote) }) {
+                                        Text(text = stringResource(R.string.shelf_use_result))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(ShelfCategoryFilter.entries) { filter ->
+                        val labelRes = when (filter) {
+                            ShelfCategoryFilter.ALL -> R.string.shelf_cat_all
+                            ShelfCategoryFilter.FACE -> R.string.shelf_cat_face
+                            ShelfCategoryFilter.RX -> R.string.shelf_cat_rx
+                            ShelfCategoryFilter.HAIR -> R.string.shelf_cat_hair
+                        }
+                        FilterChip(
+                            selected = state.categoryFilter == filter,
+                            onClick = { onSelectCategoryFilter(filter) },
+                            label = { Text(stringResource(labelRes)) },
+                            modifier = Modifier.testTag("shelf_filter_${filter.name}")
+                        )
+                    }
+                }
+            }
+
+            if (state.products.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("shelf_empty_state"),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Bottle,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = stringResource(R.string.shelf_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
                 items(state.products, key = { it.entity.id }) { item ->
                     ProductShelfCard(
                         item = item,
@@ -323,6 +396,175 @@ fun ShelfScreenContent(
                         onDelete = { onDeleteProduct(item.entity.id) }
                     )
                 }
+            }
+
+            // Quick-Add Presets (Rx creams without barcodes, Hair & Scalp, Skincare)
+            item {
+                QuickPresetsCard(
+                    selectedGroup = state.selectedPresetGroup,
+                    presets = state.visiblePresets,
+                    addedIds = state.addedPresetIds,
+                    onSelectGroup = onSelectPresetGroup,
+                    onAddPreset = onAddPreset
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickPresetsCard(
+    selectedGroup: PresetGroup,
+    presets: List<PresetProduct>,
+    addedIds: Set<String>,
+    onSelectGroup: (PresetGroup) -> Unit,
+    onAddPreset: (PresetProduct) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("shelf_presets_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.shelf_presets_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(R.string.shelf_presets_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PresetGroup.entries.forEach { group ->
+                    val labelRes = when (group) {
+                        PresetGroup.RX -> R.string.shelf_cat_rx
+                        PresetGroup.HAIR -> R.string.shelf_cat_hair
+                        PresetGroup.FACE -> R.string.shelf_cat_face
+                    }
+                    FilterChip(
+                        selected = selectedGroup == group,
+                        onClick = { onSelectGroup(group) },
+                        label = { Text(stringResource(labelRes)) },
+                        modifier = Modifier.testTag("shelf_preset_group_${group.name}")
+                    )
+                }
+            }
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(presets, key = { it.id }) { preset ->
+                    val added = preset.id in addedIds
+                    Card(
+                        onClick = { onAddPreset(preset) },
+                        modifier = Modifier
+                            .width(210.dp)
+                            .testTag("shelf_preset_${preset.id}"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (added) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = preset.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = preset.brand,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = preset.shortNote,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (added) AppIcons.Check else AppIcons.Add,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = if (added) {
+                                        stringResource(R.string.shelf_preset_added)
+                                    } else {
+                                        slotLabel(preset.defaultSlot)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PresetMatchRowCard(
+    preset: PresetProduct,
+    alreadyAdded: Boolean,
+    onAdd: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = preset.name, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = "${preset.brand} - ${preset.shortNote}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onAdd) {
+                Text(
+                    text = if (alreadyAdded) {
+                        stringResource(R.string.shelf_preset_added)
+                    } else {
+                        stringResource(R.string.shelf_use_result)
+                    }
+                )
             }
         }
     }
@@ -427,7 +669,6 @@ private fun ConflictBanner(conflicts: List<DetectedConflict>) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProductShelfCard(
     item: ShelfProductItem,
@@ -438,7 +679,8 @@ private fun ProductShelfCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("shelf_product_card_${product.id}")
+            .testTag("shelf_product_card_${product.id}"),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Column(
             modifier = Modifier
@@ -535,12 +777,14 @@ private fun InciMatchChips(matches: List<InciMatch>) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProductEditorView(
     editor: ProductEditorState,
     onNameChange: (String) -> Unit,
     onBrandChange: (String) -> Unit,
     onBarcodeChange: (String) -> Unit,
+    onCategoryChange: (String) -> Unit,
     onIngredientsChange: (String) -> Unit,
     onSlotChange: (String) -> Unit,
     onDefaultChange: (Boolean) -> Unit,
@@ -605,6 +849,34 @@ private fun ProductEditorView(
                 .testTag("shelf_product_barcode_input")
         )
 
+        Text(
+            text = stringResource(R.string.shelf_category_label),
+            style = MaterialTheme.typography.titleSmall
+        )
+        val categories = listOf(
+            "OTHER" to stringResource(R.string.shelf_cat_face),
+            "RX_TREATMENT" to stringResource(R.string.shelf_cat_rx),
+            "SHAMPOO" to stringResource(R.string.shelf_cat_hair)
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            categories.forEach { (catCode, label) ->
+                val selected = when (catCode) {
+                    "SHAMPOO" -> editor.category in setOf("SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR")
+                    "RX_TREATMENT" -> editor.category == "RX_TREATMENT"
+                    else -> editor.category != "RX_TREATMENT" &&
+                        editor.category !in setOf("SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR")
+                }
+                FilterChip(
+                    selected = selected,
+                    onClick = { onCategoryChange(catCode) },
+                    label = { Text(label) }
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -644,14 +916,16 @@ private fun ProductEditorView(
             InciConflictDetector.SLOT_MORNING,
             InciConflictDetector.SLOT_EVENING,
             InciConflictDetector.SLOT_BOTH,
+            InciConflictDetector.SLOT_HAIR,
             InciConflictDetector.SLOT_NONE
         )
 
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("shelf_product_slot_selector"),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             slots.forEach { slot ->
                 FilterChip(
@@ -724,5 +998,6 @@ private fun slotLabel(slot: String): String = when (slot.uppercase()) {
     InciConflictDetector.SLOT_MORNING -> stringResource(R.string.shelf_slot_morning)
     InciConflictDetector.SLOT_EVENING -> stringResource(R.string.shelf_slot_evening)
     InciConflictDetector.SLOT_BOTH -> stringResource(R.string.shelf_slot_both)
+    InciConflictDetector.SLOT_HAIR -> stringResource(R.string.shelf_slot_hair)
     else -> stringResource(R.string.shelf_slot_none)
 }

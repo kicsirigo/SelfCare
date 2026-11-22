@@ -39,6 +39,17 @@ data class LabColor(
 )
 
 /**
+ * Multi-zone hair & scalp analysis metrics derived from segmentation masks and pixel luminance.
+ */
+data class HairDetailedMetrics(
+    val hairToFaceRatio: Float,
+    val crownVolumeScore: Float,
+    val shineSmoothnessScore: Float,
+    val foreheadCoverageRatio: Float,
+    val templeSymmetryScore: Float
+)
+
+/**
  * Pure-Kotlin computer vision metric calculators operating on ARGB pixel buffers,
  * ROI rectangles, and foreground masks so JVM unit tests run without native Bitmaps.
  */
@@ -383,6 +394,141 @@ object FaceMetricCalculator {
         val areaRatio = hairPixelCount.toFloat() / faceArea
         val aboveExtentRatio = (clampedFace.top - minHairY).coerceAtLeast(0).toFloat() / faceHeight.toFloat()
         return (0.6f * areaRatio + 0.4f * aboveExtentRatio).coerceAtLeast(0f)
+    }
+
+    /**
+     * Multi-zone hair evaluation: crown volume/density, hair shine & strand smoothness,
+     * forehead/hairline coverage, and left/right temple symmetry.
+     */
+    fun computeDetailedHairMetrics(
+        pixels: IntArray,
+        foregroundMask: FloatArray,
+        maskWidth: Int,
+        maskHeight: Int,
+        imageWidth: Int,
+        imageHeight: Int,
+        faceBox: PixelRect
+    ): HairDetailedMetrics {
+        val ratio = computeHairToFaceRatio(
+            foregroundMask = foregroundMask,
+            maskWidth = maskWidth,
+            maskHeight = maskHeight,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            faceBox = faceBox
+        )
+        if (maskWidth <= 0 || maskHeight <= 0 ||
+            imageWidth <= 0 || imageHeight <= 0 ||
+            pixels.size < imageWidth * imageHeight ||
+            foregroundMask.size < maskWidth * maskHeight
+        ) {
+            return HairDetailedMetrics(ratio, 0f, 0f, 0f, 0f)
+        }
+        val clampedFace = faceBox.clampTo(imageWidth, imageHeight)
+        if (clampedFace.isEmpty) return HairDetailedMetrics(ratio, 0f, 0f, 0f, 0f)
+
+        val faceW = clampedFace.width
+        val faceH = clampedFace.height
+
+        // 1. Crown volume zone (above the face top & around upper head)
+        val crownLeft = (clampedFace.left - faceW * 0.35f).toInt().coerceAtLeast(0)
+        val crownRight = (clampedFace.right + faceW * 0.35f).toInt().coerceAtMost(imageWidth)
+        val crownTop = (clampedFace.top - faceH * 0.65f).toInt().coerceAtLeast(0)
+        val crownBottom = clampedFace.top.coerceAtMost(imageHeight)
+
+        var crownMaskCount = 0
+        var crownTotal = 0
+        var lumSum = 0.0
+        var lumSqSum = 0.0
+        var gradSum = 0.0
+        var gradCount = 0
+
+        if (crownRight > crownLeft && crownBottom > crownTop) {
+            for (y in crownTop until crownBottom) {
+                val maskY = ((y.toFloat() / imageHeight) * maskHeight).toInt().coerceIn(0, maskHeight - 1)
+                val maskRow = maskY * maskWidth
+                val pixRow = y * imageWidth
+                for (x in crownLeft until crownRight) {
+                    crownTotal++
+                    val maskX = ((x.toFloat() / imageWidth) * maskWidth).toInt().coerceIn(0, maskWidth - 1)
+                    if (foregroundMask[maskRow + maskX] >= FOREGROUND_MASK_THRESHOLD) {
+                        crownMaskCount++
+                        val lum = luminance100(pixels[pixRow + x]).toDouble()
+                        lumSum += lum
+                        lumSqSum += lum * lum
+                        if (x + 1 < crownRight) {
+                            val nextLum = luminance100(pixels[pixRow + x + 1]).toDouble()
+                            gradSum += kotlin.math.abs(nextLum - lum)
+                            gradCount++
+                        }
+                    }
+                }
+            }
+        }
+        val crownVolumeScore = if (crownTotal > 0) {
+            ((crownMaskCount.toFloat() / crownTotal.toFloat()) / 0.55f).coerceIn(0f, 1f)
+        } else 0f
+
+        val shineSmoothnessScore = if (crownMaskCount > 4) {
+            val meanLum = lumSum / crownMaskCount
+            val stdLum = sqrt(((lumSqSum / crownMaskCount) - meanLum * meanLum).coerceAtLeast(0.0)).toFloat()
+            val meanGrad = if (gradCount > 0) (gradSum / gradCount).toFloat() else 0f
+            // Healthy hair has noticeable specular highlight variance without harsh chaotic frizz noise
+            val highlightComponent = (stdLum / 22f).coerceIn(0f, 1f)
+            val smoothnessComponent = (1f - (meanGrad / 25f).coerceIn(0f, 1f))
+            (0.45f * highlightComponent + 0.55f * smoothnessComponent).coerceIn(0f, 1f)
+        } else {
+            0.65f
+        }
+
+        // 2. Forehead & left/right temple hairline symmetry (upper 22% of face box)
+        val fhTop = clampedFace.top
+        val fhBottom = (clampedFace.top + (faceH * 0.22f).toInt()).coerceAtMost(imageHeight)
+        val midX = (clampedFace.left + clampedFace.right) / 2
+        val sampleSkinLab = meanLab(
+            pixels,
+            imageWidth,
+            imageHeight,
+            PixelRect(
+                left = clampedFace.left + (faceW * 0.35f).toInt(),
+                top = clampedFace.top + (faceH * 0.35f).toInt(),
+                right = clampedFace.left + (faceW * 0.65f).toInt(),
+                bottom = clampedFace.top + (faceH * 0.55f).toInt()
+            )
+        )
+        var leftCovered = 0
+        var leftTotal = 0
+        var rightCovered = 0
+        var rightTotal = 0
+
+        if (sampleSkinLab != null && fhBottom > fhTop) {
+            for (y in fhTop until fhBottom) {
+                val pixRow = y * imageWidth
+                for (x in clampedFace.left until clampedFace.right) {
+                    val lab = rgbToLab(pixels[pixRow + x])
+                    val isHairLike = deltaE(lab, sampleSkinLab) > 16f
+                    if (x < midX) {
+                        leftTotal++
+                        if (isHairLike) leftCovered++
+                    } else {
+                        rightTotal++
+                        if (isHairLike) rightCovered++
+                    }
+                }
+            }
+        }
+        val leftFrac = if (leftTotal > 0) leftCovered.toFloat() / leftTotal else 0f
+        val rightFrac = if (rightTotal > 0) rightCovered.toFloat() / rightTotal else 0f
+        val foreheadCoverage = ((leftFrac + rightFrac) / 2f).coerceIn(0f, 1f)
+        val templeSymmetry = (1f - kotlin.math.abs(leftFrac - rightFrac)).coerceIn(0f, 1f)
+
+        return HairDetailedMetrics(
+            hairToFaceRatio = ratio,
+            crownVolumeScore = crownVolumeScore,
+            shineSmoothnessScore = shineSmoothnessScore,
+            foreheadCoverageRatio = foreheadCoverage,
+            templeSymmetryScore = templeSymmetry
+        )
     }
 
     private fun singleSideUnderEyeDelta(
