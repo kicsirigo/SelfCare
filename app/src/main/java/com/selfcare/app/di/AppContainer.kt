@@ -6,7 +6,9 @@ import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.ml.MlKitBarcodeScanner
 import com.selfcare.app.data.ml.MlKitFaceAnalyzer
 import com.selfcare.app.data.ml.MlKitOcrScanner
+import com.selfcare.app.data.remote.GeminiVisionProductClient
 import com.selfcare.app.data.remote.OpenBeautyFactsClient
+import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BackupRepository
 import com.selfcare.app.data.repository.FaceCheckInRepository
 import com.selfcare.app.data.repository.HygieneRepository
@@ -90,6 +92,10 @@ open class AppContainer(
 
     open val openBeautyFactsClient: OpenBeautyFactsClient by lazy {
         OpenBeautyFactsClient()
+    }
+
+    open val productVisionClient: ProductVisionClient by lazy {
+        GeminiVisionProductClient()
     }
 
     open val productRepository: ProductRepository by lazy {

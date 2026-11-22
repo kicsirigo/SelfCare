@@ -4,12 +4,15 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.preset.PresetGroup
 import com.selfcare.app.data.preset.PresetProduct
 import com.selfcare.app.data.preset.PresetProductCatalog
+import com.selfcare.app.data.remote.GeminiVisionResult
 import com.selfcare.app.data.remote.OpenBeautyFactsProduct
 import com.selfcare.app.data.remote.OpenBeautyFactsSearchResult
+import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BarcodeLookupOutcome
 import com.selfcare.app.data.repository.ProductRepository
 import com.selfcare.app.data.repository.RoutineRepository
@@ -18,13 +21,18 @@ import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
 import com.selfcare.app.domain.ml.BarcodeScanner
 import com.selfcare.app.domain.ml.OcrScanner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class ShelfCategoryFilter {
     ALL,
@@ -63,13 +71,18 @@ data class ShelfUiState(
     val isLookingUp: Boolean = false,
     val offlineFallbackMessage: String? = null,
     val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
-    val editor: ProductEditorState? = null
+    val editor: ProductEditorState? = null,
+    val isLiveScannerOpen: Boolean = false,
+    val liveProductDetected: Boolean = false,
+    val isGeminiVisionConfigured: Boolean = false
 )
 
 class ShelfViewModel(
     private val productRepository: ProductRepository,
     private val barcodeScanner: BarcodeScanner,
-    private val ocrScanner: OcrScanner
+    private val ocrScanner: OcrScanner,
+    private val settingsRepository: SettingsRepository? = null,
+    private val productVisionClient: ProductVisionClient? = null
 ) : ViewModel() {
 
     private val searchQueryFlow = MutableStateFlow("")
@@ -77,6 +90,11 @@ class ShelfViewModel(
     private val presetGroupFlow = MutableStateFlow(PresetGroup.RX)
     private val lookupStateFlow = MutableStateFlow(LookupTransientState())
     private val editorFlow = MutableStateFlow<ProductEditorState?>(null)
+    private var liveOcrJob: Job? = null
+
+    private val geminiConfiguredFlow = settingsRepository?.settings
+        ?.map { it.geminiApiKey.isNotBlank() }
+        ?: flowOf(false)
 
     val uiState: StateFlow<ShelfUiState> = combine(
         productRepository.observeAllProducts(),
@@ -84,7 +102,8 @@ class ShelfViewModel(
         categoryFilterFlow,
         presetGroupFlow,
         lookupStateFlow,
-        editorFlow
+        editorFlow,
+        geminiConfiguredFlow
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val allProducts = values[0] as List<ProductEntity>
@@ -93,6 +112,7 @@ class ShelfViewModel(
         val presetGroup = values[3] as PresetGroup
         val lookup = values[4] as LookupTransientState
         val editor = values[5] as ProductEditorState?
+        val geminiConfigured = values[6] as Boolean
 
         val trimmed = query.trim()
         val filteredByCategory = allProducts.filter { product ->
@@ -145,7 +165,10 @@ class ShelfViewModel(
             isLookingUp = lookup.isLookingUp,
             offlineFallbackMessage = lookup.offlineFallbackMessage,
             remoteResults = lookup.remoteResults,
-            editor = editor
+            editor = editor,
+            isLiveScannerOpen = lookup.isLiveScannerOpen,
+            liveProductDetected = lookup.liveProductDetected,
+            isGeminiVisionConfigured = geminiConfigured
         )
     }.stateIn(
         scope = viewModelScope,
@@ -285,26 +308,91 @@ class ShelfViewModel(
         }
     }
 
+    fun openLiveScanner() {
+        lookupStateFlow.update {
+            it.copy(
+                isLiveScannerOpen = true,
+                liveProductDetected = false,
+                offlineFallbackMessage = null
+            )
+        }
+    }
+
+    fun closeLiveScanner() {
+        liveOcrJob?.cancel()
+        lookupStateFlow.update {
+            it.copy(
+                isLiveScannerOpen = false,
+                liveProductDetected = false
+            )
+        }
+    }
+
+    fun onLiveScannerFrame(frameBitmap: Bitmap) {
+        if (!lookupStateFlow.value.isLiveScannerOpen) {
+            frameBitmap.recycle()
+            return
+        }
+        if (liveOcrJob?.isActive == true) {
+            frameBitmap.recycle()
+            return
+        }
+        liveOcrJob = viewModelScope.launch {
+            val detected = try {
+                withContext(Dispatchers.Default) {
+                    val text = ocrScanner.recognizeText(frameBitmap)
+                    text.count { it.isLetter() } >= 4
+                }
+            } catch (_: Throwable) {
+                false
+            } finally {
+                frameBitmap.recycle()
+            }
+            lookupStateFlow.update { it.copy(liveProductDetected = detected) }
+        }
+    }
+
     fun onSmartPhotoCaptured(bitmap: Bitmap?) {
         if (bitmap == null) return
         viewModelScope.launch {
             lookupStateFlow.update {
                 it.copy(
+                    isLiveScannerOpen = false,
+                    liveProductDetected = false,
                     isLookingUp = true,
                     offlineFallbackMessage = null,
                     remoteResults = emptyList(),
                     presetMatches = emptyList()
                 )
             }
-            // 1. Try offline barcode scan first on the full-resolution photo
-            val scannedBarcode = barcodeScanner.scanBarcode(bitmap)
-            if (!scannedBarcode.isNullOrBlank()) {
-                searchQueryFlow.value = scannedBarcode
-                lookupBarcode(scannedBarcode)
-                return@launch
+
+            // Option 1 (Primary): If Gemini API key is configured in Settings, identify the product directly from the photo
+            val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey.orEmpty().trim()
+            if (apiKey.isNotEmpty() && productVisionClient != null) {
+                when (val visionResult = productVisionClient.identifyProduct(bitmap, apiKey)) {
+                    is GeminiVisionResult.Success -> {
+                        val info = visionResult.product
+                        val matches = productRepository.parseIngredients(info.ingredientsText)
+                        lookupStateFlow.update { it.copy(isLookingUp = false) }
+                        editorFlow.value = ProductEditorState(
+                            name = info.name,
+                            brand = info.brand,
+                            category = info.category,
+                            routineSlot = info.routineSlot,
+                            isDefaultInRoutine = info.routineSlot != InciConflictDetector.SLOT_NONE,
+                            rawIngredientsText = info.ingredientsText,
+                            parsedMatches = matches,
+                            source = "GEMINI_VISION"
+                        )
+                        return@launch
+                    }
+                    is GeminiVisionResult.Error -> {
+                        // Fall through cleanly to Option 3 (100% on-device OCR + presets/OBF)
+                    }
+                }
             }
 
-            // 2. Fall back to offline on-device OCR on the same photo (photo never leaves device)
+            // Option 3 (Automatic Fallback): 100% on-device OCR -> Offline Presets -> Anonymous Open Beauty Facts text lookup
             val recognized = ocrScanner.recognizeText(bitmap).trim()
             if (recognized.isEmpty()) {
                 lookupStateFlow.update {
@@ -317,7 +405,7 @@ class ShelfViewModel(
             val extractedQuery = SmartScanQueryExtractor.extractProductSearchQuery(recognized)
             val presetHits = SmartScanQueryExtractor.findPresetMatchesFromOcr(recognized, extractedQuery)
 
-            // 3. If the back INCI ingredient list was photographed (and no preset matched), open editor prefilled
+            // If the back INCI ingredient list was photographed (and no preset matched), open editor prefilled
             if (SmartScanQueryExtractor.looksLikeIngredientList(recognized, inciMatches.size) && presetHits.isEmpty()) {
                 lookupStateFlow.update { it.copy(isLookingUp = false) }
                 editorFlow.value = ProductEditorState(
@@ -328,7 +416,7 @@ class ShelfViewModel(
                 return@launch
             }
 
-            // 4. Otherwise search offline presets + anonymous Open Beauty Facts text query
+            // Otherwise search offline presets + anonymous Open Beauty Facts text query
             val searchTerm = extractedQuery.ifBlank { recognized.take(40) }
             searchQueryFlow.value = searchTerm
             lookupStateFlow.update { it.copy(presetMatches = presetHits) }
@@ -546,21 +634,27 @@ class ShelfViewModel(
         val isLookingUp: Boolean = false,
         val offlineFallbackMessage: String? = null,
         val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
-        val presetMatches: List<PresetProduct> = emptyList()
+        val presetMatches: List<PresetProduct> = emptyList(),
+        val isLiveScannerOpen: Boolean = false,
+        val liveProductDetected: Boolean = false
     )
 
     companion object {
         fun factory(
             productRepository: ProductRepository,
             barcodeScanner: BarcodeScanner,
-            ocrScanner: OcrScanner
+            ocrScanner: OcrScanner,
+            settingsRepository: SettingsRepository? = null,
+            productVisionClient: ProductVisionClient? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return ShelfViewModel(
                     productRepository = productRepository,
                     barcodeScanner = barcodeScanner,
-                    ocrScanner = ocrScanner
+                    ocrScanner = ocrScanner,
+                    settingsRepository = settingsRepository,
+                    productVisionClient = productVisionClient
                 ) as T
             }
         }

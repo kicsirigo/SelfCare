@@ -13,7 +13,10 @@ import com.selfcare.app.data.repository.FaceCheckInRepository
 import com.selfcare.app.domain.cv.HaircutTracker
 import com.selfcare.app.domain.cv.LightingAssessment
 import com.selfcare.app.domain.cv.LightingQualityChecker
+import com.selfcare.app.domain.ml.FaceAnalyzer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,11 +24,18 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 data class CheckInUiState(
     val hasCameraPermission: Boolean = false,
     val cameraUnavailable: Boolean = false,
     val lightingAssessment: LightingAssessment? = null,
+    val isFaceDetected: Boolean? = null,
+    val liveBrightnessPercent: Int? = null,
+    val screenFlashEnabled: Boolean = false,
+    val isFlashFiring: Boolean = false,
+    val cooldownSecondsRemaining: Int = 0,
+    val noFaceError: Boolean = false,
     val isCapturing: Boolean = false,
     val autoDeletePhotos: Boolean = false,
     val haircutThresholdPercent: Int = UserSettings.DEFAULT_HAIRCUT_THRESHOLD_PERCENT,
@@ -41,13 +51,20 @@ data class CheckInUiState(
 class CheckInViewModel(
     private val faceCheckInRepository: FaceCheckInRepository,
     private val haircutTracker: HaircutTracker,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val faceAnalyzer: FaceAnalyzer? = null
 ) : ViewModel() {
 
     private data class TransientState(
         val hasCameraPermission: Boolean = false,
         val cameraUnavailable: Boolean = false,
         val lightingAssessment: LightingAssessment? = null,
+        val isFaceDetected: Boolean? = null,
+        val liveBrightnessPercent: Int? = null,
+        val screenFlashEnabled: Boolean = false,
+        val isFlashFiring: Boolean = false,
+        val cooldownSecondsRemaining: Int = 0,
+        val noFaceError: Boolean = false,
         val isCapturing: Boolean = false,
         val lastResult: CheckInSubmissionResult? = null,
         val baselineResetAtMillis: Long? = null,
@@ -55,6 +72,8 @@ class CheckInViewModel(
     )
 
     private val transientState = MutableStateFlow(TransientState())
+    private var liveFaceCheckJob: Job? = null
+    private var cooldownJob: Job? = null
 
     val uiState: StateFlow<CheckInUiState> = combine(
         transientState,
@@ -81,6 +100,12 @@ class CheckInViewModel(
             hasCameraPermission = transient.hasCameraPermission,
             cameraUnavailable = transient.cameraUnavailable,
             lightingAssessment = transient.lightingAssessment,
+            isFaceDetected = transient.isFaceDetected,
+            liveBrightnessPercent = transient.liveBrightnessPercent,
+            screenFlashEnabled = transient.screenFlashEnabled,
+            isFlashFiring = transient.isFlashFiring,
+            cooldownSecondsRemaining = transient.cooldownSecondsRemaining,
+            noFaceError = transient.noFaceError,
             isCapturing = transient.isCapturing,
             autoDeletePhotos = settings.autoDeleteCheckInPhotos,
             haircutThresholdPercent = threshold,
@@ -107,7 +132,62 @@ class CheckInViewModel(
     }
 
     fun onLightingAssessed(assessment: LightingAssessment) {
-        transientState.value = transientState.value.copy(lightingAssessment = assessment)
+        val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
+        transientState.value = transientState.value.copy(
+            lightingAssessment = assessment,
+            liveBrightnessPercent = brightnessPct
+        )
+    }
+
+    fun onLiveFrameSampled(frameBitmap: Bitmap, assessment: LightingAssessment) {
+        val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
+        // If lens is covered or pitch black, immediately report no face
+        if (assessment.meanLuminance < 18f) {
+            transientState.value = transientState.value.copy(
+                lightingAssessment = assessment,
+                liveBrightnessPercent = brightnessPct,
+                isFaceDetected = false
+            )
+            frameBitmap.recycle()
+            return
+        }
+
+        transientState.value = transientState.value.copy(
+            lightingAssessment = assessment,
+            liveBrightnessPercent = brightnessPct
+        )
+
+        val analyzer = faceAnalyzer ?: run {
+            frameBitmap.recycle()
+            return
+        }
+        if (liveFaceCheckJob?.isActive == true) {
+            frameBitmap.recycle()
+            return
+        }
+        liveFaceCheckJob = viewModelScope.launch {
+            val present = try {
+                withContext(Dispatchers.Default) {
+                    analyzer.isFacePresent(frameBitmap)
+                }
+            } catch (_: Throwable) {
+                false
+            } finally {
+                frameBitmap.recycle()
+            }
+            transientState.value = transientState.value.copy(
+                isFaceDetected = present,
+                noFaceError = if (present) false else transientState.value.noFaceError
+            )
+        }
+    }
+
+    fun toggleScreenFlash(enabled: Boolean) {
+        transientState.value = transientState.value.copy(screenFlashEnabled = enabled)
+    }
+
+    fun setFlashFiring(firing: Boolean) {
+        transientState.value = transientState.value.copy(isFlashFiring = firing)
     }
 
     fun assessLightingFromBitmap(bitmap: Bitmap) {
@@ -115,30 +195,63 @@ class CheckInViewModel(
             val assessment = withContext(Dispatchers.Default) {
                 LightingQualityChecker.assess(bitmap)
             }
-            transientState.value = transientState.value.copy(lightingAssessment = assessment)
+            val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
+            transientState.value = transientState.value.copy(
+                lightingAssessment = assessment,
+                liveBrightnessPercent = brightnessPct
+            )
         }
     }
 
     fun submitBitmapCheckIn(bitmap: Bitmap, notes: String = "") {
-        if (transientState.value.isCapturing) return
+        val current = transientState.value
+        if (current.isCapturing || current.cooldownSecondsRemaining > 0) return
         viewModelScope.launch {
             transientState.value = transientState.value.copy(
                 isCapturing = true,
-                errorMessage = null
+                errorMessage = null,
+                noFaceError = false
             )
             try {
+                // Reject capture when real camera is active and no face is present (e.g., covered lens)
+                if (!current.cameraUnavailable && faceAnalyzer != null) {
+                    val hasFace = withContext(Dispatchers.Default) {
+                        faceAnalyzer.isFacePresent(bitmap)
+                    }
+                    if (!hasFace) {
+                        transientState.value = transientState.value.copy(
+                            isCapturing = false,
+                            isFaceDetected = false,
+                            noFaceError = true
+                        )
+                        return@launch
+                    }
+                }
                 val result = faceCheckInRepository.performCheckIn(bitmap = bitmap, notes = notes)
                 transientState.value = transientState.value.copy(
                     isCapturing = false,
                     lastResult = result,
-                    errorMessage = null
+                    errorMessage = null,
+                    noFaceError = false
                 )
+                startCooldown()
             } catch (t: Throwable) {
                 transientState.value = transientState.value.copy(
                     isCapturing = false,
                     errorMessage = t.message ?: "Check-in failed"
                 )
             }
+        }
+    }
+
+    private fun startCooldown(seconds: Int = CAPTURE_COOLDOWN_SECONDS) {
+        cooldownJob?.cancel()
+        cooldownJob = viewModelScope.launch {
+            for (remaining in seconds downTo 1) {
+                transientState.value = transientState.value.copy(cooldownSecondsRemaining = remaining)
+                delay(1_000L)
+            }
+            transientState.value = transientState.value.copy(cooldownSecondsRemaining = 0)
         }
     }
 
@@ -181,18 +294,21 @@ class CheckInViewModel(
 
     companion object {
         private const val DEFAULT_INITIAL_HAIR_RATIO = 0.25f
+        const val CAPTURE_COOLDOWN_SECONDS = 5
 
         fun factory(
             faceCheckInRepository: FaceCheckInRepository,
             haircutTracker: HaircutTracker,
-            settingsRepository: SettingsRepository
+            settingsRepository: SettingsRepository,
+            faceAnalyzer: FaceAnalyzer? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return CheckInViewModel(
                     faceCheckInRepository = faceCheckInRepository,
                     haircutTracker = haircutTracker,
-                    settingsRepository = settingsRepository
+                    settingsRepository = settingsRepository,
+                    faceAnalyzer = faceAnalyzer
                 ) as T
             }
         }

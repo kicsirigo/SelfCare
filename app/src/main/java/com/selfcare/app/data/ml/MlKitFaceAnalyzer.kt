@@ -45,6 +45,15 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
         Segmentation.getClient(options)
     }
 
+    override suspend fun isFacePresent(bitmap: Bitmap): Boolean {
+        if (bitmap.width <= 0 || bitmap.height <= 0) return false
+        return runCatching {
+            val inputImage = InputImage.fromBitmap(bitmap, 0)
+            val meshes = faceMeshDetector.process(inputImage).awaitResult()
+            meshes.any { it.boundingBox.width() > 24 && it.boundingBox.height() > 24 }
+        }.getOrDefault(false)
+    }
+
     override suspend fun analyze(bitmap: Bitmap): FaceAnalysisResult {
         val width = bitmap.width
         val height = bitmap.height

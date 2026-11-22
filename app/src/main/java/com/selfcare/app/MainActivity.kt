@@ -11,14 +11,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,12 +36,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -116,6 +126,17 @@ fun SelfCareRoot(container: AppContainer) {
 @Composable
 private fun SelfCareScaffold(container: AppContainer) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
+    var previousDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
+
+    val bottomDestinations = remember {
+        listOf(
+            AppDestination.ROUTINE,
+            AppDestination.HYGIENE,
+            AppDestination.SHELF,
+            AppDestination.CHECKIN,
+            AppDestination.TRENDS
+        )
+    }
 
     val routineViewModel: RoutineViewModel = viewModel(
         factory = RoutineViewModel.factory(container.routineRepository)
@@ -134,14 +155,17 @@ private fun SelfCareScaffold(container: AppContainer) {
         factory = ShelfViewModel.factory(
             productRepository = container.productRepository,
             barcodeScanner = container.barcodeScanner,
-            ocrScanner = container.ocrScanner
+            ocrScanner = container.ocrScanner,
+            settingsRepository = container.settingsRepository,
+            productVisionClient = container.productVisionClient
         )
     )
     val checkInViewModel: CheckInViewModel = viewModel(
         factory = CheckInViewModel.factory(
             faceCheckInRepository = container.faceCheckInRepository,
             haircutTracker = container.haircutTracker,
-            settingsRepository = container.settingsRepository
+            settingsRepository = container.settingsRepository,
+            faceAnalyzer = container.faceAnalyzer
         )
     )
     val trendsViewModel: TrendsViewModel = viewModel(
@@ -154,9 +178,84 @@ private fun SelfCareScaffold(container: AppContainer) {
         modifier = Modifier
             .fillMaxSize()
             .testTag("app_root"),
+        topBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                tonalElevation = 0.dp
+            ) {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (currentDestination == AppDestination.SETTINGS) {
+                                IconButton(
+                                    onClick = { currentDestination = previousDestination },
+                                    modifier = Modifier.testTag("nav_settings_back")
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.Back,
+                                        contentDescription = stringResource(R.string.action_back),
+                                        tint = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (currentDestination == AppDestination.SETTINGS) {
+                                    stringResource(R.string.settings_title)
+                                } else {
+                                    stringResource(R.string.app_name)
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                if (currentDestination == AppDestination.SETTINGS) {
+                                    currentDestination = previousDestination
+                                } else {
+                                    previousDestination = currentDestination
+                                    currentDestination = AppDestination.SETTINGS
+                                }
+                            },
+                            modifier = Modifier.testTag(AppDestination.SETTINGS.testTag)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Settings,
+                                contentDescription = stringResource(R.string.nav_settings),
+                                tint = if (currentDestination == AppDestination.SETTINGS) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    )
+                }
+            }
+        },
         bottomBar = {
             NavigationBar {
-                AppDestination.entries.forEach { destination ->
+                bottomDestinations.forEach { destination ->
                     val label = stringResource(destination.labelRes)
                     NavigationBarItem(
                         selected = currentDestination == destination,

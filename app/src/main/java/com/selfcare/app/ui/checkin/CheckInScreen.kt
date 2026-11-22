@@ -1,11 +1,15 @@
 package com.selfcare.app.ui.checkin
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Matrix
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -25,6 +29,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +49,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -56,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +70,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -110,6 +120,7 @@ fun CheckInScreen(
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    val coroutineScope = rememberCoroutineScope()
 
     DisposableEffect(Unit) {
         onDispose {
@@ -117,106 +128,192 @@ fun CheckInScreen(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.checkin_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        if (uiState.isHaircutReminderTriggered) {
-            HaircutReminderBanner(
-                growthPercent = uiState.currentHairGrowthPercent,
-                thresholdPercent = uiState.haircutThresholdPercent
-            )
+    // Snapchat-style screen flash: boost window brightness to 100% while enabled and restore on exit
+    DisposableEffect(uiState.screenFlashEnabled, context) {
+        val window = context.findActivity()?.window
+        val previousBrightness = window?.attributes?.screenBrightness
+            ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        if (uiState.screenFlashEnabled && window != null) {
+            val lp = window.attributes
+            lp.screenBrightness = 1.0f
+            window.attributes = lp
         }
+        onDispose {
+            if (window != null) {
+                val lp = window.attributes
+                lp.screenBrightness = previousBrightness
+                window.attributes = lp
+            }
+        }
+    }
 
-        if (!uiState.hasCameraPermission) {
-            MissingCameraPermissionCard(
-                onRequestPermission = {
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                }
-            )
-        } else {
-            CameraPreviewCard(
-                cameraUnavailable = uiState.cameraUnavailable,
-                lightingReason = uiState.lightingAssessment?.warningReason,
-                onImageCaptureReady = { imageCapture = it },
-                onCameraUnavailable = { viewModel.setCameraUnavailable(true) },
-                onLightingSampled = { pixels, width, height ->
-                    val assessment = LightingQualityChecker.assess(
-                        pixels = pixels,
-                        width = width,
-                        height = height
-                    )
-                    viewModel.onLightingAssessed(assessment)
-                },
-                cameraExecutor = cameraExecutor
-            )
-
-            val warningReason = uiState.lightingAssessment?.warningReason
-            if (warningReason != null && warningReason != LightingWarningReason.OK) {
-                LightingWarningBanner(reason = warningReason)
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.checkin_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = uiState.screenFlashEnabled,
+                    onClick = { viewModel.toggleScreenFlash(!uiState.screenFlashEnabled) },
+                    label = { Text(text = stringResource(R.string.checkin_screen_flash)) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = AppIcons.Sun,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    modifier = Modifier.testTag("checkin_flash_toggle")
+                )
             }
 
-            Button(
-                onClick = {
-                    val activeCapture = imageCapture
-                    if (activeCapture != null && !uiState.cameraUnavailable) {
-                        activeCapture.takePicture(
-                            cameraExecutor,
-                            object : ImageCapture.OnImageCapturedCallback() {
-                                override fun onCaptureSuccess(image: ImageProxy) {
-                                    val bitmap = try {
-                                        image.toOrientedBitmap()
-                                    } finally {
-                                        image.close()
-                                    }
-                                    viewModel.submitBitmapCheckIn(bitmap)
-                                }
+            if (uiState.isHaircutReminderTriggered) {
+                HaircutReminderBanner(
+                    growthPercent = uiState.currentHairGrowthPercent,
+                    thresholdPercent = uiState.haircutThresholdPercent
+                )
+            }
 
-                                override fun onError(exception: ImageCaptureException) {
-                                    val fallback = onCaptureFallbackBitmap?.invoke()
-                                        ?: createFallbackCheckInBitmap()
-                                    viewModel.submitBitmapCheckIn(fallback)
-                                }
+            if (!uiState.hasCameraPermission) {
+                MissingCameraPermissionCard(
+                    onRequestPermission = {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                )
+            } else {
+                CameraPreviewCard(
+                    cameraUnavailable = uiState.cameraUnavailable,
+                    lightingReason = uiState.lightingAssessment?.warningReason,
+                    isFaceDetected = uiState.isFaceDetected,
+                    liveBrightnessPercent = uiState.liveBrightnessPercent,
+                    screenFlashEnabled = uiState.screenFlashEnabled,
+                    onImageCaptureReady = { imageCapture = it },
+                    onCameraUnavailable = { viewModel.setCameraUnavailable(true) },
+                    onLiveFrameSampled = { bitmap, pixels, width, height ->
+                        val assessment = LightingQualityChecker.assess(
+                            pixels = pixels,
+                            width = width,
+                            height = height
+                        )
+                        viewModel.onLiveFrameSampled(bitmap, assessment)
+                    },
+                    cameraExecutor = cameraExecutor
+                )
+
+                val warningReason = uiState.lightingAssessment?.warningReason
+                if (warningReason != null && warningReason != LightingWarningReason.OK) {
+                    LightingWarningBanner(reason = warningReason)
+                }
+
+                if (uiState.noFaceError) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("checkin_no_face_error")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.checkin_no_face_error),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+
+                val canCapture = !uiState.isCapturing &&
+                    uiState.cooldownSecondsRemaining == 0 &&
+                    (uiState.cameraUnavailable || uiState.isFaceDetected != false)
+
+                Button(
+                    onClick = {
+                        val activeCapture = imageCapture
+                        fun triggerActualCapture() {
+                            if (activeCapture != null && !uiState.cameraUnavailable) {
+                                activeCapture.takePicture(
+                                    cameraExecutor,
+                                    object : ImageCapture.OnImageCapturedCallback() {
+                                        override fun onCaptureSuccess(image: ImageProxy) {
+                                            val bitmap = try {
+                                                image.toOrientedBitmap()
+                                            } finally {
+                                                image.close()
+                                            }
+                                            viewModel.setFlashFiring(false)
+                                            viewModel.submitBitmapCheckIn(bitmap)
+                                        }
+
+                                        override fun onError(exception: ImageCaptureException) {
+                                            viewModel.setFlashFiring(false)
+                                            val fallback = onCaptureFallbackBitmap?.invoke()
+                                                ?: createFallbackCheckInBitmap()
+                                            viewModel.submitBitmapCheckIn(fallback)
+                                        }
+                                    }
+                                )
+                            } else {
+                                viewModel.setFlashFiring(false)
+                                val fallback = onCaptureFallbackBitmap?.invoke()
+                                    ?: createFallbackCheckInBitmap()
+                                viewModel.submitBitmapCheckIn(fallback)
                             }
+                        }
+
+                        if (uiState.screenFlashEnabled && activeCapture != null && !uiState.cameraUnavailable) {
+                            coroutineScope.launch {
+                                viewModel.setFlashFiring(true)
+                                delay(220L)
+                                triggerActualCapture()
+                            }
+                        } else {
+                            triggerActualCapture()
+                        }
+                    },
+                    enabled = canCapture,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("checkin_capture_btn")
+                ) {
+                    if (uiState.isCapturing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.checkin_analyzing))
+                    } else if (uiState.cooldownSecondsRemaining > 0) {
+                        Text(
+                            text = stringResource(
+                                R.string.checkin_cooldown_seconds,
+                                uiState.cooldownSecondsRemaining
+                            )
                         )
                     } else {
-                        val fallback = onCaptureFallbackBitmap?.invoke()
-                            ?: createFallbackCheckInBitmap()
-                        viewModel.submitBitmapCheckIn(fallback)
+                        Icon(
+                            imageVector = AppIcons.Camera,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.checkin_take_photo))
                     }
-                },
-                enabled = !uiState.isCapturing,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("checkin_capture_btn")
-            ) {
-                if (uiState.isCapturing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.checkin_analyzing))
-                } else {
-                    Icon(
-                        imageVector = AppIcons.Camera,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.checkin_take_photo))
                 }
             }
-        }
 
         uiState.errorMessage?.let { error ->
             Surface(
@@ -283,6 +380,17 @@ fun CheckInScreen(
             baselineResetAtMillis = uiState.baselineResetAtMillis,
             onResetBaseline = { viewModel.resetHaircutBaseline() }
         )
+        }
+
+        // Snapchat-style full-screen white flash burst during capture
+        if (uiState.isFlashFiring) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .testTag("checkin_flash_overlay")
+            )
+        }
     }
 }
 
@@ -333,9 +441,12 @@ private fun MissingCameraPermissionCard(
 private fun CameraPreviewCard(
     cameraUnavailable: Boolean,
     lightingReason: LightingWarningReason?,
+    isFaceDetected: Boolean?,
+    liveBrightnessPercent: Int?,
+    screenFlashEnabled: Boolean,
     onImageCaptureReady: (ImageCapture?) -> Unit,
     onCameraUnavailable: () -> Unit,
-    onLightingSampled: (IntArray, Int, Int) -> Unit,
+    onLiveFrameSampled: (Bitmap, IntArray, Int, Int) -> Unit,
     cameraExecutor: java.util.concurrent.ExecutorService
 ) {
     val context = LocalContext.current
@@ -346,6 +457,13 @@ private fun CameraPreviewCard(
             .fillMaxWidth()
             .aspectRatio(3f / 4f)
             .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (screenFlashEnabled) {
+                    Modifier.border(22.dp, Color.White, RoundedCornerShape(16.dp))
+                } else {
+                    Modifier
+                }
+            )
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         if (!cameraUnavailable) {
@@ -379,14 +497,19 @@ private fun CameraPreviewCard(
                                 .apply {
                                     setAnalyzer(cameraExecutor) { image ->
                                         val now = System.currentTimeMillis()
-                                        if (now - lastAnalyzedMs >= 400L) {
+                                        if (now - lastAnalyzedMs >= 350L) {
                                             lastAnalyzedMs = now
-                                            extractLuminanceSample(image)?.let { sample ->
-                                                onLightingSampled(
-                                                    sample.pixels,
-                                                    sample.width,
-                                                    sample.height
-                                                )
+                                            val sample = extractLuminanceSample(image)
+                                            if (sample != null) {
+                                                val oriented = runCatching { image.toOrientedBitmap() }.getOrNull()
+                                                if (oriented != null) {
+                                                    onLiveFrameSampled(
+                                                        oriented,
+                                                        sample.pixels,
+                                                        sample.width,
+                                                        sample.height
+                                                    )
+                                                }
                                             }
                                         }
                                         image.close()
@@ -447,11 +570,12 @@ private fun CameraPreviewCard(
             }
         }
 
-        // Guided framing overlay
-        val guideColor = if (lightingReason == null || lightingReason == LightingWarningReason.OK) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.error
+        // Guided framing overlay: only green when an actual face is detected AND lighting is OK
+        val guideColor = when {
+            isFaceDetected == false -> MaterialTheme.colorScheme.error
+            lightingReason != null && lightingReason != LightingWarningReason.OK -> MaterialTheme.colorScheme.error
+            isFaceDetected == true -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.outline
         }
 
         val infiniteTransition = rememberInfiniteTransition(label = "checkin_scanner")
@@ -500,12 +624,63 @@ private fun CameraPreviewCard(
                 )
             }
 
+            // Top live telemetry HUD: Face detection status + live brightness %
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = if (screenFlashEnabled) 26.dp else 12.dp, vertical = if (screenFlashEnabled) 26.dp else 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    color = when (isFaceDetected) {
+                        true -> MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+                        false -> MaterialTheme.colorScheme.error.copy(alpha = 0.88f)
+                        null -> MaterialTheme.colorScheme.surface.copy(alpha = 0.80f)
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("checkin_face_status_badge")
+                ) {
+                    Text(
+                        text = when (isFaceDetected) {
+                            true -> stringResource(R.string.checkin_face_detected)
+                            false -> stringResource(R.string.checkin_no_face_detected)
+                            null -> stringResource(R.string.checkin_framing_hint)
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = when (isFaceDetected) {
+                            true -> MaterialTheme.colorScheme.onPrimary
+                            false -> MaterialTheme.colorScheme.onError
+                            null -> MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                if (liveBrightnessPercent != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.testTag("checkin_brightness_badge")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.checkin_brightness_live, liveBrightnessPercent),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
             Surface(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(12.dp)
+                    .padding(if (screenFlashEnabled) 26.dp else 12.dp)
             ) {
                 Text(
                     text = stringResource(R.string.checkin_framing_hint),
@@ -842,4 +1017,10 @@ private fun createFallbackCheckInBitmap(): Bitmap {
         val canvas = AndroidCanvas(this)
         canvas.drawColor(AndroidColor.rgb(185, 145, 130))
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

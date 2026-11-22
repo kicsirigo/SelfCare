@@ -237,4 +237,28 @@
     <string name="inci_conflict_acids_peptides_rec">Low-pH exfoliating acids can destabilize copper peptides. Use them in separate routines (e.g., AM vs PM).</string>
     <string name="inci_conflict_aha_bha_title">AHA + BHA Acid Stacking</string>
     <string name="inci_conflict_aha_bha_rec">Layering multiple strong exfoliating acids increases the risk of over-exfoliation and barrier damage. Alternate nights unless formulated together.</string>
+
+    <!-- v1.2.0: Live Face Check-In, Screen Flash, Cooldown, Product Camera & Delete Confirmation -->
+    <string name="confirm_delete_title">Confirm Deletion</string>
+    <string name="confirm_delete_product_body">Are you sure you want to delete \"%1$s\" from your shelf? This cannot be undone.</string>
+    <string name="confirm_delete_habit_body">Are you sure you want to delete custom habit \"%1$s\"?</string>
+    <string name="checkin_face_detected">Face detected</string>
+    <string name="checkin_no_face_detected">No face detected</string>
+    <string name="checkin_no_face_error">No face detected in frame. Uncover the camera and center your face.</string>
+    <string name="checkin_brightness_live">Brightness: %d%%</string>
+    <string name="checkin_screen_flash">Screen Flash</string>
+    <string name="checkin_cooldown_seconds">Wait %ds…</string>
+    <string name="shelf_live_scanner_title">In-App Product Scanner</string>
+    <string name="shelf_live_product_detected">Product label detected — ready to capture</string>
+    <string name="shelf_live_hold_product">Hold product steady inside the frame</string>
+    <string name="shelf_live_capture_btn">Capture Product</string>
+    <string name="shelf_gemini_active_badge">AI Vision active (Gemini)</string>
+    <string name="shelf_offline_ocr_badge">Offline OCR mode (no API key)</string>
+    <string name="shelf_camera_permission_needed">Camera permission is required for the live product scanner.</string>
+    <string name="settings_ai_vision_title">AI Visual Product Scan (Optional)</string>
+    <string name="settings_ai_vision_desc">Optional Google AI Studio (Gemini) API key for photo-based product recognition. Leave empty to stay 100% on-device (offline OCR). Selfies never leave your device.</string>
+    <string name="settings_gemini_key_label">Gemini API Key</string>
+    <string name="settings_gemini_key_hint">Paste API key (optional)</string>
+    <string name="settings_gemini_key_saved">API key saved locally</string>
+    <string name="settings_gemini_key_clear">Clear</string>
 </resources>

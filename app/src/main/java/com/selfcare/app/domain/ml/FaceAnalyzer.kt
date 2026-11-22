@@ -19,6 +19,7 @@ data class FaceAnalysisResult(
 
 interface FaceAnalyzer {
     suspend fun analyze(bitmap: Bitmap): FaceAnalysisResult
+    suspend fun isFacePresent(bitmap: Bitmap): Boolean = true
 }
 
 class StubFaceAnalyzer : FaceAnalyzer {

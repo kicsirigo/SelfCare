@@ -237,4 +237,28 @@
     <string name="inci_conflict_acids_peptides_rec">Az alacsony pH-jú hámlasztó savak destabilizálhatják a rézpeptideket. Használd őket külön rutinban (pl. reggel és este).</string>
     <string name="inci_conflict_aha_bha_title">AHA + BHA savak halmozása</string>
     <string name="inci_conflict_aha_bha_rec">Több erős hámlasztó sav rétegezése növeli a túlhámlasztás és a barrierkárosodás kockázatát. Váltogasd őket estéken, hacsak nem egy formulában vannak.</string>
+
+    <!-- v1.2.0: Live Face Check-In, Screen Flash, Cooldown, Product Camera & Delete Confirmation -->
+    <string name="confirm_delete_title">Törlés megerősítése</string>
+    <string name="confirm_delete_product_body">Biztosan törlöd a(z) „%1$s” terméket a polcról? Ez a művelet nem vonható vissza.</string>
+    <string name="confirm_delete_habit_body">Biztosan törlöd a(z) „%1$s” egyéni szokást?</string>
+    <string name="checkin_face_detected">Arc felismerve</string>
+    <string name="checkin_no_face_detected">Nem látható arc</string>
+    <string name="checkin_no_face_error">Nem látható arc a képen. Ne takard le a kamerát, és igazítsd az arcod a keretbe.</string>
+    <string name="checkin_brightness_live">Fényerő: %d%%</string>
+    <string name="checkin_screen_flash">Képernyő-vaku</string>
+    <string name="checkin_cooldown_seconds">Várj %d mp…</string>
+    <string name="shelf_live_scanner_title">Appon belüli termékszkenner</string>
+    <string name="shelf_live_product_detected">Termék érzékelve — fotózható</string>
+    <string name="shelf_live_hold_product">Tartsd a terméket stabilan a keretbe</string>
+    <string name="shelf_live_capture_btn">Termék fotózása</string>
+    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Gemini)</string>
+    <string name="shelf_offline_ocr_badge">Offline OCR mód (kulcs nélkül)</string>
+    <string name="shelf_camera_permission_needed">Kameraengedély szükséges az élő termékszkennerhez.</string>
+    <string name="settings_ai_vision_title">AI képalapú termékfelismerés (Opcionális)</string>
+    <string name="settings_ai_vision_desc">Opcionális Google AI Studio (Gemini) API kulcs valódi fotó alapú termékfelismeréshez. Ha üresen hagyod, 100%-ban offline OCR mód fut. A szelfik soha nem hagyják el az eszközt.</string>
+    <string name="settings_gemini_key_label">Gemini API kulcs</string>
+    <string name="settings_gemini_key_hint">API kulcs beillesztése (opcionális)</string>
+    <string name="settings_gemini_key_saved">API kulcs helyben elmentve</string>
+    <string name="settings_gemini_key_clear">Törlés</string>
 </resources>

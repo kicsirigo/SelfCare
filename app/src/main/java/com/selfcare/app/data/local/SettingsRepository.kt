@@ -34,7 +34,8 @@ data class UserSettings(
     val eveningReminderHour: Int = 21,
     val eveningReminderMinute: Int = 0,
     val autoDeleteCheckInPhotos: Boolean = false,
-    val haircutThresholdPercent: Int = DEFAULT_HAIRCUT_THRESHOLD_PERCENT
+    val haircutThresholdPercent: Int = DEFAULT_HAIRCUT_THRESHOLD_PERCENT,
+    val geminiApiKey: String = ""
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -69,7 +70,8 @@ class SettingsRepository(
                 .coerceIn(
                     UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT,
                     UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT
-                )
+                ),
+            geminiApiKey = prefs[KEY_GEMINI_API_KEY].orEmpty()
         )
     }
 
@@ -118,6 +120,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setGeminiApiKey(apiKey: String) {
+        dataStore.edit { prefs ->
+            prefs[KEY_GEMINI_API_KEY] = apiKey.trim()
+        }
+    }
+
     suspend fun replaceAll(userSettings: UserSettings) {
         dataStore.edit { prefs ->
             prefs[KEY_THEME_MODE] = userSettings.themeMode.name
@@ -149,6 +157,7 @@ class SettingsRepository(
             booleanPreferencesKey("auto_delete_checkin_photos")
         private val KEY_HAIRCUT_THRESHOLD_PERCENT =
             intPreferencesKey("haircut_threshold_percent")
+        private val KEY_GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

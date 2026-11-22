@@ -81,6 +81,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setGeminiApiKey(apiKey: String) {
+        viewModelScope.launch {
+            settingsRepository.setGeminiApiKey(apiKey)
+        }
+    }
+
     fun setMorningReminderEnabled(enabled: Boolean) {
         viewModelScope.launch {
             val current = settingsRepository.getSettingsOnce()

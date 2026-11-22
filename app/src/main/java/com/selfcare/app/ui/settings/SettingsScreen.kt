@@ -22,17 +22,22 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -106,6 +111,7 @@ fun SettingsScreen(
             viewModel.setEveningReminderEnabled(enabled)
         },
         onAdjustEveningTime = viewModel::adjustEveningReminderTime,
+        onSaveGeminiApiKey = viewModel::setGeminiApiKey,
         onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
         modifier = modifier
@@ -123,6 +129,7 @@ fun SettingsScreenContent(
     onAdjustMorningTime: (Int) -> Unit,
     onToggleEveningReminder: (Boolean) -> Unit,
     onAdjustEveningTime: (Int) -> Unit,
+    onSaveGeminiApiKey: (String) -> Unit = {},
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     modifier: Modifier = Modifier
@@ -342,6 +349,92 @@ fun SettingsScreenContent(
                         valueRange = UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT.toFloat()..
                             UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT.toFloat()
                     )
+                }
+            }
+        }
+
+        // Optional AI Visual Product Scan (Gemini API Key)
+        item {
+            var keyInput by remember(settings.geminiApiKey) { mutableStateOf(settings.geminiApiKey) }
+            var savedNotice by remember { mutableStateOf(false) }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sparkle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_ai_vision_title),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_ai_vision_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = keyInput,
+                        onValueChange = {
+                            keyInput = it
+                            savedNotice = false
+                        },
+                        label = { Text(stringResource(R.string.settings_gemini_key_label)) },
+                        placeholder = { Text(stringResource(R.string.settings_gemini_key_hint)) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_gemini_key_input")
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                onSaveGeminiApiKey(keyInput)
+                                savedNotice = true
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_gemini_key_save_btn")
+                        ) {
+                            Text(text = stringResource(R.string.action_save))
+                        }
+                        if (settings.geminiApiKey.isNotBlank() || keyInput.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = {
+                                    keyInput = ""
+                                    onSaveGeminiApiKey("")
+                                    savedNotice = true
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(text = stringResource(R.string.settings_gemini_key_clear))
+                            }
+                        }
+                    }
+                    if (savedNotice) {
+                        Text(
+                            text = stringResource(R.string.settings_gemini_key_saved),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }

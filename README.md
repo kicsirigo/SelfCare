@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v1.1.1-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.1.1)
+[![Version](https://img.shields.io/badge/Release-v1.2.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.2.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-55%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-58%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -46,11 +46,11 @@
 - **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, occlusives, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`, `Selenium Sulfide`), and **7 active conflict rules** (including *Prescription Antibiotic + Strong Acid/Retinoid*).
 - **Offline Prescription (`Rx`) & Hair/Scalp Preset Catalog (`PresetProductCatalog`)** — One-tap quick-add and offline search for barcode-less prescription treatments (**Davercin**, **Skinoren 20%/15%**, **Epiduo**, **Differin**, **Duac**, **Zineryt**, **Soolantra**, **Rozex**) and hair care (**Nizoral 2%**, **Alpecin C1**, **Vichy Dercos**, **Rosemary Scalp Serum**, **Minoxidil 5%**, **Keratin Mask**, **Argan Hair Oil**).
 - **Anonymous Read-Only Open Beauty Facts Lookup** — Optional barcode and product-name search using the URL configured via `.env` / `BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`, cached locally in Room with zero user/device identifiers.
-- **1-Photo Privacy-First Smart Scan & Full-Resolution Barcode/OCR** — Captures a crisp full-resolution photo via app-private `FileProvider` (immediately deleted after scanning; photos never leave the device), runs offline ML Kit barcode scanning first, then offline ML Kit OCR to match local Rx/Hair presets or perform an anonymous Open Beauty Facts text lookup.
-- **Full EN/HU Localized Active Conflict Alerts** — All 7 INCI conflict warnings, routine slots, and caution badges render in English or Hungarian.
+- **In-App Live CameraX Product Scanner + Optional Gemini Vision (Fallback to Offline OCR)** — Rear-camera viewfinder with live product-detection feedback. When an optional Google AI Studio (Gemini) API key is configured in Settings, identifies products directly from the photo and auto-fills name, brand, category, slot, and INCI ingredients; otherwise falls back automatically to 100% on-device OCR + offline Rx/Hair presets + anonymous Open Beauty Facts text lookup.
+- **Full EN/HU Localized Active Conflict Alerts & Delete Safeguards** — All 7 INCI conflict warnings, routine slots, and caution badges render in English or Hungarian, and every delete action requires confirmation.
 
 ### 100% Offline CameraX + Bundled ML Kit Face & Hair Check-In
-- **Guided CameraX Capture & Animated Lighting Check** — Pulsing neon scanner guide with real-time frame luminance, clipping, and left/right illumination asymmetry (`LightingQualityChecker`) before capture.
+- **Live Face Detection, Brightness HUD, Cooldown & Screen Flash** — Real-time on-device ML Kit FaceMesh checks confirm an actual face is present before turning the framing guide neon green (rejecting covered lenses or empty frames), alongside a live brightness percentage readout, 5-second capture cooldown, and Snapchat-style front screen flash.
 - **Real On-Device Computer Vision Math (`FaceMetricCalculator` + `MlKitFaceAnalyzer`)**:
   - **Under-Eye Dark Circles:** sRGB-to-CIELAB conversion and $\Delta E / \Delta L^*$ delta between under-eye ROIs and cheek baselines.
   - **Skin Health:** Erythema/redness index and local spatial texture variance across cheek and forehead ROIs.
@@ -62,7 +62,7 @@
 ### Personal Rolling Trends, AMOLED Neon UI & Smooth Animations
 - **Personal Baseline Trends (Never Medical Diagnoses)** — Displays under-eye, redness, texture, lip dryness, and multi-zone hair metrics relative to your own rolling **7-day and 30-day personal baseline**, alongside routine/hygiene adherence correlation.
 - **AMOLED Pure Black + Cyber Neon Green Default Theme** — Pure `#000000` AMOLED backdrop with `#00FF66` neon green accents (plus Dark & Light modes), unified 24dp monochrome icons in `AppIcons.kt`, and 120Hz `AnimatedContent` / `animateFloatAsState` transitions.
-- **Bilingual Localization (`EN` / `HU`)** — Full English and Hungarian string parity (`217/217` keys, including all INCI active conflict rules and caution badges) with flicker-free in-app **Auto / English / Magyar** switching.
+- **Bilingual Localization (`EN` / `HU`)** — Full English and Hungarian string parity (`241/241` keys, including all INCI active conflict rules and caution badges) with flicker-free in-app **Auto / English / Magyar** switching, 5-tab bottom navigation, and a persistent top-right Settings shortcut.
 
 ---
 
@@ -77,7 +77,7 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.1.1) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.2.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
 
 - **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
 - **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.
@@ -149,7 +149,7 @@ cp .env.example .env
 # Compile debug Kotlin sources
 ./gradlew compileDebugKotlin
 
-# Run all 55 unit & Robolectric E2E tests
+# Run all 58 unit & Robolectric E2E tests
 ./gradlew testDebugUnitTest
 
 # Build Debug APK
@@ -160,16 +160,16 @@ cp .env.example .env
 
 ## Testing
 
-The test suite includes **55 automated tests** across **14 test suites** (`app/src/test/java/com/selfcare/app/`):
-- **Unit Suites (38 tests):**
+The test suite includes **58 automated tests** across **15 test suites** (`app/src/test/java/com/selfcare/app/`):
+- **Unit Suites (41 tests):**
   - `RoutineRepositoryTest` (1-tap completion, skip overrides, midnight rollover, duplicate prevention)
   - `BackupRepositoryTest` (full JSON export/import roundtrip across all 5 Room tables & settings)
-  - `InciEngineTest`, `OpenBeautyFactsTest`, `PresetCatalogAndMetricInterpreterTest` & `SmartScanTest` (noisy OCR parsing, 69-ingredient matching, active conflict detection, Davercin/Skinoren/Nizoral offline presets, 1-photo smart query extraction & temp-photo deletion, qualitative gauges & multi-zone hair analysis)
+  - `InciEngineTest`, `OpenBeautyFactsTest`, `PresetCatalogAndMetricInterpreterTest`, `SmartScanTest` & `GeminiVisionProductClientTest` (noisy OCR parsing, 69-ingredient matching, active conflict detection, Davercin/Skinoren/Nizoral offline presets, Gemini Vision JSON parsing & normalization, 1-photo smart query extraction & temp-photo deletion, qualitative gauges & multi-zone hair analysis)
   - `FaceMetricCalculatorTest`, `LightingQualityTest`, `HaircutTrackerTest`, `FaceCheckInRepositoryTest` (CIELAB D65 conversion, redness/texture/lip/hair math, lighting thresholds, baseline reset & private photo auto-delete)
 - **Robolectric + Compose UI E2E Suites (17 tests, injecting deterministic `FaceAnalyzer` / `OcrScanner` / `BarcodeScanner` fakes):**
   - `Tier1FeatureCoverageTest` — Core routine, OBF + OCR + INCI, face check-in, and haircut flows
   - `Tier2BoundaryCornerTest` — Empty states, missing camera permission, poor lighting warning, offline API fallback, midnight rollover, duplicate logs, auto-delete verification
-  - `Tier3PersistenceAndLocalizationTest` — Room 5-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, launcher icon & flicker-free locale checks, and EN/HU 217-key parity + zero-emoji verification
+  - `Tier3PersistenceAndLocalizationTest` — Room 5-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, launcher icon & flicker-free locale checks, and EN/HU 241-key parity + zero-emoji verification
   - `Tier4UserJourneyTest` — Full cross-screen skincare -> routine -> hygiene -> check-in -> personal trends journey
 
 ---

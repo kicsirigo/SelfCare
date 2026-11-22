@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -63,8 +64,6 @@ import com.selfcare.app.ui.icons.AppIcons
 import java.io.File
 
 private enum class ScanCaptureMode {
-    SMART,
-    BARCODE,
     OCR
 }
 
@@ -76,9 +75,8 @@ fun ShelfScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var pendingFile by remember { mutableStateOf<File?>(null) }
-    var pendingMode by remember { mutableStateOf(ScanCaptureMode.SMART) }
 
-    val fullResCameraLauncher = rememberLauncherForActivityResult(
+    val fullResOcrLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         val file = pendingFile
@@ -88,19 +86,14 @@ fun ShelfScreen(
             return@rememberLauncherForActivityResult
         }
         val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
-        when (pendingMode) {
-            ScanCaptureMode.SMART -> viewModel.onSmartPhotoCaptured(bitmap)
-            ScanCaptureMode.BARCODE -> viewModel.onBarcodeBitmapCaptured(bitmap)
-            ScanCaptureMode.OCR -> viewModel.onOcrBitmapCaptured(bitmap)
-        }
+        viewModel.onOcrBitmapCaptured(bitmap)
     }
 
-    fun launchFullResScan(mode: ScanCaptureMode) {
+    fun launchFullResOcr() {
         try {
             val capture = ScanPhotoHelper.createTempScanCapture(context)
             pendingFile = capture.file
-            pendingMode = mode
-            fullResCameraLauncher.launch(capture.uri)
+            fullResOcrLauncher.launch(capture.uri)
         } catch (_: ActivityNotFoundException) {
             ScanPhotoHelper.cleanupTempFile(pendingFile)
             pendingFile = null
@@ -112,6 +105,18 @@ fun ShelfScreen(
         }
     }
 
+    if (state.isLiveScannerOpen) {
+        ProductLiveScannerView(
+            liveProductDetected = state.liveProductDetected,
+            isGeminiVisionConfigured = state.isGeminiVisionConfigured,
+            onLiveFrame = viewModel::onLiveScannerFrame,
+            onCaptureBitmap = viewModel::onSmartPhotoCaptured,
+            onClose = viewModel::closeLiveScanner,
+            modifier = modifier
+        )
+        return
+    }
+
     ShelfScreenContent(
         state = state,
         onSearchQueryChange = viewModel::onSearchQueryChange,
@@ -119,9 +124,8 @@ fun ShelfScreen(
         onSelectCategoryFilter = viewModel::selectCategoryFilter,
         onSelectPresetGroup = viewModel::selectPresetGroup,
         onAddPreset = viewModel::addPresetProduct,
-        onSmartScanClick = { launchFullResScan(ScanCaptureMode.SMART) },
-        onScanBarcodeClick = { launchFullResScan(ScanCaptureMode.BARCODE) },
-        onScanOcrClick = { launchFullResScan(ScanCaptureMode.OCR) },
+        onSmartScanClick = viewModel::openLiveScanner,
+        onScanOcrClick = { launchFullResOcr() },
         onAddProductClick = { viewModel.openNewProductEditor() },
         onSelectRemoteProduct = viewModel::selectRemoteProduct,
         onDismissOfflineFallback = viewModel::dismissOfflineFallback,
@@ -149,7 +153,6 @@ fun ShelfScreenContent(
     onSelectPresetGroup: (PresetGroup) -> Unit,
     onAddPreset: (PresetProduct) -> Unit,
     onSmartScanClick: () -> Unit = {},
-    onScanBarcodeClick: () -> Unit,
     onScanOcrClick: () -> Unit,
     onAddProductClick: () -> Unit,
     onSelectRemoteProduct: (com.selfcare.app.data.remote.OpenBeautyFactsProduct) -> Unit,
@@ -184,6 +187,37 @@ fun ShelfScreenContent(
             modifier = modifier
         )
         return
+    }
+
+    var pendingDeleteProduct by remember {
+        mutableStateOf<com.selfcare.app.data.local.entity.ProductEntity?>(null)
+    }
+
+    pendingDeleteProduct?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteProduct = null },
+            title = { Text(text = stringResource(R.string.confirm_delete_title)) },
+            text = { Text(text = stringResource(R.string.confirm_delete_product_body, target.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteProduct(target.id)
+                        pendingDeleteProduct = null
+                    },
+                    modifier = Modifier.testTag("confirm_delete_btn")
+                ) {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteProduct = null }) {
+                    Text(text = stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 
     Column(
@@ -245,56 +279,27 @@ fun ShelfScreenContent(
             }
         }
 
-        Button(
-            onClick = onSmartScanClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("shelf_smart_scan_btn")
-        ) {
-            Icon(
-                imageVector = AppIcons.Camera,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.size(6.dp))
-            Text(text = stringResource(R.string.shelf_smart_scan))
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = AppIcons.Lock,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp)
-            )
-            Text(
-                text = stringResource(R.string.shelf_smart_scan_privacy),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
-                onClick = onScanBarcodeClick,
+            Button(
+                onClick = onSmartScanClick,
                 modifier = Modifier
-                    .weight(1f)
-                    .testTag("shelf_scan_barcode_btn")
+                    .weight(1.3f)
+                    .testTag("shelf_smart_scan_btn")
             ) {
                 Icon(
-                    imageVector = AppIcons.Barcode,
+                    imageVector = AppIcons.Camera,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(6.dp))
-                Text(text = stringResource(R.string.shelf_scan_barcode))
+                Text(
+                    text = stringResource(R.string.shelf_smart_scan),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             OutlinedButton(
                 onClick = onScanOcrClick,
@@ -308,8 +313,36 @@ fun ShelfScreenContent(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.size(6.dp))
-                Text(text = stringResource(R.string.shelf_scan_label))
+                Text(
+                    text = stringResource(R.string.shelf_scan_label),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (state.isGeminiVisionConfigured) AppIcons.Sparkle else AppIcons.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = stringResource(
+                    if (state.isGeminiVisionConfigured) {
+                        R.string.shelf_gemini_active_badge
+                    } else {
+                        R.string.shelf_smart_scan_privacy
+                    }
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         AnimatedVisibility(
@@ -452,7 +485,7 @@ fun ShelfScreenContent(
                     ProductShelfCard(
                         item = item,
                         onEdit = { onEditProduct(item.entity) },
-                        onDelete = { onDeleteProduct(item.entity.id) }
+                        onDelete = { pendingDeleteProduct = item.entity }
                     )
                 }
             }
