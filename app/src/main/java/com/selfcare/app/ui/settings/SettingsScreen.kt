@@ -1,0 +1,474 @@
+package com.selfcare.app.ui.settings
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.selfcare.app.R
+import com.selfcare.app.data.local.AppLanguage
+import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.theme.ThemeMode
+import kotlin.math.roundToInt
+
+@Composable
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            viewModel.exportBackup(context.contentResolver, uri)
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importBackup(context.contentResolver, uri)
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Permission is optional; reminders gracefully no-op if denied
+    }
+
+    SettingsScreenContent(
+        state = state,
+        onSelectTheme = viewModel::setThemeMode,
+        onSelectLanguage = viewModel::setAppLanguage,
+        onToggleAutoDelete = viewModel::setAutoDeleteCheckInPhotos,
+        onChangeHaircutThreshold = viewModel::setHaircutThresholdPercent,
+        onToggleMorningReminder = { enabled ->
+            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+            viewModel.setMorningReminderEnabled(enabled)
+        },
+        onAdjustMorningTime = viewModel::adjustMorningReminderTime,
+        onToggleEveningReminder = { enabled ->
+            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+            viewModel.setEveningReminderEnabled(enabled)
+        },
+        onAdjustEveningTime = viewModel::adjustEveningReminderTime,
+        onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
+        onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+        modifier = modifier
+    )
+}
+
+@Composable
+fun SettingsScreenContent(
+    state: SettingsUiState,
+    onSelectTheme: (ThemeMode) -> Unit,
+    onSelectLanguage: (AppLanguage) -> Unit,
+    onToggleAutoDelete: (Boolean) -> Unit,
+    onChangeHaircutThreshold: (Int) -> Unit,
+    onToggleMorningReminder: (Boolean) -> Unit,
+    onAdjustMorningTime: (Int) -> Unit,
+    onToggleEveningReminder: (Boolean) -> Unit,
+    onAdjustEveningTime: (Int) -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val settings = state.settings
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        // Theme
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Palette,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_theme),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeMode.entries.forEach { mode ->
+                            val labelRes = when (mode) {
+                                ThemeMode.LIGHT -> R.string.theme_light
+                                ThemeMode.DARK -> R.string.theme_dark
+                                ThemeMode.AMOLED -> R.string.theme_amoled
+                            }
+                            FilterChip(
+                                selected = settings.themeMode == mode,
+                                onClick = { onSelectTheme(mode) },
+                                label = { Text(stringResource(labelRes)) },
+                                modifier = Modifier.testTag("settings_theme_${mode.name}")
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Language
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Globe,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_language),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AppLanguage.entries.forEach { lang ->
+                            val labelRes = when (lang) {
+                                AppLanguage.AUTO -> R.string.lang_auto
+                                AppLanguage.EN -> R.string.lang_en
+                                AppLanguage.HU -> R.string.lang_hu
+                            }
+                            FilterChip(
+                                selected = settings.appLanguage == lang,
+                                onClick = { onSelectLanguage(lang) },
+                                leadingIcon = if (lang == AppLanguage.AUTO) {
+                                    {
+                                        Icon(
+                                            imageVector = AppIcons.Globe,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                } else null,
+                                label = { Text(stringResource(labelRes)) },
+                                modifier = Modifier.testTag("settings_lang_${lang.name}")
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Reminders
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_reminders),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    ReminderRow(
+                        title = stringResource(R.string.settings_morning_reminder),
+                        hour = settings.morningReminderHour,
+                        minute = settings.morningReminderMinute,
+                        enabled = settings.morningReminderEnabled,
+                        onToggle = onToggleMorningReminder,
+                        onAdjustTime = onAdjustMorningTime,
+                        toggleTag = "settings_reminder_toggle"
+                    )
+
+                    ReminderRow(
+                        title = stringResource(R.string.settings_evening_reminder),
+                        hour = settings.eveningReminderHour,
+                        minute = settings.eveningReminderMinute,
+                        enabled = settings.eveningReminderEnabled,
+                        onToggle = onToggleEveningReminder,
+                        onAdjustTime = onAdjustEveningTime,
+                        toggleTag = "settings_evening_reminder_toggle"
+                    )
+                }
+            }
+        }
+
+        // Privacy & Check-in settings
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_privacy_title),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_privacy_summary),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_auto_delete_photo),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = settings.autoDeleteCheckInPhotos,
+                            onCheckedChange = onToggleAutoDelete,
+                            modifier = Modifier.testTag("settings_auto_delete_toggle")
+                        )
+                    }
+
+                    Text(
+                        text = "${stringResource(R.string.settings_haircut_threshold)}: " +
+                            stringResource(
+                                R.string.settings_haircut_threshold_value,
+                                settings.haircutThresholdPercent
+                            ),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = settings.haircutThresholdPercent.toFloat(),
+                        onValueChange = { onChangeHaircutThreshold(it.roundToInt()) },
+                        valueRange = UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT.toFloat()..
+                            UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT.toFloat()
+                    )
+                }
+            }
+        }
+
+        // Local JSON Backup
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_backup_section),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onExportBackup,
+                            enabled = !state.isBusy,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("backup_export_btn")
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Export,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text(stringResource(R.string.settings_export_backup))
+                        }
+                        OutlinedButton(
+                            onClick = onImportBackup,
+                            enabled = !state.isBusy,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("backup_import_btn")
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Import,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.size(6.dp))
+                            Text(stringResource(R.string.settings_import_backup))
+                        }
+                    }
+
+                    when (val status = state.backupStatus) {
+                        BackupStatus.Idle -> Unit
+                        BackupStatus.ExportSuccess -> Text(
+                            text = stringResource(R.string.settings_backup_export_success),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        is BackupStatus.ImportSuccess -> Text(
+                            text = stringResource(
+                                R.string.settings_backup_import_success,
+                                status.summary.routineLogsCount,
+                                status.summary.productsCount,
+                                status.summary.hygieneLogsCount,
+                                status.summary.faceCheckInsCount
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        is BackupStatus.Error -> Text(
+                            text = stringResource(R.string.settings_backup_error, status.message),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun ReminderRow(
+    title: String,
+    hour: Int,
+    minute: Int,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onAdjustTime: (Int) -> Unit,
+    toggleTag: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = stringResource(R.string.settings_reminder_time, hour, minute),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.testTag(toggleTag)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = { onAdjustTime(-15) }) {
+                Text(stringResource(R.string.settings_time_minus_15))
+            }
+            TextButton(onClick = { onAdjustTime(15) }) {
+                Text(stringResource(R.string.settings_time_plus_15))
+            }
+        }
+    }
+}

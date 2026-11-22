@@ -1,0 +1,627 @@
+{
+  "version": 1,
+  "ingredients": [
+    {
+      "id": "aqua",
+      "canonicalName": "Aqua",
+      "synonyms": ["Water", "Purified Water", "Eau"],
+      "category": "HYDRATOR",
+      "effectSummary": "Primary solvent and hydration base in aqueous skincare formulations.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "glycerin",
+      "canonicalName": "Glycerin",
+      "synonyms": ["Glycerol", "Vegetable Glycerin"],
+      "category": "HYDRATOR",
+      "effectSummary": "Humectant that draws moisture into the stratum corneum and supports barrier hydration.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "hyaluronic_acid",
+      "canonicalName": "Hyaluronic Acid",
+      "synonyms": ["HA", "Hyaluronan"],
+      "category": "HYDRATOR",
+      "effectSummary": "Polysaccharide humectant capable of binding water to plump and hydrate skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "sodium_hyaluronate",
+      "canonicalName": "Sodium Hyaluronate",
+      "synonyms": ["Hyaluronic Acid Sodium Salt"],
+      "category": "HYDRATOR",
+      "effectSummary": "Low-molecular-weight salt form of hyaluronic acid for deeper surface hydration.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "panthenol",
+      "canonicalName": "Panthenol",
+      "synonyms": ["Pro-Vitamin B5", "D-Panthenol", "Dexpanthenol"],
+      "category": "HYDRATOR",
+      "effectSummary": "Humectant and soothing agent that supports skin barrier repair and reduces redness.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "betaine",
+      "canonicalName": "Betaine",
+      "synonyms": ["Trimethylglycine"],
+      "category": "HYDRATOR",
+      "effectSummary": "Osmolyte humectant that maintains cellular water balance and softens skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "urea",
+      "canonicalName": "Urea",
+      "synonyms": ["Carbamide"],
+      "category": "HYDRATOR",
+      "effectSummary": "Natural moisturizing factor component; hydrates at low concentrations and gently keratolytics at higher levels.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "sodium_pca",
+      "canonicalName": "Sodium PCA",
+      "synonyms": ["Sodium Pyrrolidone Carboxylate"],
+      "category": "HYDRATOR",
+      "effectSummary": "Physiological humectant in the natural moisturizing factor that binds water in the epidermis.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "trehalose",
+      "canonicalName": "Trehalose",
+      "synonyms": ["Alpha-D-Glucopyranosyl Alpha-D-Glucopyranoside"],
+      "category": "HYDRATOR",
+      "effectSummary": "Disaccharide humectant that protects skin cells from dehydration.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "glycolic_acid",
+      "canonicalName": "Glycolic Acid",
+      "synonyms": ["AHA", "Hydroxyacetic Acid"],
+      "category": "AHA",
+      "effectSummary": "Smallest alpha-hydroxy acid; exfoliates dead surface cells, brightens tone, and smooths texture.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "lactic_acid",
+      "canonicalName": "Lactic Acid",
+      "synonyms": ["2-Hydroxypropanoic Acid"],
+      "category": "AHA",
+      "effectSummary": "Gentle alpha-hydroxy acid that exfoliates while providing mild humectant hydration.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "mandelic_acid",
+      "canonicalName": "Mandelic Acid",
+      "synonyms": ["2-Phenylglycolic Acid"],
+      "category": "AHA",
+      "effectSummary": "Larger-molecule alpha-hydroxy acid with slower penetration, suitable for sensitive or acne-prone skin.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "salicylic_acid",
+      "canonicalName": "Salicylic Acid",
+      "synonyms": ["BHA", "2-Hydroxybenzoic Acid"],
+      "category": "BHA",
+      "effectSummary": "Oil-soluble beta-hydroxy acid that penetrates pores to clear sebum, comedones, and congestion.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "betaine_salicylate",
+      "canonicalName": "Betaine Salicylate",
+      "synonyms": ["Salicylic Acid Betaine"],
+      "category": "BHA",
+      "effectSummary": "Milder beta-hydroxy acid complex combining salicylic acid with betaine for gentler pore exfoliation.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "gluconolactone",
+      "canonicalName": "Gluconolactone",
+      "synonyms": ["PHA", "Glucono-Delta-Lactone"],
+      "category": "PHA",
+      "effectSummary": "Polyhydroxy acid offering gentle surface exfoliation, humectant hydration, and antioxidant support.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "azelaic_acid",
+      "canonicalName": "Azelaic Acid",
+      "synonyms": ["Nonanedioic Acid"],
+      "category": "AHA",
+      "effectSummary": "Dicarboxylic acid that calms redness, targets blemish-causing bacteria, and fades post-inflammatory hyperpigmentation.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "retinol",
+      "canonicalName": "Retinol",
+      "synonyms": ["Vitamin A", "All-Trans-Retinol"],
+      "category": "RETINOID",
+      "effectSummary": "Gold-standard OTC retinoid that accelerates cell turnover, boosts collagen, and refines texture.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "retinal",
+      "canonicalName": "Retinal",
+      "synonyms": ["Retinaldehyde", "All-Trans-Retinal"],
+      "category": "RETINOID",
+      "effectSummary": "Direct precursor to retinoic acid; faster-acting than retinol with strong anti-aging and anti-acne efficacy.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "retinyl_palmitate",
+      "canonicalName": "Retinyl Palmitate",
+      "synonyms": ["Vitamin A Palmitate"],
+      "category": "RETINOID",
+      "effectSummary": "Mildest ester form of vitamin A offering gentle antioxidant and renewal support.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "adapalene",
+      "canonicalName": "Adapalene",
+      "synonyms": ["Differin"],
+      "category": "RETINOID",
+      "effectSummary": "Third-generation synthetic retinoid targeting follicular keratinization and inflammatory acne.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 4
+    },
+    {
+      "id": "tretinoin",
+      "canonicalName": "Tretinoin",
+      "synonyms": ["All-Trans-Retinoic Acid", "Retinoic Acid"],
+      "category": "RETINOID",
+      "effectSummary": "Prescription-strength active retinoid for acne, photoaging, and cellular turnover.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 5
+    },
+    {
+      "id": "bakuchiol",
+      "canonicalName": "Bakuchiol",
+      "synonyms": ["Psoralea Corylifolia Seed Extract"],
+      "category": "ANTIOXIDANT",
+      "effectSummary": "Plant-derived retinol alternative that supports collagen and tone without classic retinoid irritation.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "ascorbic_acid",
+      "canonicalName": "Ascorbic Acid",
+      "synonyms": ["L-Ascorbic Acid", "Vitamin C"],
+      "category": "VITAMIN_C",
+      "effectSummary": "Purest, most potent form of vitamin C; brightens hyperpigmentation, boosts collagen, and neutralizes free radicals.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "sodium_ascorbyl_phosphate",
+      "canonicalName": "Sodium Ascorbyl Phosphate",
+      "synonyms": ["SAP", "Vitamin C Phosphate"],
+      "category": "VITAMIN_C",
+      "effectSummary": "Stable, water-soluble vitamin C derivative suitable for sensitive and acne-prone skin.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "niacinamide",
+      "canonicalName": "Niacinamide",
+      "synonyms": ["Vitamin B3", "Nicotinamide"],
+      "category": "NIACINAMIDE",
+      "effectSummary": "Versatile vitamin B3 active that regulates sebum, strengthens ceramide synthesis, and evens skin tone.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "tocopherol",
+      "canonicalName": "Tocopherol",
+      "synonyms": ["Vitamin E", "Alpha-Tocopherol"],
+      "category": "ANTIOXIDANT",
+      "effectSummary": "Lipid-soluble antioxidant that protects cell membranes and stabilizes vitamin C formulations.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 2,
+      "irritancyRating": 0
+    },
+    {
+      "id": "ferulic_acid",
+      "canonicalName": "Ferulic Acid",
+      "synonyms": ["4-Hydroxy-3-Methoxycinnamic Acid"],
+      "category": "ANTIOXIDANT",
+      "effectSummary": "Phenolic antioxidant that enhances photoprotection and stabilizes L-ascorbic acid.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "copper_tripeptide_1",
+      "canonicalName": "Copper Tripeptide-1",
+      "synonyms": ["GHK-Cu", "Copper Peptides"],
+      "category": "PEPTIDE",
+      "effectSummary": "Signal peptide complex that supports wound healing, firmness, and collagen remodeling.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 1
+    },
+    {
+      "id": "benzoyl_peroxide",
+      "canonicalName": "Benzoyl Peroxide",
+      "synonyms": ["BPO"],
+      "category": "BENZOYL_PEROXIDE",
+      "effectSummary": "Antimicrobial oxidizing agent that rapidly reduces Cutibacterium acnes and inflammatory breakouts.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 4
+    },
+    {
+      "id": "kojic_acid",
+      "canonicalName": "Kojic Acid",
+      "synonyms": ["5-Hydroxy-2-(Hydroxymethyl)-4-Pyrone"],
+      "category": "ANTIOXIDANT",
+      "effectSummary": "Tyrosinase inhibitor used to target dark spots, melasma, and uneven pigmentation.",
+      "cautionLevel": "ACTIVE",
+      "comedogenicRating": 0,
+      "irritancyRating": 2
+    },
+    {
+      "id": "alpha_arbutin",
+      "canonicalName": "Alpha-Arbutin",
+      "synonyms": ["4-Hydroxyphenyl-Alpha-D-Glucopyranoside"],
+      "category": "ANTIOXIDANT",
+      "effectSummary": "Gentle tyrosinase inhibitor that fades hyperpigmentation with low irritation risk.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "ceramide_np",
+      "canonicalName": "Ceramide NP",
+      "synonyms": ["Ceramide 3", "N-Stearoyl Phytosphingosine"],
+      "category": "SOOTHING",
+      "effectSummary": "Skin-identical lipid that restores the stratum corneum barrier and prevents transepidermal water loss.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "ceramide_ap",
+      "canonicalName": "Ceramide AP",
+      "synonyms": ["Ceramide 6 II"],
+      "category": "SOOTHING",
+      "effectSummary": "Barrier-repair lipid that supports lamellar structure and smooths dry, compromised skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "ceramide_eop",
+      "canonicalName": "Ceramide EOP",
+      "synonyms": ["Ceramide 1"],
+      "category": "SOOTHING",
+      "effectSummary": "Essential structural ceramide that binds lipid layers together for resilient barrier function.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "cholesterol",
+      "canonicalName": "Cholesterol",
+      "synonyms": ["Cholest-5-En-3-Ol"],
+      "category": "SOOTHING",
+      "effectSummary": "Physiological skin lipid that works synergistically with ceramides and fatty acids to repair the barrier.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "centella_asiatica_extract",
+      "canonicalName": "Centella Asiatica Extract",
+      "synonyms": ["Cica", "Gotu Kola", "Tiger Grass"],
+      "category": "SOOTHING",
+      "effectSummary": "Botanical extract rich in triterpenoids that calms inflammation and supports wound healing.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "madecassoside",
+      "canonicalName": "Madecassoside",
+      "synonyms": ["Centella Asiatica Triterpene"],
+      "category": "SOOTHING",
+      "effectSummary": "Purified active compound from Centella asiatica that reduces redness and oxidative stress.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "allantoin",
+      "canonicalName": "Allantoin",
+      "synonyms": ["5-Ureidohydantoin"],
+      "category": "SOOTHING",
+      "effectSummary": "Skin-soothing keratolytic that calms irritation and promotes epidermal recovery.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "bisabolol",
+      "canonicalName": "Bisabolol",
+      "synonyms": ["Alpha-Bisabolol", "Levomenol"],
+      "category": "SOOTHING",
+      "effectSummary": "Chamomile-derived soothing agent that reduces visible redness and sensitivity.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "colloidal_oatmeal",
+      "canonicalName": "Colloidal Oatmeal",
+      "synonyms": ["Avena Sativa Kernel Flour"],
+      "category": "SOOTHING",
+      "effectSummary": "FDA-recognized skin protectant rich in beta-glucans that relieves dryness, itching, and eczema.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "camellia_sinensis_leaf_extract",
+      "canonicalName": "Camellia Sinensis Leaf Extract",
+      "synonyms": ["Green Tea Extract", "EGCG"],
+      "category": "SOOTHING",
+      "effectSummary": "Polyphenol-rich antioxidant and anti-inflammatory extract that calms sebum-prone skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "petrolatum",
+      "canonicalName": "Petrolatum",
+      "synonyms": ["Petroleum Jelly", "Vaseline"],
+      "category": "OCCLUSIVE",
+      "effectSummary": "Gold-standard occlusive that reduces transepidermal water loss by over 98 percent.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "dimethicone",
+      "canonicalName": "Dimethicone",
+      "synonyms": ["Polydimethylsiloxane", "PDMS"],
+      "category": "OCCLUSIVE",
+      "effectSummary": "Breathable silicone emollient and occlusive that smooths texture and protects compromised skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 1,
+      "irritancyRating": 0
+    },
+    {
+      "id": "squalane",
+      "canonicalName": "Squalane",
+      "synonyms": ["Olive Squalane", "Sugarcane Squalane"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Lightweight, biomimetic hydrocarbon emollient that softens skin without heaviness or pore clogging.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 0,
+      "irritancyRating": 0
+    },
+    {
+      "id": "butyrospermum_parkii_butter",
+      "canonicalName": "Butyrospermum Parkii Butter",
+      "synonyms": ["Shea Butter"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Rich plant butter high in stearic and oleic acids that deeply nourishes dry skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 1,
+      "irritancyRating": 0
+    },
+    {
+      "id": "caprylic_capric_triglyceride",
+      "canonicalName": "Caprylic/Capric Triglyceride",
+      "synonyms": ["Fractionated Coconut Oil", "MCT Oil"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Lightweight ester emollient that imparts slip and softness without feeling greasy.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 1,
+      "irritancyRating": 0
+    },
+    {
+      "id": "cetearyl_alcohol",
+      "canonicalName": "Cetearyl Alcohol",
+      "synonyms": ["Cetostearyl Alcohol"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Non-drying fatty alcohol used as an emollient and emulsion thickener.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 2,
+      "irritancyRating": 0
+    },
+    {
+      "id": "simmondsia_chinensis_seed_oil",
+      "canonicalName": "Simmondsia Chinensis Seed Oil",
+      "synonyms": ["Jojoba Oil"],
+      "category": "EMOLLIENT",
+      "effectSummary": "Liquid wax ester closely resembling human sebum that balances and softens skin.",
+      "cautionLevel": "SAFE",
+      "comedogenicRating": 2,
+      "irritancyRating": 0
+    },
+    {
+      "id": "alcohol_denat",
+      "canonicalName": "Alcohol Denat.",
+      "synonyms": ["Denatured Alcohol", "SD Alcohol 40", "Ethanol"],
+      "category": "IRRITANT",
+      "effectSummary": "Volatile solvent that speeds drying and enhances penetration but can strip barrier lipids.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 4
+    },
+    {
+      "id": "parfum",
+      "canonicalName": "Parfum",
+      "synonyms": ["Fragrance", "Aroma"],
+      "category": "IRRITANT",
+      "effectSummary": "Aromatic blend that provides scent; a common trigger for contact dermatitis in sensitive skin.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "limonene",
+      "canonicalName": "Limonene",
+      "synonyms": ["D-Limonene"],
+      "category": "IRRITANT",
+      "effectSummary": "Citrus-derived fragrance allergen that oxidizes on air exposure and can sensitize skin.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "linalool",
+      "canonicalName": "Linalool",
+      "synonyms": ["3,7-Dimethylocta-1,6-Dien-3-Ol"],
+      "category": "IRRITANT",
+      "effectSummary": "Floral fragrance component and recognized contact allergen when oxidized.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 3
+    },
+    {
+      "id": "sodium_lauryl_sulfate",
+      "canonicalName": "Sodium Lauryl Sulfate",
+      "synonyms": ["SLS"],
+      "category": "IRRITANT",
+      "effectSummary": "Harsh anionic surfactant that creates rich foam but disrupts skin barrier proteins and lipids.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 5
+    },
+    {
+      "id": "cocos_nucifera_oil",
+      "canonicalName": "Cocos Nucifera Oil",
+      "synonyms": ["Coconut Oil"],
+      "category": "COMEDOGENIC",
+      "effectSummary": "Occlusive plant oil rich in lauric acid; nourishing for body skin but highly comedogenic on the face.",
+      "cautionLevel": "MODERATE",
+      "comedogenicRating": 4,
+      "irritancyRating": 0
+    },
+    {
+      "id": "isopropyl_myristate",
+      "canonicalName": "Isopropyl Myristate",
+      "synonyms": ["IPM"],
+      "category": "COMEDOGENIC",
+      "effectSummary": "Fast-absorbing emollient ester that improves spreadability but strongly clogs pores.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 5,
+      "irritancyRating": 1
+    },
+    {
+      "id": "menthol",
+      "canonicalName": "Menthol",
+      "synonyms": ["L-Menthol", "Peppermint Camphor"],
+      "category": "IRRITANT",
+      "effectSummary": "Cooling agent that triggers TRPM8 receptors; can cause stinging and irritation on facial skin.",
+      "cautionLevel": "CAUTION",
+      "comedogenicRating": 0,
+      "irritancyRating": 4
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "retinoid_aha_bha",
+      "categoriesA": ["RETINOID"],
+      "categoriesB": ["AHA", "BHA"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": [],
+      "severity": "HIGH",
+      "title": "Retinoid + Exfoliating Acid",
+      "recommendation": "Use on alternating evenings or separate AM/PM routines to avoid barrier irritation."
+    },
+    {
+      "id": "benzoyl_peroxide_vitamin_c",
+      "categoriesA": ["BENZOYL_PEROXIDE"],
+      "categoriesB": ["VITAMIN_C"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": [],
+      "severity": "HIGH",
+      "title": "Benzoyl Peroxide + Vitamin C",
+      "recommendation": "Benzoyl peroxide oxidizes ascorbic acid and reduces efficacy. Use Vitamin C in the morning and Benzoyl Peroxide in the evening."
+    },
+    {
+      "id": "retinoid_benzoyl_peroxide",
+      "categoriesA": ["RETINOID"],
+      "categoriesB": ["BENZOYL_PEROXIDE"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": [],
+      "severity": "HIGH",
+      "title": "Retinoid + Benzoyl Peroxide",
+      "recommendation": "Combining both can cause severe dryness and degrade unstable retinoids. Use Benzoyl Peroxide in the morning and Retinoid at night."
+    },
+    {
+      "id": "retinoid_direct_vitamin_c",
+      "categoriesA": ["RETINOID"],
+      "categoriesB": [],
+      "ingredientIdsA": [],
+      "ingredientIdsB": ["ascorbic_acid"],
+      "severity": "MODERATE",
+      "title": "Retinoid + Direct Vitamin C (L-Ascorbic Acid)",
+      "recommendation": "Low-pH L-Ascorbic Acid and retinoids can increase irritation when layered together. Apply Vitamin C in the morning and Retinoid at night."
+    },
+    {
+      "id": "acids_copper_peptides",
+      "categoriesA": ["AHA", "BHA"],
+      "categoriesB": ["PEPTIDE"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": ["copper_tripeptide_1"],
+      "severity": "MODERATE",
+      "title": "Direct Acids + Copper Peptides",
+      "recommendation": "Low-pH exfoliating acids can destabilize copper peptides. Use them in separate routines (e.g., AM vs PM)."
+    },
+    {
+      "id": "aha_bha_stacking",
+      "categoriesA": ["AHA"],
+      "categoriesB": ["BHA"],
+      "ingredientIdsA": [],
+      "ingredientIdsB": [],
+      "severity": "MODERATE",
+      "title": "AHA + BHA Acid Stacking",
+      "recommendation": "Layering multiple strong exfoliating acids increases the risk of over-exfoliation and barrier damage. Alternate nights unless formulated together."
+    }
+  ]
+}

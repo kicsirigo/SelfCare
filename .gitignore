@@ -1,0 +1,21 @@
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# Local SDK/IDE configuration
+local.properties
+.idea/
+*.iml
+
+# Gradle & build artifacts
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# OS & misc
+.DS_Store
+*.hprof
+*.keystore
+*.jks

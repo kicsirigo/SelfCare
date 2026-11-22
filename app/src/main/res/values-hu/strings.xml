@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SelfCare</string>
+    <string name="app_subtitle">Privát, offline napi rutin és bőrállapot-követő</string>
+
+    <!-- Navigation -->
+    <string name="nav_routine">Rutin</string>
+    <string name="nav_hygiene">Higiénia</string>
+    <string name="nav_shelf">Polc</string>
+    <string name="nav_checkin">Állapotfelmérés</string>
+    <string name="nav_trends">Trendek</string>
+    <string name="nav_settings">Beállítások</string>
+
+    <!-- Routine -->
+    <string name="routine_title">Napi rutin</string>
+    <string name="routine_morning">Reggel</string>
+    <string name="routine_evening">Este</string>
+    <string name="routine_complete_morning">Reggeli rutin kész</string>
+    <string name="routine_complete_evening">Esti rutin kész</string>
+    <string name="routine_completed_today">Ma teljesítve</string>
+    <string name="routine_not_completed_today">Ma még nincs naplózva</string>
+    <string name="routine_override_hint">Érintse meg a tételt a módosításhoz vagy kihagyáshoz</string>
+    <string name="routine_empty">Még nincs alapértelmezett termék beállítva</string>
+    <string name="routine_default_products">Alapértelmezett termékek</string>
+    <string name="routine_configure_defaults">Alapértelmezett termékek beállítása</string>
+    <string name="routine_product_included">Tartalmazva</string>
+    <string name="routine_product_skipped">Kihagyva</string>
+    <string name="routine_morning_slot">Reggel</string>
+    <string name="routine_evening_slot">Este</string>
+    <string name="routine_no_products_hint">Adj hozzá termékeket a Polcon a reggeli és esti alapértelmezettekhez.</string>
+
+    <!-- Hygiene -->
+    <string name="hygiene_title">Napi higiénia</string>
+    <string name="hygiene_shower">Zuhanyzás vagy fürdés</string>
+    <string name="hygiene_teeth_am">Reggeli fogmosás</string>
+    <string name="hygiene_teeth_pm">Esti fogmosás</string>
+    <string name="hygiene_lip_balm">Ajakápoló</string>
+    <string name="hygiene_custom_habits">Egyéni szokások</string>
+    <string name="hygiene_add_habit">Szokás hozzáadása</string>
+    <string name="hygiene_completed_label">Kész</string>
+    <string name="hygiene_pending_label">Érintsd meg a naplózáshoz</string>
+    <string name="hygiene_habit_name_hint">Szokás neve</string>
+    <string name="hygiene_no_custom_habits">Még nincsenek egyéni szokások</string>
+
+    <!-- Shelf -->
+    <string name="shelf_title">Termékpolc</string>
+    <string name="shelf_scan_barcode">Vonalkód olvasása</string>
+    <string name="shelf_scan_label">Címke olvasása (OCR)</string>
+    <string name="shelf_add_manual">Termék hozzáadása</string>
+    <string name="shelf_search_hint">Termék vagy vonalkód keresése</string>
+    <string name="shelf_lookup">Keresés</string>
+    <string name="shelf_conflicts_detected">Hatóanyag-ütközés észlelve</string>
+    <string name="shelf_empty">A termékpolc még üres</string>
+    <string name="shelf_offline_fallback">A termék nem található vagy nincs kapcsolat. Használd a Címke olvasását (OCR) vagy add meg kézzel.</string>
+    <string name="shelf_barcode_not_detected">Nem észlelhető vonalkód a képen. Próbáld újra vagy írd be kézzel.</string>
+    <string name="shelf_ocr_no_text">Nem sikerült összetevő-szöveget felismerni. Próbáld újra vagy írd be kézzel.</string>
+    <string name="shelf_remote_results">Online keresési találatok</string>
+    <string name="shelf_use_result">Használat</string>
+    <string name="shelf_product_name">Termék neve</string>
+    <string name="shelf_product_brand">Márka</string>
+    <string name="shelf_product_barcode">Vonalkód</string>
+    <string name="shelf_product_ingredients">Összetevők (INCI)</string>
+    <string name="shelf_routine_slot">Rutin időszak</string>
+    <string name="shelf_slot_morning">Reggel</string>
+    <string name="shelf_slot_evening">Este</string>
+    <string name="shelf_slot_both">Mindkettő</string>
+    <string name="shelf_slot_none">Nincs</string>
+    <string name="shelf_default_in_routine">Alapértelmezett a rutinban</string>
+    <string name="shelf_parsed_inci">Felismert INCI összetevők</string>
+    <string name="shelf_no_inci_matches">Még nincs felismert ismert INCI hatóanyag</string>
+    <string name="shelf_add_title">Termék hozzáadása</string>
+    <string name="shelf_edit_title">Termék szerkesztése</string>
+
+    <!-- Check-In & Trends -->
+    <string name="checkin_title">Arc és haj állapotfelmérés</string>
+    <string name="checkin_take_photo">Felvétel készítése</string>
+    <string name="checkin_analyzing">Elemzés folyamatban…</string>
+    <string name="checkin_lighting_warning">A fényviszonyok túl sötétek vagy egyenlőtlenek</string>
+    <string name="checkin_lighting_too_dark">A fény túl gyenge. Fordulj világosabb fényforrás felé.</string>
+    <string name="checkin_lighting_too_bright">A fény túl erős. Kerüld a közvetlen vakító fényt az arcodon.</string>
+    <string name="checkin_lighting_uneven">A fény egyenlőtlen. Nézz szembe a fényforrással.</string>
+    <string name="checkin_permission_title">Kameraengedély szükséges</string>
+    <string name="checkin_permission_body">Adj kamera-hozzáférést az eszközön futó szelfi-ellenőrzéshez. A fotók soha nem hagyják el az eszközt.</string>
+    <string name="checkin_grant_permission">Kamera engedélyezése</string>
+    <string name="checkin_camera_unavailable">A kamerakép nem érhető el ezen az eszközön. Így is indíthatsz ellenőrzést.</string>
+    <string name="checkin_framing_hint">Igazítsd az arcod a keret közepére</string>
+    <string name="checkin_privacy_note">Kizárólag az alkalmazás privát tárhelyén marad</string>
+    <string name="checkin_last_result_title">Legutóbbi mérés rögzítve</string>
+    <string name="checkin_last_result_metrics">Szem alatti %1$s | Pír %2$s | Textúra %3$s | Ajak %4$s | Fény %5$d%%</string>
+    <string name="checkin_haircut_section_title">Hajvágási alapszint</string>
+    <string name="checkin_haircut_status">Jelenlegi növekedés: +%1$s%% (emlékeztető: %2$d%%)</string>
+    <string name="checkin_haircut_no_baseline">Még nincs hajvágási alapszint. Érintsd meg lent a következő hajvágás után.</string>
+    <string name="checkin_haircut_reset">Most voltam fodrásznál</string>
+    <string name="checkin_haircut_reset_confirmed">Hajvágási alapszint frissítve</string>
+    <string name="haircut_reminder_banner_text">A hajnövekedés +%1$d%% az alapszint felett van (küszöb: %2$d%%)</string>
+    <string name="trends_title">Személyes trendek</string>
+    <string name="trends_baseline_note">Az értékek a saját 7 napos és 30 napos átlagodhoz viszonyulnak</string>
+    <string name="trends_7d_label">7 napos ablak</string>
+    <string name="trends_30d_label">30 napos ablak</string>
+    <string name="trends_checkin_count">%d mérés</string>
+    <string name="trends_empty_title">Még nincsenek mérések</string>
+    <string name="trends_empty_body">Készítsd el az első irányított állapotfelmérést a saját 7 és 30 napos átlagod felépítéséhez.</string>
+    <string name="trends_metric_under_eye">Szem alatti tónuskülönbség</string>
+    <string name="trends_metric_redness">Bőrpír index</string>
+    <string name="trends_metric_texture">Bőrtextúra szórás</string>
+    <string name="trends_metric_lip">Ajakszárazság mutató</string>
+    <string name="trends_metric_hair">Haj-arc arány</string>
+    <string name="trends_metric_values">Legutóbbi %1$s | 7n átlag %2$s | 30n átlag %3$s</string>
+    <string name="trends_dir_better">Jobb az átlagnál</string>
+    <string name="trends_dir_worse">Gyengébb az átlagnál</string>
+    <string name="trends_dir_steady">Átlaghoz közeli</string>
+    <string name="trends_dir_insufficient">Több adat szükséges</string>
+    <string name="trends_correlation_title">Rutin és higiénia összefüggés</string>
+    <string name="trends_adherence_rates">30n Rutin: %1$d%% | Higiénia: %2$d%% | Párosított nap: %3$d</string>
+    <string name="trends_insight_better">A bőr- és ajakmutatók általában kedvezőbbek a magasabb rutinkövetésű napokon.</string>
+    <string name="trends_insight_steady">A mutatók eddig kiegyensúlyozottak a különböző rutinkövetési napok között.</string>
+    <string name="trends_insight_need_more">Naplózz méréseket eltérő rutinkövetésű napokon is a személyes mintákhoz.</string>
+    <string name="trends_insight_no_data">Végezz méréseket és napi rutinokat a személyes összefüggések megtekintéséhez.</string>
+    <string name="trends_history_title">Mérési előzmények</string>
+    <string name="trends_history_item_metrics">Szem alatti %1$s | Pír %2$s | Ajak %3$s | Fény %4$d%%</string>
+
+    <!-- Settings & Privacy -->
+    <string name="settings_title">Beállítások</string>
+    <string name="settings_theme">Téma</string>
+    <string name="theme_light">Világos</string>
+    <string name="theme_dark">Sötét</string>
+    <string name="theme_amoled">AMOLED fekete</string>
+    <string name="settings_language">Nyelv</string>
+    <string name="lang_auto">Auto</string>
+    <string name="lang_en">English</string>
+    <string name="lang_hu">Magyar</string>
+    <string name="settings_privacy_title">Eszközszintű adatvédelem</string>
+    <string name="settings_privacy_summary">A fotók, rutinok és naplók kizárólag ezen az eszközön maradnak. Az internet csak anonim termékkeresésre szolgál.</string>
+    <string name="settings_auto_delete_photo">Nyers szelfi automatikus törlése elemzés után</string>
+    <string name="settings_haircut_threshold">Hajvágás emlékeztető küszöb</string>
+    <string name="settings_haircut_threshold_value">%d%% növekedés</string>
+    <string name="settings_reminders">Rutin emlékeztetők</string>
+    <string name="settings_morning_reminder">Reggeli emlékeztető</string>
+    <string name="settings_evening_reminder">Esti emlékeztető</string>
+    <string name="settings_reminder_time">Időpont: %1$02d:%2$02d</string>
+    <string name="settings_time_minus_15">-15p</string>
+    <string name="settings_time_plus_15">+15p</string>
+    <string name="settings_backup_section">Helyi JSON mentés</string>
+    <string name="settings_export_backup">JSON mentés exportálása</string>
+    <string name="settings_import_backup">JSON mentés importálása</string>
+    <string name="settings_backup_export_success">Mentés sikeresen exportálva</string>
+    <string name="settings_backup_import_success">Importálva: %1$d rutin, %2$d termék, %3$d higiénia napló, %4$d állapotfelmérés</string>
+    <string name="settings_backup_error">A mentési művelet sikertelen: %s</string>
+    <string name="settings_decrease">Csökkentés</string>
+    <string name="settings_increase">Növelés</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_routine_name">Rutin emlékeztetők</string>
+    <string name="notification_channel_routine_desc">Helyi reggeli és esti bőrápolási rutin emlékeztetők</string>
+    <string name="notification_channel_haircut_name">Hajvágás emlékeztetők</string>
+    <string name="notification_channel_haircut_desc">Helyi emlékeztető, ha a hajnövekedés átlépi a küszöbértéket</string>
+    <string name="notification_morning_title">Reggeli rutin</string>
+    <string name="notification_morning_body">Készen állsz a reggeli rutin naplózására</string>
+    <string name="notification_evening_title">Esti rutin</string>
+    <string name="notification_evening_body">Készen állsz az esti rutin naplózására</string>
+    <string name="notification_haircut_title">Hajvágás ellenőrzés</string>
+    <string name="notification_haircut_body">A hajnövekedés elérte a %d%%-ot az alaphoz képest</string>
+
+    <!-- Common Actions -->
+    <string name="action_save">Mentés</string>
+    <string name="action_cancel">Mégse</string>
+    <string name="action_delete">Törlés</string>
+    <string name="action_edit">Szerkesztés</string>
+    <string name="action_refresh">Frissítés</string>
+    <string name="action_close">Bezárás</string>
+    <string name="action_back">Vissza</string>
+</resources>

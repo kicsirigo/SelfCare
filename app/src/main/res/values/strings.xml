@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SelfCare</string>
+    <string name="app_subtitle">Private offline daily routine and skin check-in</string>
+
+    <!-- Navigation -->
+    <string name="nav_routine">Routine</string>
+    <string name="nav_hygiene">Hygiene</string>
+    <string name="nav_shelf">Shelf</string>
+    <string name="nav_checkin">Check-In</string>
+    <string name="nav_trends">Trends</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Routine -->
+    <string name="routine_title">Daily Routine</string>
+    <string name="routine_morning">Morning</string>
+    <string name="routine_evening">Evening</string>
+    <string name="routine_complete_morning">Complete Morning Routine</string>
+    <string name="routine_complete_evening">Complete Evening Routine</string>
+    <string name="routine_completed_today">Completed today</string>
+    <string name="routine_not_completed_today">Not logged today</string>
+    <string name="routine_override_hint">Tap any item to adjust or skip</string>
+    <string name="routine_empty">No default products configured yet</string>
+    <string name="routine_default_products">Default Products</string>
+    <string name="routine_configure_defaults">Configure Default Products</string>
+    <string name="routine_product_included">Included</string>
+    <string name="routine_product_skipped">Skipped</string>
+    <string name="routine_morning_slot">AM</string>
+    <string name="routine_evening_slot">PM</string>
+    <string name="routine_no_products_hint">Add products in Shelf to assign morning and evening defaults.</string>
+
+    <!-- Hygiene -->
+    <string name="hygiene_title">Daily Hygiene</string>
+    <string name="hygiene_shower">Shower or Bath</string>
+    <string name="hygiene_teeth_am">Morning Teeth Brushing</string>
+    <string name="hygiene_teeth_pm">Evening Teeth Brushing</string>
+    <string name="hygiene_lip_balm">Lip Balm</string>
+    <string name="hygiene_custom_habits">Custom Habits</string>
+    <string name="hygiene_add_habit">Add Habit</string>
+    <string name="hygiene_completed_label">Done</string>
+    <string name="hygiene_pending_label">Tap to log</string>
+    <string name="hygiene_habit_name_hint">Habit name</string>
+    <string name="hygiene_no_custom_habits">No custom habits yet</string>
+
+    <!-- Shelf -->
+    <string name="shelf_title">Product Shelf</string>
+    <string name="shelf_scan_barcode">Scan Barcode</string>
+    <string name="shelf_scan_label">Scan Label (OCR)</string>
+    <string name="shelf_add_manual">Add Product</string>
+    <string name="shelf_search_hint">Search products or barcode</string>
+    <string name="shelf_lookup">Lookup</string>
+    <string name="shelf_conflicts_detected">Active ingredient conflicts detected</string>
+    <string name="shelf_empty">Your product shelf is empty</string>
+    <string name="shelf_offline_fallback">Product not found or offline. Use Scan Label (OCR) or enter ingredients manually.</string>
+    <string name="shelf_barcode_not_detected">No barcode detected in image. Try again or enter manually.</string>
+    <string name="shelf_ocr_no_text">No ingredient text recognized. Try again or enter manually.</string>
+    <string name="shelf_remote_results">Online Lookup Results</string>
+    <string name="shelf_use_result">Use</string>
+    <string name="shelf_product_name">Product name</string>
+    <string name="shelf_product_brand">Brand</string>
+    <string name="shelf_product_barcode">Barcode</string>
+    <string name="shelf_product_ingredients">Ingredients (INCI)</string>
+    <string name="shelf_routine_slot">Routine slot</string>
+    <string name="shelf_slot_morning">Morning</string>
+    <string name="shelf_slot_evening">Evening</string>
+    <string name="shelf_slot_both">Both</string>
+    <string name="shelf_slot_none">None</string>
+    <string name="shelf_default_in_routine">Include as routine default</string>
+    <string name="shelf_parsed_inci">Recognized INCI Ingredients</string>
+    <string name="shelf_no_inci_matches">No known INCI actives matched yet</string>
+    <string name="shelf_add_title">Add Product</string>
+    <string name="shelf_edit_title">Edit Product</string>
+
+    <!-- Check-In & Trends -->
+    <string name="checkin_title">Face and Hair Check-In</string>
+    <string name="checkin_take_photo">Capture Check-In</string>
+    <string name="checkin_analyzing">Analyzing check-in…</string>
+    <string name="checkin_lighting_warning">Lighting is too dark or uneven</string>
+    <string name="checkin_lighting_too_dark">Lighting is too dark. Move toward a brighter light source.</string>
+    <string name="checkin_lighting_too_bright">Lighting is too bright. Avoid direct glare on your face.</string>
+    <string name="checkin_lighting_uneven">Lighting is uneven. Face the light source evenly.</string>
+    <string name="checkin_permission_title">Camera permission needed</string>
+    <string name="checkin_permission_body">Grant camera access for guided on-device selfie check-ins. Photos never leave this device.</string>
+    <string name="checkin_grant_permission">Grant Camera Access</string>
+    <string name="checkin_camera_unavailable">Camera preview unavailable on this device. You can still run a check-in.</string>
+    <string name="checkin_framing_hint">Center your face inside the guide</string>
+    <string name="checkin_privacy_note">Stored privately in app storage only</string>
+    <string name="checkin_last_result_title">Latest Check-In Captured</string>
+    <string name="checkin_last_result_metrics">Under-eye %1$s | Redness %2$s | Texture %3$s | Lip %4$s | Lighting %5$d%%</string>
+    <string name="checkin_haircut_section_title">Haircut Baseline</string>
+    <string name="checkin_haircut_status">Current growth: +%1$s%% (reminder at %2$d%%)</string>
+    <string name="checkin_haircut_no_baseline">No haircut baseline set yet. Tap below after your next haircut.</string>
+    <string name="checkin_haircut_reset">Just had a haircut</string>
+    <string name="checkin_haircut_reset_confirmed">Haircut baseline updated</string>
+    <string name="haircut_reminder_banner_text">Hair growth is +%1$d%% above baseline (threshold %2$d%%)</string>
+    <string name="trends_title">Personal Trends</string>
+    <string name="trends_baseline_note">Metrics compare against your own rolling 7-day and 30-day average</string>
+    <string name="trends_7d_label">7-Day Window</string>
+    <string name="trends_30d_label">30-Day Window</string>
+    <string name="trends_checkin_count">%d check-ins</string>
+    <string name="trends_empty_title">No check-ins yet</string>
+    <string name="trends_empty_body">Complete your first guided check-in to start building your personal 7-day and 30-day baseline.</string>
+    <string name="trends_metric_under_eye">Under-Eye Tone Delta</string>
+    <string name="trends_metric_redness">Skin Redness Index</string>
+    <string name="trends_metric_texture">Skin Texture Variance</string>
+    <string name="trends_metric_lip">Lip Dryness Score</string>
+    <string name="trends_metric_hair">Hair-to-Face Ratio</string>
+    <string name="trends_metric_values">Latest %1$s | 7d avg %2$s | 30d avg %3$s</string>
+    <string name="trends_dir_better">Better than avg</string>
+    <string name="trends_dir_worse">Worse than avg</string>
+    <string name="trends_dir_steady">Steady vs avg</string>
+    <string name="trends_dir_insufficient">Need more data</string>
+    <string name="trends_correlation_title">Routine and Hygiene Correlation</string>
+    <string name="trends_adherence_rates">30d Routine: %1$d%% | Hygiene: %2$d%% | Paired days: %3$d</string>
+    <string name="trends_insight_better">Skin and lip metrics tend to look better on higher-adherence days.</string>
+    <string name="trends_insight_steady">Metrics are steady across routine adherence levels so far.</string>
+    <string name="trends_insight_need_more">Log check-ins across both high and low adherence days to see personal patterns.</string>
+    <string name="trends_insight_no_data">Complete check-ins and daily routines to view personal adherence patterns.</string>
+    <string name="trends_history_title">Check-In History</string>
+    <string name="trends_history_item_metrics">Under-eye %1$s | Redness %2$s | Lip %3$s | Light %4$d%%</string>
+
+    <!-- Settings & Privacy -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_amoled">AMOLED Black</string>
+    <string name="settings_language">Language</string>
+    <string name="lang_auto">Auto</string>
+    <string name="lang_en">English</string>
+    <string name="lang_hu">Magyar</string>
+    <string name="settings_privacy_title">On-Device Privacy</string>
+    <string name="settings_privacy_summary">Photos, routines, and check-ins stay strictly on this device. Internet is used only for anonymous product lookups.</string>
+    <string name="settings_auto_delete_photo">Auto-delete raw selfie after analysis</string>
+    <string name="settings_haircut_threshold">Haircut reminder threshold</string>
+    <string name="settings_haircut_threshold_value">%d%% growth</string>
+    <string name="settings_reminders">Routine Reminders</string>
+    <string name="settings_morning_reminder">Morning reminder</string>
+    <string name="settings_evening_reminder">Evening reminder</string>
+    <string name="settings_reminder_time">Time: %1$02d:%2$02d</string>
+    <string name="settings_time_minus_15">-15m</string>
+    <string name="settings_time_plus_15">+15m</string>
+    <string name="settings_backup_section">Local JSON Backup</string>
+    <string name="settings_export_backup">Export JSON Backup</string>
+    <string name="settings_import_backup">Import JSON Backup</string>
+    <string name="settings_backup_export_success">Backup exported successfully</string>
+    <string name="settings_backup_import_success">Imported %1$d routines, %2$d products, %3$d hygiene logs, %4$d check-ins</string>
+    <string name="settings_backup_error">Backup operation failed: %s</string>
+    <string name="settings_decrease">Decrease</string>
+    <string name="settings_increase">Increase</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_routine_name">Routine Reminders</string>
+    <string name="notification_channel_routine_desc">Local morning and evening skincare routine reminders</string>
+    <string name="notification_channel_haircut_name">Haircut Reminders</string>
+    <string name="notification_channel_haircut_desc">Local reminders when hair growth crosses your threshold</string>
+    <string name="notification_morning_title">Morning Routine</string>
+    <string name="notification_morning_body">Ready to log your morning routine</string>
+    <string name="notification_evening_title">Evening Routine</string>
+    <string name="notification_evening_body">Ready to log your evening routine</string>
+    <string name="notification_haircut_title">Haircut Check</string>
+    <string name="notification_haircut_body">Hair growth reached %d%% above baseline</string>
+
+    <!-- Common Actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_close">Close</string>
+    <string name="action_back">Back</string>
+</resources>
