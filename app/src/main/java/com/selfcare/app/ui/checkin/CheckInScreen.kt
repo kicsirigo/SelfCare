@@ -487,7 +487,7 @@ private fun CameraPreviewCard(
                                 surfaceProvider = previewView.surfaceProvider
                             }
                             val capture = ImageCapture.Builder()
-                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                                 .build()
 
                             var lastAnalyzedMs = 0L

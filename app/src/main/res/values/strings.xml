@@ -261,4 +261,12 @@
     <string name="settings_gemini_key_hint">Paste API key (optional)</string>
     <string name="settings_gemini_key_saved">API key saved locally</string>
     <string name="settings_gemini_key_clear">Clear</string>
+
+    <!-- v1.2.2: AI Scan Confirmation Dialog -->
+    <string name="shelf_scan_confirm_title">Is this the right product?</string>
+    <string name="shelf_scan_source_gemini">Identified by Gemini AI</string>
+    <string name="shelf_scan_source_ocr">Identified by Offline OCR</string>
+    <string name="shelf_scan_confirm_save">Yes, Save</string>
+    <string name="shelf_scan_confirm_edit">Edit</string>
+    <string name="shelf_scan_confirm_retake">Retake</string>
 </resources>

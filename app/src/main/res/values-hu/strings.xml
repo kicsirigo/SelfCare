@@ -261,4 +261,12 @@
     <string name="settings_gemini_key_hint">API kulcs beillesztése (opcionális)</string>
     <string name="settings_gemini_key_saved">API kulcs helyben elmentve</string>
     <string name="settings_gemini_key_clear">Törlés</string>
+
+    <!-- v1.2.2: AI Scan Confirmation Dialog -->
+    <string name="shelf_scan_confirm_title">Jó termékre gondoltam?</string>
+    <string name="shelf_scan_source_gemini">Gemini AI felismerés</string>
+    <string name="shelf_scan_source_ocr">Offline OCR felismerés</string>
+    <string name="shelf_scan_confirm_save">Igen, mentés</string>
+    <string name="shelf_scan_confirm_edit">Szerkesztés</string>
+    <string name="shelf_scan_confirm_retake">Újrafotózás</string>
 </resources>

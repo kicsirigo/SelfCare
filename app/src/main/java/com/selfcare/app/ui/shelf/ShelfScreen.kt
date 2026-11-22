@@ -140,6 +140,10 @@ fun ShelfScreen(
         onEditorDefaultChange = viewModel::updateEditorDefault,
         onSaveEditor = viewModel::saveEditorProduct,
         onCloseEditor = viewModel::closeEditor,
+        onConfirmScanSave = viewModel::confirmPendingScanSave,
+        onConfirmScanEdit = viewModel::confirmPendingScanEdit,
+        onConfirmScanRetake = viewModel::retakePendingScan,
+        onDismissScanConfirm = viewModel::dismissPendingScan,
         modifier = modifier
     )
 }
@@ -168,6 +172,10 @@ fun ShelfScreenContent(
     onEditorDefaultChange: (Boolean) -> Unit,
     onSaveEditor: () -> Unit,
     onCloseEditor: () -> Unit,
+    onConfirmScanSave: () -> Unit = {},
+    onConfirmScanEdit: () -> Unit = {},
+    onConfirmScanRetake: () -> Unit = {},
+    onDismissScanConfirm: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val editor = state.editor
@@ -191,6 +199,80 @@ fun ShelfScreenContent(
 
     var pendingDeleteProduct by remember {
         mutableStateOf<com.selfcare.app.data.local.entity.ProductEntity?>(null)
+    }
+
+    state.pendingScanConfirmation?.let { pending ->
+        AlertDialog(
+            onDismissRequest = onDismissScanConfirm,
+            title = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(
+                            if (pending.source == "GEMINI_VISION") {
+                                R.string.shelf_scan_source_gemini
+                            } else {
+                                R.string.shelf_scan_source_ocr
+                            }
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(text = stringResource(R.string.shelf_scan_confirm_title))
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = pending.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (pending.brand.isNotBlank()) {
+                        Text(
+                            text = pending.brand,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = "${stringResource(R.string.shelf_routine_slot)}: ${slotLabel(pending.routineSlot)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (pending.parsedMatches.isNotEmpty()) {
+                        Text(
+                            text = pending.parsedMatches.take(5).joinToString(", ") { it.canonicalName },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else if (pending.ingredientsText.isNotBlank()) {
+                        Text(
+                            text = pending.ingredientsText.take(140),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onConfirmScanSave,
+                    modifier = Modifier.testTag("shelf_scan_confirm_save_btn")
+                ) {
+                    Text(text = stringResource(R.string.shelf_scan_confirm_save))
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = onConfirmScanRetake) {
+                        Text(text = stringResource(R.string.shelf_scan_confirm_retake))
+                    }
+                    TextButton(onClick = onConfirmScanEdit) {
+                        Text(text = stringResource(R.string.shelf_scan_confirm_edit))
+                    }
+                }
+            }
+        )
     }
 
     pendingDeleteProduct?.let { target ->

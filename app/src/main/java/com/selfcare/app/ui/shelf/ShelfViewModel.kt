@@ -59,6 +59,16 @@ data class ProductEditorState(
     val source: String = "MANUAL"
 )
 
+data class PendingScanConfirmation(
+    val source: String,
+    val name: String,
+    val brand: String,
+    val category: String,
+    val routineSlot: String,
+    val ingredientsText: String,
+    val parsedMatches: List<InciMatch>
+)
+
 data class ShelfUiState(
     val searchQuery: String = "",
     val categoryFilter: ShelfCategoryFilter = ShelfCategoryFilter.ALL,
@@ -74,7 +84,8 @@ data class ShelfUiState(
     val editor: ProductEditorState? = null,
     val isLiveScannerOpen: Boolean = false,
     val liveProductDetected: Boolean = false,
-    val isGeminiVisionConfigured: Boolean = false
+    val isGeminiVisionConfigured: Boolean = false,
+    val pendingScanConfirmation: PendingScanConfirmation? = null
 )
 
 class ShelfViewModel(
@@ -168,7 +179,8 @@ class ShelfViewModel(
             editor = editor,
             isLiveScannerOpen = lookup.isLiveScannerOpen,
             liveProductDetected = lookup.liveProductDetected,
-            isGeminiVisionConfigured = geminiConfigured
+            isGeminiVisionConfigured = geminiConfigured,
+            pendingScanConfirmation = lookup.pendingScanConfirmation
         )
     }.stateIn(
         scope = viewModelScope,
@@ -373,17 +385,20 @@ class ShelfViewModel(
                     is GeminiVisionResult.Success -> {
                         val info = visionResult.product
                         val matches = productRepository.parseIngredients(info.ingredientsText)
-                        lookupStateFlow.update { it.copy(isLookingUp = false) }
-                        editorFlow.value = ProductEditorState(
-                            name = info.name,
-                            brand = info.brand,
-                            category = info.category,
-                            routineSlot = info.routineSlot,
-                            isDefaultInRoutine = info.routineSlot != InciConflictDetector.SLOT_NONE,
-                            rawIngredientsText = info.ingredientsText,
-                            parsedMatches = matches,
-                            source = "GEMINI_VISION"
-                        )
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                pendingScanConfirmation = PendingScanConfirmation(
+                                    source = "GEMINI_VISION",
+                                    name = info.name,
+                                    brand = info.brand,
+                                    category = info.category,
+                                    routineSlot = info.routineSlot,
+                                    ingredientsText = info.ingredientsText,
+                                    parsedMatches = matches
+                                )
+                            )
+                        }
                         return@launch
                     }
                     is GeminiVisionResult.Error -> {
@@ -433,13 +448,20 @@ class ShelfViewModel(
                             )
                         }
                     } else {
-                        lookupStateFlow.update { it.copy(isLookingUp = false) }
-                        editorFlow.value = ProductEditorState(
-                            name = searchTerm,
-                            rawIngredientsText = if (inciMatches.isNotEmpty()) recognized else "",
-                            parsedMatches = inciMatches,
-                            source = "SMART_OCR"
-                        )
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                pendingScanConfirmation = PendingScanConfirmation(
+                                    source = "SMART_OCR",
+                                    name = searchTerm,
+                                    brand = "",
+                                    category = "OTHER",
+                                    routineSlot = InciConflictDetector.SLOT_NONE,
+                                    ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                                    parsedMatches = inciMatches
+                                )
+                            )
+                        }
                     }
                 }
                 is OpenBeautyFactsSearchResult.OfflineOrError -> {
@@ -452,17 +474,74 @@ class ShelfViewModel(
                             )
                         }
                     } else {
-                        lookupStateFlow.update { it.copy(isLookingUp = false) }
-                        editorFlow.value = ProductEditorState(
-                            name = searchTerm,
-                            rawIngredientsText = if (inciMatches.isNotEmpty()) recognized else "",
-                            parsedMatches = inciMatches,
-                            source = "SMART_OCR"
-                        )
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                pendingScanConfirmation = PendingScanConfirmation(
+                                    source = "SMART_OCR",
+                                    name = searchTerm,
+                                    brand = "",
+                                    category = "OTHER",
+                                    routineSlot = InciConflictDetector.SLOT_NONE,
+                                    ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                                    parsedMatches = inciMatches
+                                )
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+
+    fun confirmPendingScanSave() {
+        val pending = lookupStateFlow.value.pendingScanConfirmation ?: return
+        if (pending.name.isBlank()) {
+            confirmPendingScanEdit()
+            return
+        }
+        viewModelScope.launch {
+            productRepository.saveProduct(
+                name = pending.name,
+                brand = pending.brand,
+                barcode = null,
+                category = pending.category,
+                routineSlot = pending.routineSlot,
+                isDefaultInRoutine = pending.routineSlot != InciConflictDetector.SLOT_NONE,
+                rawIngredientsText = pending.ingredientsText,
+                source = pending.source
+            )
+            lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
+        }
+    }
+
+    fun confirmPendingScanEdit() {
+        val pending = lookupStateFlow.value.pendingScanConfirmation ?: return
+        lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
+        editorFlow.value = ProductEditorState(
+            name = pending.name,
+            brand = pending.brand,
+            category = pending.category,
+            routineSlot = pending.routineSlot,
+            isDefaultInRoutine = pending.routineSlot != InciConflictDetector.SLOT_NONE,
+            rawIngredientsText = pending.ingredientsText,
+            parsedMatches = pending.parsedMatches,
+            source = pending.source
+        )
+    }
+
+    fun retakePendingScan() {
+        lookupStateFlow.update {
+            it.copy(
+                pendingScanConfirmation = null,
+                isLiveScannerOpen = true,
+                liveProductDetected = false
+            )
+        }
+    }
+
+    fun dismissPendingScan() {
+        lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
     }
 
     fun onBarcodeBitmapCaptured(bitmap: Bitmap?) {
@@ -636,7 +715,8 @@ class ShelfViewModel(
         val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
         val presetMatches: List<PresetProduct> = emptyList(),
         val isLiveScannerOpen: Boolean = false,
-        val liveProductDetected: Boolean = false
+        val liveProductDetected: Boolean = false,
+        val pendingScanConfirmation: PendingScanConfirmation? = null
     )
 
     companion object {
