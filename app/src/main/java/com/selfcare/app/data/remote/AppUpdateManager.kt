@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -13,9 +14,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
@@ -128,76 +132,130 @@ class AppUpdateManager(
         val targetFile = File(updatesDir, "SelfCare-$safeVersion.apk")
 
         try {
-            val request = Request.Builder()
-                .url(info.apkDownloadUrl)
-                .get()
-                .build()
+            var downloaded = 0L
+            var totalBytes = info.apkSizeBytes
+            var attempt = 0
+            val maxAttempts = 5
+            var lastError: Exception? = null
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@withContext UpdateDownloadResult.Error("HTTP ${response.code}")
-                }
-                val body = response.body ?: return@withContext UpdateDownloadResult.Error("Empty body")
-                val totalBytes = body.contentLength().takeIf { it > 0L } ?: info.apkSizeBytes
-                if (totalBytes > MAX_APK_BYTES) {
-                    return@withContext UpdateDownloadResult.Error("APK exceeds maximum allowed size")
-                }
+            while (attempt < maxAttempts) {
+                coroutineContext.ensureActive()
+                attempt++
+                try {
+                    val reqBuilder = Request.Builder()
+                        .url(info.apkDownloadUrl)
+                        .get()
+                        .header("User-Agent", "SelfCare-Android")
+                        .header("Accept-Encoding", "identity")
 
-                val digest = MessageDigest.getInstance("SHA-256")
-                val buffer = ByteArray(16 * 1024)
-                var downloaded = 0L
-                var lastReportMs = 0L
+                    if (downloaded > 0L) {
+                        reqBuilder.header("Range", "bytes=$downloaded-")
+                    }
 
-                body.byteStream().use { input ->
-                    FileOutputStream(targetFile).use { output ->
-                        while (true) {
-                            coroutineContext.ensureActive()
-                            val read = input.read(buffer)
-                            if (read == -1) break
-                            downloaded += read
-                            if (downloaded > MAX_APK_BYTES) {
-                                throw IllegalStateException("Download exceeded max APK size")
-                            }
-                            output.write(buffer, 0, read)
-                            digest.update(buffer, 0, read)
+                    httpClient.newCall(reqBuilder.build()).execute().use { response ->
+                        if (response.code == 416 && totalBytes > 0L && downloaded >= totalBytes) {
+                            // Already downloaded completely
+                            break
+                        }
+                        if (!response.isSuccessful) {
+                            return@withContext UpdateDownloadResult.Error("HTTP ${response.code}")
+                        }
+                        val body = response.body ?: return@withContext UpdateDownloadResult.Error("Empty body")
+                        val isPartial = response.code == 206
+                        if (!isPartial && downloaded > 0L) {
+                            // Server ignored Range header; restart cleanly from 0
+                            downloaded = 0L
+                        }
+                        val contentLen = body.contentLength()
+                        if (contentLen > 0L) {
+                            totalBytes = if (isPartial) downloaded + contentLen else contentLen
+                        }
+                        if (totalBytes > MAX_APK_BYTES) {
+                            return@withContext UpdateDownloadResult.Error("APK exceeds maximum allowed size")
+                        }
 
-                            val now = System.currentTimeMillis()
-                            if (now - lastReportMs >= 120L || (totalBytes > 0 && downloaded >= totalBytes)) {
-                                lastReportMs = now
-                                onProgress(downloaded, totalBytes)
+                        val buffer = ByteArray(64 * 1024)
+                        var lastReportMs = 0L
+
+                        body.byteStream().use { input ->
+                            FileOutputStream(targetFile, isPartial && downloaded > 0L).use { output ->
+                                while (true) {
+                                    coroutineContext.ensureActive()
+                                    val read = input.read(buffer)
+                                    if (read == -1) break
+                                    downloaded += read
+                                    if (downloaded > MAX_APK_BYTES) {
+                                        throw IllegalStateException("Download exceeded max APK size")
+                                    }
+                                    output.write(buffer, 0, read)
+
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastReportMs >= 150L || (totalBytes > 0 && downloaded >= totalBytes)) {
+                                        lastReportMs = now
+                                        onProgress(downloaded, totalBytes)
+                                    }
+                                }
+                                output.flush()
                             }
                         }
-                        output.flush()
                     }
-                }
 
-                val actualSha256 = digest.digest().joinToString("") { "%02x".format(it) }
-                val verified = if (expectedSha256 != null) {
-                    if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
-                        runCatching { targetFile.delete() }
-                        return@withContext UpdateDownloadResult.Error("SHA-256 verification failed")
+                    // Finished cleanly if we reached expected size (or server closed at EOF without Content-Length)
+                    if (totalBytes <= 0L || downloaded >= totalBytes) {
+                        lastError = null
+                        break
                     }
-                    true
-                } else {
-                    false
+                } catch (e: IOException) {
+                    lastError = e
+                    if (attempt >= maxAttempts) break
+                    delay(1_200L * attempt)
                 }
-
-                val contentUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    targetFile
-                )
-                UpdateDownloadResult.ReadyToInstall(
-                    apkFile = targetFile,
-                    contentUri = contentUri,
-                    sha256Verified = verified
-                )
             }
+
+            if (lastError != null && (totalBytes <= 0L || downloaded < totalBytes)) {
+                runCatching { targetFile.delete() }
+                return@withContext UpdateDownloadResult.Error(lastError::class.simpleName ?: "Network error")
+            }
+
+            val actualSha256 = computeFileSha256(targetFile)
+            val verified = if (expectedSha256 != null) {
+                if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
+                    runCatching { targetFile.delete() }
+                    return@withContext UpdateDownloadResult.Error("SHA-256 verification failed")
+                }
+                true
+            } else {
+                false
+            }
+
+            val contentUri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                targetFile
+            )
+            UpdateDownloadResult.ReadyToInstall(
+                apkFile = targetFile,
+                contentUri = contentUri,
+                sha256Verified = verified
+            )
         } catch (e: Exception) {
             runCatching { targetFile.delete() }
             if (e is kotlinx.coroutines.CancellationException) throw e
             UpdateDownloadResult.Error(e::class.simpleName ?: "Download failed")
         }
+    }
+
+    private fun computeFileSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(64 * 1024)
+        FileInputStream(file).use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun fetchExpectedSha256(url: String): String? {
@@ -250,9 +308,13 @@ class AppUpdateManager(
         }
 
         private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(90, TimeUnit.SECONDS)
+            .callTimeout(0, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .followRedirects(true)
+            .followSslRedirects(true)
             .build()
     }
 }
