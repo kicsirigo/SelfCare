@@ -132,7 +132,7 @@ class CheckInViewModel(
     }
 
     fun onLightingAssessed(assessment: LightingAssessment) {
-        val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
+        val brightnessPct = (assessment.meanLuminance * 100f).roundToInt().coerceIn(0, 100)
         transientState.value = transientState.value.copy(
             lightingAssessment = assessment,
             liveBrightnessPercent = brightnessPct
@@ -140,9 +140,9 @@ class CheckInViewModel(
     }
 
     fun onLiveFrameSampled(frameBitmap: Bitmap, assessment: LightingAssessment) {
-        val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
-        // If lens is covered or pitch black, immediately report no face
-        if (assessment.meanLuminance < 18f) {
+        val brightnessPct = (assessment.meanLuminance * 100f).roundToInt().coerceIn(0, 100)
+        // If lens is covered or pitch black (< 7% luminance), immediately report no face
+        if (assessment.meanLuminance < 0.07f) {
             transientState.value = transientState.value.copy(
                 lightingAssessment = assessment,
                 liveBrightnessPercent = brightnessPct,
@@ -195,7 +195,7 @@ class CheckInViewModel(
             val assessment = withContext(Dispatchers.Default) {
                 LightingQualityChecker.assess(bitmap)
             }
-            val brightnessPct = ((assessment.meanLuminance / 255f) * 100f).roundToInt().coerceIn(0, 100)
+            val brightnessPct = (assessment.meanLuminance * 100f).roundToInt().coerceIn(0, 100)
             transientState.value = transientState.value.copy(
                 lightingAssessment = assessment,
                 liveBrightnessPercent = brightnessPct
