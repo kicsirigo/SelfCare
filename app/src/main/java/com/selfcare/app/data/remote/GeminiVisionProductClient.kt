@@ -268,9 +268,8 @@ class GeminiVisionProductClient(
     companion object {
         const val DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
         val MODEL_FALLBACK_CHAIN = listOf(
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite"
+            "gemini-3.5-flash-lite",
+            "gemini-2.5-flash"
         )
 
         private const val SYSTEM_PROMPT =
