@@ -64,6 +64,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.data.preset.PresetGroup
 import com.selfcare.app.data.preset.PresetProduct
+import com.selfcare.app.domain.health.NutrientCode
+import com.selfcare.app.domain.health.VitaminCalculator
+import com.selfcare.app.domain.health.VitaminPlan
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
@@ -151,6 +154,7 @@ fun ShelfScreen(
         onConfirmScanEdit = viewModel::confirmPendingScanEdit,
         onConfirmScanRetake = viewModel::retakePendingScan,
         onDismissScanConfirm = viewModel::dismissPendingScan,
+        onSaveBirthDate = viewModel::setBirthDateIso,
         modifier = modifier
     )
 }
@@ -183,6 +187,7 @@ fun ShelfScreenContent(
     onConfirmScanEdit: () -> Unit = {},
     onConfirmScanRetake: () -> Unit = {},
     onDismissScanConfirm: () -> Unit = {},
+    onSaveBirthDate: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val editor = state.editor
@@ -653,6 +658,8 @@ fun ShelfScreenContent(
                             ShelfCategoryFilter.FACE -> R.string.shelf_cat_face
                             ShelfCategoryFilter.RX -> R.string.shelf_cat_rx
                             ShelfCategoryFilter.HAIR -> R.string.shelf_cat_hair
+                            ShelfCategoryFilter.VITAMIN -> R.string.shelf_cat_vitamin
+                            ShelfCategoryFilter.MEDICATION -> R.string.shelf_cat_medication
                         }
                         FilterChip(
                             selected = state.categoryFilter == filter,
@@ -703,7 +710,16 @@ fun ShelfScreenContent(
                 }
             }
 
-            // Quick-Add Presets (Rx creams without barcodes, Hair & Scalp, Skincare)
+            // Age-based 100% offline Daily Vitamin & Mineral Reference Calculator
+            item {
+                VitaminCalculatorCard(
+                    birthDateIso = state.birthDateIso,
+                    vitaminPlan = state.vitaminPlan,
+                    onSaveBirthDate = onSaveBirthDate
+                )
+            }
+
+            // Quick-Add Presets (Rx creams, Hair & Scalp, Skincare, Vitamins, Medications)
             item {
                 QuickPresetsCard(
                     selectedGroup = state.selectedPresetGroup,
@@ -753,12 +769,14 @@ private fun QuickPresetsCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PresetGroup.entries.forEach { group ->
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(PresetGroup.entries) { group ->
                     val labelRes = when (group) {
                         PresetGroup.RX -> R.string.shelf_cat_rx
                         PresetGroup.HAIR -> R.string.shelf_cat_hair
                         PresetGroup.FACE -> R.string.shelf_cat_face
+                        PresetGroup.VITAMIN -> R.string.shelf_cat_vitamin
+                        PresetGroup.MEDICATION -> R.string.shelf_cat_medication
                     }
                     FilterChip(
                         selected = selectedGroup == group,
@@ -1165,7 +1183,9 @@ private fun ProductEditorView(
         val categories = listOf(
             "OTHER" to stringResource(R.string.shelf_cat_face),
             "RX_TREATMENT" to stringResource(R.string.shelf_cat_rx),
-            "SHAMPOO" to stringResource(R.string.shelf_cat_hair)
+            "SHAMPOO" to stringResource(R.string.shelf_cat_hair),
+            "VITAMIN" to stringResource(R.string.shelf_cat_vitamin),
+            "MEDICATION" to stringResource(R.string.shelf_cat_medication)
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1175,8 +1195,12 @@ private fun ProductEditorView(
                 val selected = when (catCode) {
                     "SHAMPOO" -> editor.category in setOf("SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR")
                     "RX_TREATMENT" -> editor.category == "RX_TREATMENT"
-                    else -> editor.category != "RX_TREATMENT" &&
-                        editor.category !in setOf("SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR")
+                    "VITAMIN" -> editor.category == "VITAMIN"
+                    "MEDICATION" -> editor.category == "MEDICATION"
+                    else -> editor.category !in setOf(
+                        "RX_TREATMENT", "VITAMIN", "MEDICATION",
+                        "SHAMPOO", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL", "HAIR"
+                    )
                 }
                 FilterChip(
                     selected = selected,
@@ -1342,4 +1366,252 @@ private fun localizedConflictRecommendation(conflict: DetectedConflict): String 
     "acids_copper_peptides" -> stringResource(R.string.inci_conflict_acids_peptides_rec)
     "aha_bha_stacking" -> stringResource(R.string.inci_conflict_aha_bha_rec)
     else -> conflict.recommendation
+}
+
+@Composable
+private fun VitaminCalculatorCard(
+    birthDateIso: String?,
+    vitaminPlan: VitaminPlan?,
+    onSaveBirthDate: (String?) -> Unit
+) {
+    var showBirthDateDialog by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+
+    if (showBirthDateDialog) {
+        BirthDateInputDialog(
+            currentIso = birthDateIso,
+            onConfirm = { newIso ->
+                onSaveBirthDate(newIso)
+                showBirthDateDialog = false
+            },
+            onDismiss = { showBirthDateDialog = false }
+        )
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("vitamin_calculator_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.vitamin_calc_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = if (vitaminPlan != null) {
+                            stringResource(
+                                R.string.vitamin_calc_age_summary,
+                                vitaminPlan.ageYears,
+                                vitaminPlan.coveredCount,
+                                vitaminPlan.requirements.size
+                            )
+                        } else {
+                            stringResource(R.string.vitamin_calc_set_birthday_prompt)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(
+                    onClick = { showBirthDateDialog = true },
+                    modifier = Modifier.testTag("vitamin_set_birthday_btn")
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (birthDateIso == null) {
+                                R.string.vitamin_calc_set_birthday
+                            } else {
+                                R.string.vitamin_calc_edit_birthday
+                            }
+                        )
+                    )
+                }
+            }
+
+            if (vitaminPlan != null) {
+                val visibleItems = if (expanded) {
+                    vitaminPlan.requirements
+                } else {
+                    vitaminPlan.requirements.take(4)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    visibleItems.forEach { req ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = nutrientLabel(req.code),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (req.isCoveredOnShelf) {
+                                    Text(
+                                        text = stringResource(
+                                            R.string.vitamin_calc_on_shelf,
+                                            req.coveredByProducts.joinToString(", ")
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            Text(
+                                text = req.dailyAmount,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (req.isCoveredOnShelf) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+                    }
+                }
+
+                if (vitaminPlan.requirements.size > 4) {
+                    TextButton(
+                        onClick = { expanded = !expanded },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(
+                            text = stringResource(
+                                if (expanded) R.string.vitamin_calc_show_less else R.string.vitamin_calc_show_all
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Mandatory non-medical / diet disclaimer
+            Text(
+                text = stringResource(R.string.vitamin_calc_disclaimer),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("vitamin_calc_disclaimer")
+            )
+        }
+    }
+}
+
+@Composable
+private fun BirthDateInputDialog(
+    currentIso: String?,
+    onConfirm: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val parsed = remember(currentIso) { VitaminCalculator.parseBirthDate(currentIso) }
+    var yearText by remember(currentIso) { mutableStateOf(parsed?.year?.toString().orEmpty()) }
+    var monthText by remember(currentIso) { mutableStateOf(parsed?.monthValue?.toString()?.padStart(2, '0').orEmpty()) }
+    var dayText by remember(currentIso) { mutableStateOf(parsed?.dayOfMonth?.toString()?.padStart(2, '0').orEmpty()) }
+
+    val validatedIso = remember(yearText, monthText, dayText) {
+        val y = yearText.toIntOrNull()
+        val m = monthText.toIntOrNull()
+        val d = dayText.toIntOrNull()
+        if (y != null && m != null && d != null && y in 1905..2025) {
+            val iso = VitaminCalculator.formatBirthDate(y, m, d)
+            if (VitaminCalculator.computeAgeYears(iso) != null) iso else null
+        } else {
+            null
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.settings_birthday_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_birthday_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = yearText,
+                        onValueChange = { if (it.length <= 4 && it.all(Char::isDigit)) yearText = it },
+                        label = { Text(stringResource(R.string.birthday_year)) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1.4f)
+                            .testTag("birthday_year_input")
+                    )
+                    OutlinedTextField(
+                        value = monthText,
+                        onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) monthText = it },
+                        label = { Text(stringResource(R.string.birthday_month)) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("birthday_month_input")
+                    )
+                    OutlinedTextField(
+                        value = dayText,
+                        onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) dayText = it },
+                        label = { Text(stringResource(R.string.birthday_day)) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("birthday_day_input")
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(validatedIso) },
+                enabled = validatedIso != null,
+                modifier = Modifier.testTag("birthday_save_btn")
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun nutrientLabel(code: NutrientCode): String = when (code) {
+    NutrientCode.VITAMIN_D -> stringResource(R.string.nutrient_vitamin_d)
+    NutrientCode.VITAMIN_C -> stringResource(R.string.nutrient_vitamin_c)
+    NutrientCode.VITAMIN_B12 -> stringResource(R.string.nutrient_vitamin_b12)
+    NutrientCode.FOLATE -> stringResource(R.string.nutrient_folate)
+    NutrientCode.VITAMIN_A -> stringResource(R.string.nutrient_vitamin_a)
+    NutrientCode.VITAMIN_E -> stringResource(R.string.nutrient_vitamin_e)
+    NutrientCode.MAGNESIUM -> stringResource(R.string.nutrient_magnesium)
+    NutrientCode.ZINC -> stringResource(R.string.nutrient_zinc)
+    NutrientCode.IRON -> stringResource(R.string.nutrient_iron)
+    NutrientCode.CALCIUM -> stringResource(R.string.nutrient_calcium)
+    NutrientCode.OMEGA_3 -> stringResource(R.string.nutrient_omega_3)
 }

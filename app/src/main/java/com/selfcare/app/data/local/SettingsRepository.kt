@@ -38,7 +38,8 @@ data class UserSettings(
     val haircutThresholdPercent: Int = DEFAULT_HAIRCUT_THRESHOLD_PERCENT,
     val geminiApiKey: String = "",
     val shaveIntervalDays: Int = DEFAULT_SHAVE_INTERVAL_DAYS,
-    val lastShaveEpochDay: Long? = null
+    val lastShaveEpochDay: Long? = null,
+    val birthDateIso: String? = null
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -85,7 +86,8 @@ class SettingsRepository(
             shaveIntervalDays = (prefs[KEY_SHAVE_INTERVAL_DAYS]
                 ?: UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS)
                 .coerceIn(UserSettings.MIN_SHAVE_INTERVAL_DAYS, UserSettings.MAX_SHAVE_INTERVAL_DAYS),
-            lastShaveEpochDay = prefs[KEY_LAST_SHAVE_EPOCH_DAY]
+            lastShaveEpochDay = prefs[KEY_LAST_SHAVE_EPOCH_DAY],
+            birthDateIso = prefs[KEY_BIRTH_DATE_ISO]?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -149,6 +151,17 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setBirthDateIso(isoDate: String?) {
+        val clean = isoDate?.trim().orEmpty()
+        dataStore.edit { prefs ->
+            if (clean.isEmpty()) {
+                prefs.remove(KEY_BIRTH_DATE_ISO)
+            } else {
+                prefs[KEY_BIRTH_DATE_ISO] = clean
+            }
+        }
+    }
+
     suspend fun setGeminiApiKey(apiKey: String) {
         val clean = apiKey.trim()
         dataStore.edit { prefs ->
@@ -182,6 +195,15 @@ class SettingsRepository(
                 UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT,
                 UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT
             )
+            prefs[KEY_SHAVE_INTERVAL_DAYS] = userSettings.shaveIntervalDays.coerceIn(
+                UserSettings.MIN_SHAVE_INTERVAL_DAYS,
+                UserSettings.MAX_SHAVE_INTERVAL_DAYS
+            )
+            if (userSettings.birthDateIso.isNullOrBlank()) {
+                prefs.remove(KEY_BIRTH_DATE_ISO)
+            } else {
+                prefs[KEY_BIRTH_DATE_ISO] = userSettings.birthDateIso.trim()
+            }
         }
     }
 
@@ -202,6 +224,7 @@ class SettingsRepository(
         private val KEY_GEMINI_API_KEY_ENC = stringPreferencesKey("gemini_api_key_enc")
         private val KEY_SHAVE_INTERVAL_DAYS = intPreferencesKey("shave_interval_days")
         private val KEY_LAST_SHAVE_EPOCH_DAY = longPreferencesKey("last_shave_epoch_day")
+        private val KEY_BIRTH_DATE_ISO = stringPreferencesKey("birth_date_iso")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

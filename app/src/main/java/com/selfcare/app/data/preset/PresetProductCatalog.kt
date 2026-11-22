@@ -7,7 +7,9 @@ package com.selfcare.app.data.preset
 enum class PresetGroup {
     RX,
     HAIR,
-    FACE
+    FACE,
+    VITAMIN,
+    MEDICATION
 }
 
 data class PresetProduct(
@@ -248,6 +250,120 @@ object PresetProductCatalog {
             defaultSlot = "EVENING",
             ingredientsText = "Panthenol, Petrolatum, Cetearyl Alcohol, Aqua",
             shortNote = "Soothing dexpanthenol recovery cream"
+        ),
+
+        // Vitamins & Daily Supplements
+        PresetProduct(
+            id = "vit_d3_2000",
+            name = "Vitamin D3 2000 IU",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Vitamin D3 (Cholecalciferol 50 µg / 2000 IU)",
+            shortNote = "Daily Vitamin D3 immune & bone support"
+        ),
+        PresetProduct(
+            id = "vit_c_1000",
+            name = "Vitamin C 1000 mg",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Vitamin C (Ascorbic Acid 1000 mg), Rosehip Extract",
+            shortNote = "Antioxidant & collagen synthesis support"
+        ),
+        PresetProduct(
+            id = "vit_magnesium",
+            name = "Magnesium Bisglycinate",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "EVENING",
+            ingredientsText = "Magnesium Bisglycinate, Vitamin B6",
+            shortNote = "Gentle chelated magnesium for sleep & muscle recovery"
+        ),
+        PresetProduct(
+            id = "vit_omega3",
+            name = "Omega-3 EPA + DHA",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Omega-3 Fish Oil, EPA, DHA, Vitamin E (Tocopherol)",
+            shortNote = "Essential fatty acids for skin barrier & heart health"
+        ),
+        PresetProduct(
+            id = "vit_zinc",
+            name = "Zinc 15 mg",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Zinc Bisglycinate 15 mg",
+            shortNote = "Skin clarity, hair & immune mineral support"
+        ),
+        PresetProduct(
+            id = "vit_b_complex",
+            name = "Vitamin B-Complex + B12",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Vitamin B12 (Cobalamin), Folate (B9), Biotin, Niacin, Vitamin B6",
+            shortNote = "Energy metabolism & nervous system B-vitamins"
+        ),
+        PresetProduct(
+            id = "vit_multivitamin",
+            name = "Daily Multivitamin",
+            brand = "Supplement",
+            group = PresetGroup.VITAMIN,
+            category = "VITAMIN",
+            defaultSlot = "MORNING",
+            ingredientsText = "Multivitamin, Vitamin A, Vitamin C, Vitamin D3, Vitamin E, Vitamin B12, Folate, Magnesium, Zinc, Iron, Calcium",
+            shortNote = "Broad-spectrum daily vitamin & mineral complex"
+        ),
+
+        // Everyday Medications & Pharmacy Ointments
+        PresetProduct(
+            id = "med_sudocrem",
+            name = "Sudocrem Antiseptic Cream",
+            brand = "Teva",
+            group = PresetGroup.MEDICATION,
+            category = "MEDICATION",
+            defaultSlot = "EVENING",
+            ingredientsText = "Zinc Oxide, Benzyl Alcohol, Lanolin, Panthenol",
+            shortNote = "Zinc oxide barrier ointment for irritated skin"
+        ),
+        PresetProduct(
+            id = "med_bepanthen_plus",
+            name = "Bepanthen Plus Cream",
+            brand = "Bayer",
+            group = PresetGroup.MEDICATION,
+            category = "MEDICATION",
+            defaultSlot = "NONE",
+            ingredientsText = "Dexpanthenol (Panthenol), Chlorhexidine",
+            shortNote = "Antiseptic skin-healing pharmacy cream"
+        ),
+        PresetProduct(
+            id = "med_ibuprofen",
+            name = "Ibuprofen 400 mg",
+            brand = "Pharmacy OTC",
+            group = PresetGroup.MEDICATION,
+            category = "MEDICATION",
+            defaultSlot = "NONE",
+            ingredientsText = "Ibuprofen 400 mg",
+            shortNote = "OTC anti-inflammatory & pain relief tablet"
+        ),
+        PresetProduct(
+            id = "med_cetirizine",
+            name = "Cetirizine 10 mg",
+            brand = "Pharmacy OTC",
+            group = PresetGroup.MEDICATION,
+            category = "MEDICATION",
+            defaultSlot = "EVENING",
+            ingredientsText = "Cetirizine Dihydrochloride 10 mg",
+            shortNote = "Daily antihistamine for allergy relief"
         )
     )
 

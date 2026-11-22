@@ -10,9 +10,11 @@ import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.repository.CheckInSubmissionResult
 import com.selfcare.app.data.repository.FaceCheckInRepository
+import com.selfcare.app.data.repository.ProductRepository
 import com.selfcare.app.domain.cv.HaircutTracker
 import com.selfcare.app.domain.cv.LightingAssessment
 import com.selfcare.app.domain.cv.LightingQualityChecker
+import com.selfcare.app.domain.cv.ShelfProductSummary
 import com.selfcare.app.domain.ml.FaceAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,14 +51,16 @@ data class CheckInUiState(
     val errorMessage: String? = null,
     val shaveIntervalDays: Int = UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS,
     val daysSinceLastShave: Int? = null,
-    val isShaveReminderDue: Boolean = false
+    val isShaveReminderDue: Boolean = false,
+    val shelfProducts: List<ShelfProductSummary> = emptyList()
 )
 
 class CheckInViewModel(
     private val faceCheckInRepository: FaceCheckInRepository,
     private val haircutTracker: HaircutTracker,
     private val settingsRepository: SettingsRepository,
-    private val faceAnalyzer: FaceAnalyzer? = null
+    private val faceAnalyzer: FaceAnalyzer? = null,
+    private val productRepository: ProductRepository? = null
 ) : ViewModel() {
 
     private data class TransientState(
@@ -82,8 +87,9 @@ class CheckInViewModel(
         transientState,
         settingsRepository.settings,
         haircutTracker.observeActiveBaseline(),
-        faceCheckInRepository.observeRecentCheckIns(1)
-    ) { transient, settings, baseline, recentCheckIns ->
+        faceCheckInRepository.observeRecentCheckIns(1),
+        productRepository?.observeAllProducts() ?: flowOf(emptyList())
+    ) { transient, settings, baseline, recentCheckIns, products ->
         val latest = recentCheckIns.firstOrNull()
         val latestRatio = transient.lastResult?.checkIn?.hairToFaceRatio ?: latest?.hairToFaceRatio
         val growthPercent = if (baseline != null && latestRatio != null) {
@@ -104,6 +110,14 @@ class CheckInViewModel(
         val latestStubble = transient.lastResult?.checkIn?.stubbleScore ?: latest?.stubbleScore ?: 0f
         val shaveDue = (daysSinceShave != null && daysSinceShave >= settings.shaveIntervalDays) ||
             latestStubble >= 0.62f
+
+        val shelfSummaries = products.map { p ->
+            ShelfProductSummary(
+                name = p.name,
+                category = p.category,
+                ingredientsText = p.rawIngredientsText
+            )
+        }
 
         CheckInUiState(
             hasCameraPermission = transient.hasCameraPermission,
@@ -127,7 +141,8 @@ class CheckInViewModel(
             errorMessage = transient.errorMessage,
             shaveIntervalDays = settings.shaveIntervalDays,
             daysSinceLastShave = daysSinceShave,
-            isShaveReminderDue = shaveDue
+            isShaveReminderDue = shaveDue,
+            shelfProducts = shelfSummaries
         )
     }.stateIn(
         scope = viewModelScope,
@@ -291,7 +306,8 @@ class CheckInViewModel(
             faceCheckInRepository: FaceCheckInRepository,
             haircutTracker: HaircutTracker,
             settingsRepository: SettingsRepository,
-            faceAnalyzer: FaceAnalyzer? = null
+            faceAnalyzer: FaceAnalyzer? = null,
+            productRepository: ProductRepository? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -299,7 +315,8 @@ class CheckInViewModel(
                     faceCheckInRepository = faceCheckInRepository,
                     haircutTracker = haircutTracker,
                     settingsRepository = settingsRepository,
-                    faceAnalyzer = faceAnalyzer
+                    faceAnalyzer = faceAnalyzer,
+                    productRepository = productRepository
                 ) as T
             }
         }

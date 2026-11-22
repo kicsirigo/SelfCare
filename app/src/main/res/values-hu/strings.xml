@@ -320,4 +320,41 @@
     <string name="shave_just_shaved_btn">Most borotválkoztam</string>
     <string name="settings_shave_interval">Borotválkozás emlékeztető</string>
     <string name="settings_shave_interval_value">%d naponta</string>
+
+    <!-- v2.2.0: Termékalapú tanácsok, Vitaminok/Gyógyszerek és Offline Vitaminkalkulátor -->
+    <string name="shelf_cat_vitamin">Vitaminok</string>
+    <string name="shelf_cat_medication">Gyógyszer / Kenőcs</string>
+    <string name="checkin_advice_shelf_badge">Polcod alapján (%d db)</string>
+    <string name="tip_blemishes_with_product">A polcodon lévő %1$s segíthet a pattanások ellen — használd következetesen vékony rétegben, és kerüld a nyomkodást.</string>
+    <string name="tip_redness_active_caution">A polcodon lévő %1$s aktív hatóanyaga fokozhatja a bőrpírt — ritkítsd néhány napra, és használj barrier-védő hidratálót.</string>
+    <string name="tip_redness_with_product">A bőrpír csökkentéséhez használd a polcodon lévő %1$s krémet a bőrbarrier nyugtatására.</string>
+    <string name="tip_texture_with_product">A textúra javításához tartsd következetesen a polcodon lévő %1$s használatát megfelelő hidratálás mellett.</string>
+    <string name="tip_lips_with_product">Az ajkak regenerálásához vigyél fel éjszakára egy védő réteget a polcodon lévő %1$s termékből.</string>
+    <string name="tip_spf_with_actives">Mivel használod a(z) %1$s terméket, érdemes napi SPF 30–50 fényvédőt is felvenni a polcodra a bőröd védelmére.</string>
+    <string name="tip_spf_generic">Érdemes napi széles spektrumú SPF 30–50 fényvédőt használni a bőrbarrier védelméhez.</string>
+    <string name="vitamin_calc_title">Napi vitaminszükséglet</string>
+    <string name="vitamin_calc_age_summary">%1$d éves kor • %2$d / %3$d megvan a polcodon</string>
+    <string name="vitamin_calc_set_birthday_prompt">Add meg a születésnapod (100% offline), hogy kiszámoljuk az életkorod szerinti napi vitamin- és ásványianyag-referenciát.</string>
+    <string name="vitamin_calc_set_birthday">Születésnap</string>
+    <string name="vitamin_calc_edit_birthday">Módosítás</string>
+    <string name="vitamin_calc_on_shelf">A polcodon: %1$s</string>
+    <string name="vitamin_calc_show_all">Mind a 11 tápanyag mutatása</string>
+    <string name="vitamin_calc_show_less">Kevesebb mutatása</string>
+    <string name="vitamin_calc_disclaimer">Tájékoztató jellegű napi referenciaértékek (EFSA/NIH) életkor alapján. Nem helyettesíti a kiegyensúlyozott, rendes étrendet és az orvosi tanácsadást.</string>
+    <string name="settings_birthday_title">Születésnap (100% offline)</string>
+    <string name="settings_birthday_hint">Csak helyben, az eszközödön tárolódik. Az életkor alapú napi vitamin-kalkulátorhoz használjuk.</string>
+    <string name="birthday_year">Év</string>
+    <string name="birthday_month">Hó</string>
+    <string name="birthday_day">Nap</string>
+    <string name="nutrient_vitamin_d">D3-vitamin</string>
+    <string name="nutrient_vitamin_c">C-vitamin</string>
+    <string name="nutrient_vitamin_b12">B12-vitamin</string>
+    <string name="nutrient_folate">Folsav (B9-vitamin)</string>
+    <string name="nutrient_vitamin_a">A-vitamin</string>
+    <string name="nutrient_vitamin_e">E-vitamin</string>
+    <string name="nutrient_magnesium">Magnézium</string>
+    <string name="nutrient_zinc">Cink</string>
+    <string name="nutrient_iron">Vas</string>
+    <string name="nutrient_calcium">Kalcium</string>
+    <string name="nutrient_omega_3">Omega-3 (EPA + DHA)</string>
 </resources>

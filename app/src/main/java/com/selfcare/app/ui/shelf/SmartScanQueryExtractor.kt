@@ -83,6 +83,34 @@ object SmartScanQueryExtractor {
         }
     }
 
+    /**
+     * Infers product category from raw OCR label text when offline scanning a vitamin,
+     * supplement, medication, ointment, or hair/skincare box.
+     */
+    fun inferCategoryFromText(text: String): String {
+        val lower = text.lowercase()
+        val vitaminKeywords = listOf(
+            "vitamin", "multivitamin", "d3", "b12", "b-complex", "b-komplex",
+            "magnesium", "magnézium", "magnezium", "omega-3", "omega 3",
+            "folsav", "folate", "calcium", "kalcium", "étrend-kiegészítő",
+            "etrend-kiegeszito", "dietary supplement", "food supplement", "iu", "ne "
+        )
+        if (vitaminKeywords.any { lower.contains(it) }) return "VITAMIN"
+
+        val medicationKeywords = listOf(
+            "ibuprofen", "paracetamol", "acetaminophen", "cetirizine", "algoflex",
+            "advil", "panadol", "nurofen", "aspirin", "filmtabletta", "kapszula",
+            "gyógyszer", "gyogyszer", "kenőcs", "kenocs", "ointment", "hydrocortisone",
+            "sudocrem", "chlorhexidine", "antiseptic", "mg/g", "mg film"
+        )
+        if (medicationKeywords.any { lower.contains(it) }) return "MEDICATION"
+
+        val hairKeywords = listOf("shampoo", "sampon", "conditioner", "balzsam", "scalp", "fejbőr")
+        if (hairKeywords.any { lower.contains(it) }) return "SHAMPOO"
+
+        return "OTHER"
+    }
+
     private val GENERIC_WORDS = setOf(
         "cream", "lotion", "serum", "shampoo", "cleanser", "balm", "wash",
         "care", "skin", "hair", "scalp", "acid", "daily", "facial", "foaming",

@@ -32,13 +32,34 @@ enum class ImprovementTipCode {
     UNDER_EYE,
     LIPS,
     SHAVE,
+    SPF_WITH_ACTIVES,
     MAINTAIN
 }
+
+enum class TipVariant {
+    GENERIC,
+    HAS_TARGETED_PRODUCT,
+    ACTIVE_IRRITATION_CAUTION
+}
+
+data class ShelfProductSummary(
+    val name: String,
+    val category: String = "OTHER",
+    val ingredientsText: String = ""
+)
+
+data class ProductContextTip(
+    val code: ImprovementTipCode,
+    val matchedProductName: String? = null,
+    val variant: TipVariant = TipVariant.GENERIC
+)
 
 data class ObjectiveRatingSummary(
     val scoreOutOfTen: Float,
     val level: MetricStatusLevel,
-    val tips: List<ImprovementTipCode>
+    val tips: List<ImprovementTipCode>,
+    val contextualTips: List<ProductContextTip> = tips.map { ProductContextTip(it) },
+    val usedShelfProductCount: Int = 0
 )
 
 /**
@@ -121,7 +142,8 @@ object MetricInterpreter {
 
     /**
      * Computes an objective 1.0..10.0 grooming & skin-care rating purely from on-device
-     * CV metrics (zero subjective beauty bias) and ranks concrete improvement tips.
+     * CV metrics (zero subjective beauty bias) and ranks concrete improvement tips,
+     * factoring in the user's actual creams, ointments, medications, and vitamins on their shelf.
      */
     fun computeObjectiveRating(
         underEyeDelta: Float,
@@ -131,7 +153,8 @@ object MetricInterpreter {
         blemishScore: Float,
         blemishCount: Int,
         stubbleScore: Float,
-        shaveDue: Boolean = false
+        shaveDue: Boolean = false,
+        shelfProducts: List<ShelfProductSummary> = emptyList()
     ): ObjectiveRatingSummary {
         val underEye = interpretUnderEye(underEyeDelta)
         val rednessEval = interpretRedness(redness)
@@ -165,18 +188,139 @@ object MetricInterpreter {
         if (lipEval.scorePercent < 80) candidates.add(ImprovementTipCode.LIPS to lipEval.scorePercent)
         if (shaveDue || stubbleScore >= 0.58f) candidates.add(ImprovementTipCode.SHAVE to stubbleEval.scorePercent)
 
-        val topTips = candidates
+        val strongActive = findProductMatching(shelfProducts, STRONG_ACTIVE_KEYWORDS)
+        val hasSunscreen = findProductMatching(shelfProducts, SUNSCREEN_KEYWORDS) != null
+        val blemishProduct = findProductMatching(shelfProducts, BLEMISH_PRODUCT_KEYWORDS)
+        val soothingProduct = findProductMatching(shelfProducts, SOOTHING_PRODUCT_KEYWORDS)
+        val textureProduct = findProductMatching(shelfProducts, TEXTURE_PRODUCT_KEYWORDS)
+        val lipProduct = findProductMatching(shelfProducts, LIP_PRODUCT_KEYWORDS)
+
+        val topCodes = candidates
             .sortedBy { it.second }
             .map { it.first }
             .take(3)
-            .ifEmpty { listOf(ImprovementTipCode.MAINTAIN) }
+            .toMutableList()
+
+        // If user uses strong retinoid/acid/Rx actives without any SPF on shelf, always surface SPF guidance
+        if (strongActive != null && !hasSunscreen) {
+            topCodes.add(ImprovementTipCode.SPF_WITH_ACTIVES)
+        }
+
+        val finalCodes = topCodes.ifEmpty { listOf(ImprovementTipCode.MAINTAIN) }
+
+        val contextualTips = finalCodes.map { code ->
+            when (code) {
+                ImprovementTipCode.BLEMISHES -> {
+                    if (blemishProduct != null) {
+                        ProductContextTip(
+                            code = code,
+                            matchedProductName = blemishProduct.name,
+                            variant = TipVariant.HAS_TARGETED_PRODUCT
+                        )
+                    } else {
+                        ProductContextTip(code = code)
+                    }
+                }
+                ImprovementTipCode.REDNESS -> {
+                    when {
+                        strongActive != null && rednessEval.scorePercent < 70 -> {
+                            ProductContextTip(
+                                code = code,
+                                matchedProductName = strongActive.name,
+                                variant = TipVariant.ACTIVE_IRRITATION_CAUTION
+                            )
+                        }
+                        soothingProduct != null -> {
+                            ProductContextTip(
+                                code = code,
+                                matchedProductName = soothingProduct.name,
+                                variant = TipVariant.HAS_TARGETED_PRODUCT
+                            )
+                        }
+                        else -> ProductContextTip(code = code)
+                    }
+                }
+                ImprovementTipCode.TEXTURE -> {
+                    if (textureProduct != null) {
+                        ProductContextTip(
+                            code = code,
+                            matchedProductName = textureProduct.name,
+                            variant = TipVariant.HAS_TARGETED_PRODUCT
+                        )
+                    } else {
+                        ProductContextTip(code = code)
+                    }
+                }
+                ImprovementTipCode.LIPS -> {
+                    if (lipProduct != null) {
+                        ProductContextTip(
+                            code = code,
+                            matchedProductName = lipProduct.name,
+                            variant = TipVariant.HAS_TARGETED_PRODUCT
+                        )
+                    } else {
+                        ProductContextTip(code = code)
+                    }
+                }
+                ImprovementTipCode.SPF_WITH_ACTIVES -> {
+                    ProductContextTip(
+                        code = code,
+                        matchedProductName = strongActive?.name,
+                        variant = TipVariant.ACTIVE_IRRITATION_CAUTION
+                    )
+                }
+                else -> ProductContextTip(code = code)
+            }
+        }
 
         return ObjectiveRatingSummary(
             scoreOutOfTen = rating10.coerceIn(1.0f, 10.0f),
             level = level,
-            tips = topTips
+            tips = finalCodes,
+            contextualTips = contextualTips,
+            usedShelfProductCount = shelfProducts.size
         )
     }
+
+    private fun findProductMatching(
+        products: List<ShelfProductSummary>,
+        keywords: List<String>
+    ): ShelfProductSummary? {
+        return products.firstOrNull { product ->
+            val combined = "${product.name} ${product.ingredientsText}".lowercase()
+            keywords.any { combined.contains(it) }
+        }
+    }
+
+    private val BLEMISH_PRODUCT_KEYWORDS = listOf(
+        "salicylic", "bha", "benzoyl", "adapalene", "epiduo", "differin",
+        "duac", "akneroxid", "azelaic", "skinoren", "erythromycin", "davercin",
+        "zineryt", "clindamycin", "niacinamide", "effaclar", "zinc", "cink"
+    )
+
+    private val STRONG_ACTIVE_KEYWORDS = listOf(
+        "adapalene", "retinol", "retinal", "tretinoin", "epiduo", "differin",
+        "benzoyl", "akneroxid", "duac", "glycolic", "lactic", "salicylic", "aha", "bha"
+    )
+
+    private val SOOTHING_PRODUCT_KEYWORDS = listOf(
+        "panthenol", "ceramide", "cicaplast", "bepanthen", "cerave", "madecassoside",
+        "centella", "allantoin", "bisabolol", "soolantra", "rozex", "azelaic",
+        "skinoren", "sudocrem", "moisturiz", "hidratál", "nyugtat"
+    )
+
+    private val TEXTURE_PRODUCT_KEYWORDS = listOf(
+        "retinal", "retinol", "adapalene", "glycolic", "lactic", "salicylic",
+        "ceramide", "hyaluron", "niacinamide", "a-game", "cerave", "effaclar"
+    )
+
+    private val LIP_PRODUCT_KEYWORDS = listOf(
+        "lip", "ajak", "balm", "balzsam", "vaseline", "petrolatum", "bepanthen", "cicaplast"
+    )
+
+    private val SUNSCREEN_KEYWORDS = listOf(
+        "spf", "sunscreen", "fényvédő", "fenyvedo", "uv ", "sun fluid", "anthelios", "sunblock"
+    )
 
     fun interpretHairDetails(
         crownVolumeScore: Float,

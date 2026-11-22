@@ -90,6 +90,8 @@ import com.selfcare.app.domain.cv.LightingQualityChecker
 import com.selfcare.app.domain.cv.LightingWarningReason
 import com.selfcare.app.domain.cv.MetricInterpreter
 import com.selfcare.app.domain.cv.MetricStatusLevel
+import com.selfcare.app.domain.cv.ShelfProductSummary
+import com.selfcare.app.domain.cv.TipVariant
 import com.selfcare.app.ui.components.HairHealthAnalysisCard
 import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.components.MetricGaugeRow
@@ -371,7 +373,8 @@ fun CheckInScreen(
                 blemishScore = latest.blemishScore,
                 blemishCount = latest.blemishCount,
                 stubbleScore = latest.stubbleScore,
-                shaveDue = uiState.isShaveReminderDue
+                shaveDue = uiState.isShaveReminderDue,
+                shelfProducts = uiState.shelfProducts
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -788,7 +791,8 @@ private fun CheckInResultSummaryCard(
     blemishScore: Float = 0f,
     blemishCount: Int = 0,
     stubbleScore: Float = 0f,
-    shaveDue: Boolean = false
+    shaveDue: Boolean = false,
+    shelfProducts: List<ShelfProductSummary> = emptyList()
 ) {
     val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
     val rednessEval = MetricInterpreter.interpretRedness(redness)
@@ -804,7 +808,8 @@ private fun CheckInResultSummaryCard(
         blemishScore = blemishScore,
         blemishCount = blemishCount,
         stubbleScore = stubbleScore,
-        shaveDue = shaveDue
+        shaveDue = shaveDue,
+        shelfProducts = shelfProducts
     )
     val ratingText = String.format(Locale.US, "%.1f", ratingSummary.scoreOutOfTen)
 
@@ -858,24 +863,74 @@ private fun CheckInResultSummaryCard(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.checkin_advice_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    ratingSummary.tips.forEach { tip ->
-                        val tipRes = when (tip) {
-                            ImprovementTipCode.BLEMISHES -> R.string.tip_blemishes
-                            ImprovementTipCode.REDNESS -> R.string.tip_redness
-                            ImprovementTipCode.TEXTURE -> R.string.tip_texture
-                            ImprovementTipCode.UNDER_EYE -> R.string.tip_under_eye
-                            ImprovementTipCode.LIPS -> R.string.tip_lips
-                            ImprovementTipCode.SHAVE -> R.string.tip_shave
-                            ImprovementTipCode.MAINTAIN -> R.string.tip_maintain
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.checkin_advice_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (ratingSummary.usedShelfProductCount > 0) {
+                            Text(
+                                text = stringResource(
+                                    R.string.checkin_advice_shelf_badge,
+                                    ratingSummary.usedShelfProductCount
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    ratingSummary.contextualTips.forEach { tip ->
+                        val productName = tip.matchedProductName
+                        val tipText = when (tip.code) {
+                            ImprovementTipCode.BLEMISHES -> {
+                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                                    stringResource(R.string.tip_blemishes_with_product, productName)
+                                } else {
+                                    stringResource(R.string.tip_blemishes)
+                                }
+                            }
+                            ImprovementTipCode.REDNESS -> {
+                                when {
+                                    tip.variant == TipVariant.ACTIVE_IRRITATION_CAUTION && productName != null ->
+                                        stringResource(R.string.tip_redness_active_caution, productName)
+                                    tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
+                                        stringResource(R.string.tip_redness_with_product, productName)
+                                    else -> stringResource(R.string.tip_redness)
+                                }
+                            }
+                            ImprovementTipCode.TEXTURE -> {
+                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                                    stringResource(R.string.tip_texture_with_product, productName)
+                                } else {
+                                    stringResource(R.string.tip_texture)
+                                }
+                            }
+                            ImprovementTipCode.UNDER_EYE -> stringResource(R.string.tip_under_eye)
+                            ImprovementTipCode.LIPS -> {
+                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                                    stringResource(R.string.tip_lips_with_product, productName)
+                                } else {
+                                    stringResource(R.string.tip_lips)
+                                }
+                            }
+                            ImprovementTipCode.SHAVE -> stringResource(R.string.tip_shave)
+                            ImprovementTipCode.SPF_WITH_ACTIVES -> {
+                                if (productName != null) {
+                                    stringResource(R.string.tip_spf_with_actives, productName)
+                                } else {
+                                    stringResource(R.string.tip_spf_generic)
+                                }
+                            }
+                            ImprovementTipCode.MAINTAIN -> stringResource(R.string.tip_maintain)
                         }
                         Text(
-                            text = "• ${stringResource(tipRes)}",
+                            text = "• $tipText",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface
                         )

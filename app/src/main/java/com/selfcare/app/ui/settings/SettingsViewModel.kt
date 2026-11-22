@@ -128,6 +128,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setBirthDateIso(isoDate: String?) {
+        viewModelScope.launch {
+            settingsRepository.setBirthDateIso(isoDate)
+        }
+    }
+
     fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
             settingsRepository.setGeminiApiKey(apiKey)

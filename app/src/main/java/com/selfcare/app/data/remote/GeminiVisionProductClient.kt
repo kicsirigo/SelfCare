@@ -291,13 +291,13 @@ class GeminiVisionProductClient(
         )
 
         private const val SYSTEM_PROMPT =
-            "Identify the skincare, haircare, or pharmacy/prescription topical product in this photo. " +
+            "Identify the skincare, haircare, vitamin/supplement, or medication/pharmacy ointment product in this photo. " +
                 "Return ONLY a single JSON object with keys: " +
                 "\"name\" (exact product name without promotional tags like NEW, empty string if no product visible), " +
                 "\"brand\" (brand/manufacturer), " +
-                "\"category\" (one of: OTHER, RX_TREATMENT, SHAMPOO), " +
+                "\"category\" (one of: OTHER, RX_TREATMENT, SHAMPOO, VITAMIN, MEDICATION), " +
                 "\"routineSlot\" (one of: MORNING, EVENING, BOTH, HAIR, NONE), " +
-                "\"ingredients\" (comma-separated INCI active and key ingredients known for this product or visible on the label)."
+                "\"ingredients\" (comma-separated INCI active ingredients, vitamins/minerals, or active drug compounds and dosages known for this product or visible on the label)."
 
         private fun stripCodeFences(raw: String): String {
             val trimmed = raw.trim()
@@ -318,6 +318,8 @@ class GeminiVisionProductClient(
         private fun normalizeCategory(raw: String): String = when (raw.trim().uppercase()) {
             "RX_TREATMENT", "RX", "PRESCRIPTION" -> "RX_TREATMENT"
             "SHAMPOO", "HAIR", "CONDITIONER", "SCALP_TONIC", "HAIR_OIL" -> "SHAMPOO"
+            "VITAMIN", "VITAMINS", "SUPPLEMENT", "SUPPLEMENTS", "MULTIVITAMIN" -> "VITAMIN"
+            "MEDICATION", "MEDICINE", "DRUG", "OTC", "OINTMENT", "PHARMACY" -> "MEDICATION"
             else -> "OTHER"
         }
 

@@ -16,6 +16,9 @@ import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BarcodeLookupOutcome
 import com.selfcare.app.data.repository.ProductRepository
 import com.selfcare.app.data.repository.RoutineRepository
+import com.selfcare.app.domain.cv.ShelfProductSummary
+import com.selfcare.app.domain.health.VitaminCalculator
+import com.selfcare.app.domain.health.VitaminPlan
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
@@ -38,7 +41,9 @@ enum class ShelfCategoryFilter {
     ALL,
     FACE,
     RX,
-    HAIR
+    HAIR,
+    VITAMIN,
+    MEDICATION
 }
 
 data class ShelfProductItem(
@@ -89,7 +94,9 @@ data class ShelfUiState(
     val liveProductDetected: Boolean = false,
     val isGeminiVisionConfigured: Boolean = false,
     val pendingScanConfirmation: PendingScanConfirmation? = null,
-    val geminiErrorBanner: String? = null
+    val geminiErrorBanner: String? = null,
+    val birthDateIso: String? = null,
+    val vitaminPlan: VitaminPlan? = null
 )
 
 class ShelfViewModel(
@@ -107,9 +114,8 @@ class ShelfViewModel(
     private val editorFlow = MutableStateFlow<ProductEditorState?>(null)
     private var liveOcrJob: Job? = null
 
-    private val geminiConfiguredFlow = settingsRepository?.settings
-        ?.map { it.geminiApiKey.isNotBlank() }
-        ?: flowOf(false)
+    private val settingsFlow = settingsRepository?.settings
+        ?: flowOf(com.selfcare.app.data.local.UserSettings())
 
     val uiState: StateFlow<ShelfUiState> = combine(
         productRepository.observeAllProducts(),
@@ -118,7 +124,7 @@ class ShelfViewModel(
         presetGroupFlow,
         lookupStateFlow,
         editorFlow,
-        geminiConfiguredFlow
+        settingsFlow
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val allProducts = values[0] as List<ProductEntity>
@@ -127,18 +133,23 @@ class ShelfViewModel(
         val presetGroup = values[3] as PresetGroup
         val lookup = values[4] as LookupTransientState
         val editor = values[5] as ProductEditorState?
-        val geminiConfigured = values[6] as Boolean
+        val userSettings = values[6] as com.selfcare.app.data.local.UserSettings
+        val geminiConfigured = userSettings.geminiApiKey.isNotBlank()
 
         val trimmed = query.trim()
         val filteredByCategory = allProducts.filter { product ->
             when (catFilter) {
                 ShelfCategoryFilter.ALL -> true
                 ShelfCategoryFilter.RX -> product.category.equals("RX_TREATMENT", ignoreCase = true)
+                ShelfCategoryFilter.VITAMIN -> product.category.equals("VITAMIN", ignoreCase = true)
+                ShelfCategoryFilter.MEDICATION -> product.category.equals("MEDICATION", ignoreCase = true)
                 ShelfCategoryFilter.HAIR ->
                     product.routineSlot.equals(InciConflictDetector.SLOT_HAIR, ignoreCase = true) ||
                         RoutineRepository.isHairCategory(product.category)
                 ShelfCategoryFilter.FACE ->
                     !product.category.equals("RX_TREATMENT", ignoreCase = true) &&
+                        !product.category.equals("VITAMIN", ignoreCase = true) &&
+                        !product.category.equals("MEDICATION", ignoreCase = true) &&
                         !product.routineSlot.equals(InciConflictDetector.SLOT_HAIR, ignoreCase = true) &&
                         !RoutineRepository.isHairCategory(product.category)
             }
@@ -168,6 +179,18 @@ class ShelfViewModel(
             .map { it.id }
             .toSet()
 
+        val ageYears = VitaminCalculator.computeAgeYears(userSettings.birthDateIso)
+        val vitaminPlan = ageYears?.let { age ->
+            val summaries = allProducts.map { p ->
+                ShelfProductSummary(
+                    name = p.name,
+                    category = p.category,
+                    ingredientsText = p.rawIngredientsText
+                )
+            }
+            VitaminCalculator.calculateForAge(age, summaries)
+        }
+
         ShelfUiState(
             searchQuery = query,
             categoryFilter = catFilter,
@@ -185,7 +208,9 @@ class ShelfViewModel(
             liveProductDetected = lookup.liveProductDetected,
             isGeminiVisionConfigured = geminiConfigured,
             pendingScanConfirmation = lookup.pendingScanConfirmation,
-            geminiErrorBanner = lookup.geminiErrorBanner
+            geminiErrorBanner = lookup.geminiErrorBanner,
+            birthDateIso = userSettings.birthDateIso,
+            vitaminPlan = vitaminPlan
         )
     }.stateIn(
         scope = viewModelScope,
@@ -199,6 +224,13 @@ class ShelfViewModel(
 
     fun selectCategoryFilter(filter: ShelfCategoryFilter) {
         categoryFilterFlow.value = filter
+    }
+
+    fun setBirthDateIso(isoDate: String?) {
+        val repo = settingsRepository ?: return
+        viewModelScope.launch {
+            repo.setBirthDateIso(isoDate)
+        }
     }
 
     fun selectPresetGroup(group: PresetGroup) {
@@ -468,6 +500,10 @@ class ShelfViewModel(
                         }
                     } else {
                         val preview = createPreviewThumbnail(bitmap)
+                        val inferredCategory = SmartScanQueryExtractor.inferCategoryFromText(recognized)
+                        val keepLabelText = inciMatches.isNotEmpty() ||
+                            inferredCategory == "VITAMIN" ||
+                            inferredCategory == "MEDICATION"
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
@@ -475,9 +511,13 @@ class ShelfViewModel(
                                     source = "SMART_OCR",
                                     name = searchTerm,
                                     brand = "",
-                                    category = "OTHER",
-                                    routineSlot = InciConflictDetector.SLOT_NONE,
-                                    ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                                    category = inferredCategory,
+                                    routineSlot = if (inferredCategory == "VITAMIN") {
+                                        InciConflictDetector.SLOT_MORNING
+                                    } else {
+                                        InciConflictDetector.SLOT_NONE
+                                    },
+                                    ingredientsText = if (keepLabelText) recognized else "",
                                     parsedMatches = inciMatches,
                                     capturedPhoto = preview,
                                     geminiErrorDetail = geminiFailureReason
@@ -498,6 +538,10 @@ class ShelfViewModel(
                         }
                     } else {
                         val preview = createPreviewThumbnail(bitmap)
+                        val inferredCategory = SmartScanQueryExtractor.inferCategoryFromText(recognized)
+                        val keepLabelText = inciMatches.isNotEmpty() ||
+                            inferredCategory == "VITAMIN" ||
+                            inferredCategory == "MEDICATION"
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
@@ -505,9 +549,13 @@ class ShelfViewModel(
                                     source = "SMART_OCR",
                                     name = searchTerm,
                                     brand = "",
-                                    category = "OTHER",
-                                    routineSlot = InciConflictDetector.SLOT_NONE,
-                                    ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                                    category = inferredCategory,
+                                    routineSlot = if (inferredCategory == "VITAMIN") {
+                                        InciConflictDetector.SLOT_MORNING
+                                    } else {
+                                        InciConflictDetector.SLOT_NONE
+                                    },
+                                    ingredientsText = if (keepLabelText) recognized else "",
                                     parsedMatches = inciMatches,
                                     capturedPhoto = preview,
                                     geminiErrorDetail = geminiFailureReason

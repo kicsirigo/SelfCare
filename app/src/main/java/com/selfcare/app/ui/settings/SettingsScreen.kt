@@ -53,6 +53,7 @@ import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.data.remote.AppUpdateInfo
 import com.selfcare.app.data.remote.GeminiKeyTestResult
+import com.selfcare.app.domain.health.VitaminCalculator
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlin.math.roundToInt
@@ -94,6 +95,7 @@ fun SettingsScreen(
         onToggleAutoDelete = viewModel::setAutoDeleteCheckInPhotos,
         onChangeHaircutThreshold = viewModel::setHaircutThresholdPercent,
         onChangeShaveInterval = viewModel::setShaveIntervalDays,
+        onSaveBirthDate = viewModel::setBirthDateIso,
         onToggleMorningReminder = { enabled ->
             if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val granted = ContextCompat.checkSelfPermission(
@@ -157,6 +159,7 @@ fun SettingsScreenContent(
     onToggleAutoDelete: (Boolean) -> Unit,
     onChangeHaircutThreshold: (Int) -> Unit,
     onChangeShaveInterval: (Int) -> Unit = {},
+    onSaveBirthDate: (String?) -> Unit = {},
     onToggleMorningReminder: (Boolean) -> Unit,
     onAdjustMorningTime: (Int) -> Unit,
     onToggleEveningReminder: (Boolean) -> Unit,
@@ -393,6 +396,88 @@ fun SettingsScreenContent(
                         valueRange = UserSettings.MIN_SHAVE_INTERVAL_DAYS.toFloat()..
                             UserSettings.MAX_SHAVE_INTERVAL_DAYS.toFloat()
                     )
+
+                    // Offline Birthdate for Age-Based Vitamin Calculator
+                    val parsedDob = remember(settings.birthDateIso) {
+                        VitaminCalculator.parseBirthDate(settings.birthDateIso)
+                    }
+                    val ageYears = remember(settings.birthDateIso) {
+                        VitaminCalculator.computeAgeYears(settings.birthDateIso)
+                    }
+                    var yearInput by remember(settings.birthDateIso) {
+                        mutableStateOf(parsedDob?.year?.toString().orEmpty())
+                    }
+                    var monthInput by remember(settings.birthDateIso) {
+                        mutableStateOf(parsedDob?.monthValue?.toString()?.padStart(2, '0').orEmpty())
+                    }
+                    var dayInput by remember(settings.birthDateIso) {
+                        mutableStateOf(parsedDob?.dayOfMonth?.toString()?.padStart(2, '0').orEmpty())
+                    }
+                    val candidateIso = remember(yearInput, monthInput, dayInput) {
+                        val y = yearInput.toIntOrNull()
+                        val m = monthInput.toIntOrNull()
+                        val d = dayInput.toIntOrNull()
+                        if (y != null && m != null && d != null && y in 1905..2025) {
+                            val iso = VitaminCalculator.formatBirthDate(y, m, d)
+                            if (VitaminCalculator.computeAgeYears(iso) != null) iso else null
+                        } else null
+                    }
+                    Text(
+                        text = if (ageYears != null) {
+                            "${stringResource(R.string.settings_birthday_title)} ($ageYears)"
+                        } else {
+                            stringResource(R.string.settings_birthday_title)
+                        },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_birthday_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = yearInput,
+                            onValueChange = { if (it.length <= 4 && it.all(Char::isDigit)) yearInput = it },
+                            label = { Text(stringResource(R.string.birthday_year)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .testTag("settings_birthday_year")
+                        )
+                        OutlinedTextField(
+                            value = monthInput,
+                            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) monthInput = it },
+                            label = { Text(stringResource(R.string.birthday_month)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_birthday_month")
+                        )
+                        OutlinedTextField(
+                            value = dayInput,
+                            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) dayInput = it },
+                            label = { Text(stringResource(R.string.birthday_day)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("settings_birthday_day")
+                        )
+                    }
+                    Button(
+                        onClick = { onSaveBirthDate(candidateIso) },
+                        enabled = candidateIso != null && candidateIso != settings.birthDateIso,
+                        modifier = Modifier.testTag("settings_birthday_save_btn")
+                    ) {
+                        Text(text = stringResource(R.string.action_save))
+                    }
                 }
             }
         }

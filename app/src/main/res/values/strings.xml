@@ -320,4 +320,41 @@
     <string name="shave_just_shaved_btn">Just Shaved</string>
     <string name="settings_shave_interval">Shave reminder interval</string>
     <string name="settings_shave_interval_value">Every %d days</string>
+
+    <!-- v2.2.0: Product-aware advice, Vitamins/Medications & Offline Vitamin Calculator -->
+    <string name="shelf_cat_vitamin">Vitamins</string>
+    <string name="shelf_cat_medication">Meds &amp; Ointments</string>
+    <string name="checkin_advice_shelf_badge">Shelf used (%d)</string>
+    <string name="tip_blemishes_with_product">Target blemishes with %1$s already on your shelf — apply consistently in a thin layer and avoid picking.</string>
+    <string name="tip_redness_active_caution">%1$s on your shelf may contribute to redness — reduce its frequency for a few days and pair with a barrier moisturizer.</string>
+    <string name="tip_redness_with_product">Calm redness using %1$s from your shelf to support skin barrier recovery.</string>
+    <string name="tip_texture_with_product">Refine skin texture by staying consistent with %1$s from your shelf plus daily hydration.</string>
+    <string name="tip_lips_with_product">Repair dry lips tonight with a protective layer of %1$s from your shelf.</string>
+    <string name="tip_spf_with_actives">You use %1$s — add a daily SPF 30–50 sunscreen to your shelf to protect sensitized skin.</string>
+    <string name="tip_spf_generic">Add a daily broad-spectrum SPF 30–50 sunscreen to protect your skin barrier.</string>
+    <string name="vitamin_calc_title">Daily Vitamin Reference</string>
+    <string name="vitamin_calc_age_summary">Age %1$d • %2$d / %3$d tracked on your shelf</string>
+    <string name="vitamin_calc_set_birthday_prompt">Enter your birthday (100% offline) to estimate age-based daily vitamin &amp; mineral needs.</string>
+    <string name="vitamin_calc_set_birthday">Set birthday</string>
+    <string name="vitamin_calc_edit_birthday">Edit</string>
+    <string name="vitamin_calc_on_shelf">On shelf: %1$s</string>
+    <string name="vitamin_calc_show_all">Show all 11 nutrients</string>
+    <string name="vitamin_calc_show_less">Show less</string>
+    <string name="vitamin_calc_disclaimer">Informational daily reference values (EFSA/NIH) by age. Does not replace a balanced, healthy diet or medical advice.</string>
+    <string name="settings_birthday_title">Birthday (100% offline)</string>
+    <string name="settings_birthday_hint">Stored locally on your device only. Used to calculate age-based daily vitamin estimates.</string>
+    <string name="birthday_year">Year</string>
+    <string name="birthday_month">Month</string>
+    <string name="birthday_day">Day</string>
+    <string name="nutrient_vitamin_d">Vitamin D3</string>
+    <string name="nutrient_vitamin_c">Vitamin C</string>
+    <string name="nutrient_vitamin_b12">Vitamin B12</string>
+    <string name="nutrient_folate">Folate (Vitamin B9)</string>
+    <string name="nutrient_vitamin_a">Vitamin A</string>
+    <string name="nutrient_vitamin_e">Vitamin E</string>
+    <string name="nutrient_magnesium">Magnesium</string>
+    <string name="nutrient_zinc">Zinc</string>
+    <string name="nutrient_iron">Iron</string>
+    <string name="nutrient_calcium">Calcium</string>
+    <string name="nutrient_omega_3">Omega-3 (EPA + DHA)</string>
 </resources>

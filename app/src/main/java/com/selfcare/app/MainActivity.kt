@@ -139,8 +139,8 @@ private fun SelfCareScaffold(container: AppContainer) {
         listOf(
             AppDestination.ROUTINE,
             AppDestination.HYGIENE,
-            AppDestination.SHELF,
             AppDestination.CHECKIN,
+            AppDestination.SHELF,
             AppDestination.TRENDS
         )
     }
@@ -174,7 +174,8 @@ private fun SelfCareScaffold(container: AppContainer) {
             faceCheckInRepository = container.faceCheckInRepository,
             haircutTracker = container.haircutTracker,
             settingsRepository = container.settingsRepository,
-            faceAnalyzer = container.faceAnalyzer
+            faceAnalyzer = container.faceAnalyzer,
+            productRepository = container.productRepository
         )
     )
     val trendsViewModel: TrendsViewModel = viewModel(
@@ -303,29 +304,49 @@ private fun SelfCareScaffold(container: AppContainer) {
                         bottomDestinations.forEach { destination ->
                             val label = stringResource(destination.labelRes)
                             val selected = currentDestination == destination
+                            val isCenterCheckIn = destination == AppDestination.CHECKIN
                             Surface(
                                 onClick = { currentDestination = destination },
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-                                color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
+                                shape = if (isCenterCheckIn) {
+                                    androidx.compose.foundation.shape.CircleShape
                                 } else {
-                                    androidx.compose.ui.graphics.Color.Transparent
+                                    androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+                                },
+                                color = when {
+                                    selected -> MaterialTheme.colorScheme.primaryContainer
+                                    isCenterCheckIn -> MaterialTheme.colorScheme.surfaceVariant
+                                    else -> androidx.compose.ui.graphics.Color.Transparent
+                                },
+                                border = if (isCenterCheckIn) {
+                                    androidx.compose.foundation.BorderStroke(
+                                        1.25.dp,
+                                        if (selected) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                        }
+                                    )
+                                } else {
+                                    null
                                 },
                                 modifier = Modifier.testTag(destination.testTag)
                             ) {
                                 Box(
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(
+                                        horizontal = if (isCenterCheckIn) 16.dp else 14.dp,
+                                        vertical = 10.dp
+                                    ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = destination.icon,
                                         contentDescription = label,
-                                        tint = if (selected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        tint = when {
+                                            selected -> MaterialTheme.colorScheme.primary
+                                            isCenterCheckIn -> MaterialTheme.colorScheme.onSurface
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                                         },
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(if (isCenterCheckIn) 24.dp else 22.dp)
                                     )
                                 }
                             }
