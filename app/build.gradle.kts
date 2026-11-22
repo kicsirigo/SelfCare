@@ -40,10 +40,41 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("SELFCARE_STORE_FILE")
+                ?: project.findProperty("SELFCARE_STORE_FILE")?.toString()
+                ?: "selfcare-release.jks"
+            val keystoreFile = file(keystorePath)
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("SELFCARE_STORE_PASSWORD")
+                    ?: project.findProperty("SELFCARE_STORE_PASSWORD")?.toString()
+                    ?: ""
+                keyAlias = System.getenv("SELFCARE_KEY_ALIAS")
+                    ?: project.findProperty("SELFCARE_KEY_ALIAS")?.toString()
+                    ?: "selfcare"
+                keyPassword = System.getenv("SELFCARE_KEY_PASSWORD")
+                    ?: project.findProperty("SELFCARE_KEY_PASSWORD")?.toString()
+                    ?: ""
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile?.exists() == true) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

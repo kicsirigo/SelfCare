@@ -5,6 +5,7 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
+[![Version](https://img.shields.io/badge/Release-v1.0.0-10B981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -68,6 +69,21 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 - `android.permission.CAMERA` — Used solely for on-device CameraX guided selfie check-ins, barcode scanning, and label OCR.
 - `android.permission.POST_NOTIFICATIONS` — Used solely for optional local routine and haircut reminders.
 - `android.permission.INTERNET` — Permitted **only** for anonymous, read-only public lookups to Open Beauty Facts (`BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`). Face photos, check-in metrics, haircut status, product shelves, and routine logs never leave the device.
+
+---
+
+## Download & Verification
+
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+
+- **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
+- **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.
+
+### Verify APK Integrity
+Download `SHA256SUMS.txt` from the release and verify locally:
+```bash
+sha256sum -c SHA256SUMS.txt
+```
 
 ---
 

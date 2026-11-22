@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.selfcare.app.BuildConfig
 import com.selfcare.app.R
 import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.UserSettings
@@ -424,6 +425,19 @@ fun SettingsScreenContent(
         }
 
         item {
+            Text(
+                text = stringResource(
+                    R.string.settings_version_format,
+                    BuildConfig.VERSION_NAME,
+                    BuildConfig.VERSION_CODE
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .testTag("settings_version_label")
+            )
             Spacer(modifier = Modifier.height(12.dp))
         }
     }

@@ -15,3 +15,10 @@
 -keepclasseswithmembers class com.selfcare.app.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Preserve Room entities & bundled ML Kit / Play Services task classes
+-keep class com.selfcare.app.data.local.entity.** { *; }
+-dontwarn com.google.mlkit.**
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.android.odml.** { *; }
