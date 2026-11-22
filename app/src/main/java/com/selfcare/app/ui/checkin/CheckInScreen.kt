@@ -214,31 +214,7 @@ fun CheckInScreen(
                     cameraExecutor = cameraExecutor
                 )
 
-                val warningReason = uiState.lightingAssessment?.warningReason
-                if (warningReason != null && warningReason != LightingWarningReason.OK) {
-                    LightingWarningBanner(reason = warningReason)
-                }
-
-                if (uiState.noFaceError) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("checkin_no_face_error")
-                    ) {
-                        Text(
-                            text = stringResource(R.string.checkin_no_face_error),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-
-                val canCapture = !uiState.isCapturing &&
-                    uiState.cooldownSecondsRemaining == 0 &&
-                    (uiState.cameraUnavailable || uiState.isFaceDetected != false)
+                val canCapture = !uiState.isCapturing
 
                 Button(
                     onClick = {
@@ -296,13 +272,6 @@ fun CheckInScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = stringResource(R.string.checkin_analyzing))
-                    } else if (uiState.cooldownSecondsRemaining > 0) {
-                        Text(
-                            text = stringResource(
-                                R.string.checkin_cooldown_seconds,
-                                uiState.cooldownSecondsRemaining
-                            )
-                        )
                     } else {
                         Icon(
                             imageVector = AppIcons.Camera,
@@ -570,12 +539,11 @@ private fun CameraPreviewCard(
             }
         }
 
-        // Guided framing overlay: only green when an actual face is detected AND lighting is OK
-        val guideColor = when {
-            isFaceDetected == false -> MaterialTheme.colorScheme.error
-            lightingReason != null && lightingReason != LightingWarningReason.OK -> MaterialTheme.colorScheme.error
-            isFaceDetected == true -> MaterialTheme.colorScheme.primary
-            else -> MaterialTheme.colorScheme.outline
+        // Guided framing overlay: green when face detected, red when no face detected (no brightness restriction)
+        val guideColor = when (isFaceDetected) {
+            true -> MaterialTheme.colorScheme.primary
+            false -> MaterialTheme.colorScheme.error
+            null -> MaterialTheme.colorScheme.outline
         }
 
         val infiniteTransition = rememberInfiniteTransition(label = "checkin_scanner")

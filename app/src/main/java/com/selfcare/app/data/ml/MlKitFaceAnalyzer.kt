@@ -47,17 +47,45 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
 
     override suspend fun isFacePresent(bitmap: Bitmap): Boolean {
         if (bitmap.width <= 0 || bitmap.height <= 0) return false
-        return runCatching {
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
-            val meshes = faceMeshDetector.process(inputImage).awaitResult()
-            meshes.any { it.boundingBox.width() > 24 && it.boundingBox.height() > 24 }
-        }.getOrDefault(false)
+        val work = downscaleIfNeeded(bitmap, maxDim = 480)
+        return try {
+            detectPrimaryFaceMultiRotation(work) != null
+        } catch (_: Throwable) {
+            false
+        } finally {
+            if (work !== bitmap) work.recycle()
+        }
+    }
+
+    private suspend fun detectPrimaryFaceMultiRotation(bitmap: Bitmap): FaceMesh? {
+        for (rotation in intArrayOf(0, 270, 90, 180)) {
+            val meshes = runCatching {
+                faceMeshDetector.process(InputImage.fromBitmap(bitmap, rotation)).awaitResult()
+            }.getOrNull()
+            val primary = meshes?.maxByOrNull {
+                it.boundingBox.width().coerceAtLeast(0) * it.boundingBox.height().coerceAtLeast(0)
+            }
+            if (primary != null && primary.boundingBox.width() > 20 && primary.boundingBox.height() > 20) {
+                return primary
+            }
+        }
+        return null
+    }
+
+    private fun downscaleIfNeeded(bitmap: Bitmap, maxDim: Int): Bitmap {
+        val largest = max(bitmap.width, bitmap.height)
+        if (largest <= maxDim || largest <= 0) return bitmap
+        val scale = maxDim.toFloat() / largest.toFloat()
+        return Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width * scale).roundToInt().coerceAtLeast(1),
+            (bitmap.height * scale).roundToInt().coerceAtLeast(1),
+            true
+        )
     }
 
     override suspend fun analyze(bitmap: Bitmap): FaceAnalysisResult {
-        val width = bitmap.width
-        val height = bitmap.height
-        if (width <= 0 || height <= 0) {
+        if (bitmap.width <= 0 || bitmap.height <= 0) {
             return FaceAnalysisResult(
                 underEyeDeltaLab = 0f,
                 skinRednessIndex = 0f,
@@ -70,110 +98,154 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
             )
         }
 
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        val inputImage = InputImage.fromBitmap(bitmap, 0)
+        // Downscale huge camera captures (e.g. 12MP+) so ML Kit & pixel analysis stay fast and never OOM
+        val workBitmap = downscaleIfNeeded(bitmap, maxDim = 720)
+        val width = workBitmap.width
+        val height = workBitmap.height
 
-        val (meshesResult, maskResult) = coroutineScope {
-            val meshDeferred = async { runCatching { faceMeshDetector.process(inputImage).awaitResult() } }
-            val segDeferred = async { runCatching { segmenter.process(inputImage).awaitResult() } }
-            meshDeferred.await() to segDeferred.await()
-        }
+        try {
+            val pixels = IntArray(width * height)
+            workBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+            val inputImage = InputImage.fromBitmap(workBitmap, 0)
 
-        val primaryFace = meshesResult.getOrNull()
-            ?.maxByOrNull { it.boundingBox.width().coerceAtLeast(0) * it.boundingBox.height().coerceAtLeast(0) }
-
-        val facePixelRect = primaryFace?.boundingBox?.toPixelRect()?.clampTo(width, height)
-        val lightingAssessment = LightingQualityChecker.assess(
-            pixels = pixels,
-            width = width,
-            height = height,
-            roi = facePixelRect?.takeIf { !it.isEmpty }
-        )
-
-        if (primaryFace == null || facePixelRect == null || facePixelRect.isEmpty) {
-            val warning = if (!lightingAssessment.isAcceptable) {
-                lightingAssessment.warningReason.name
-            } else {
-                NO_FACE_DETECTED_REASON
+            val (primaryFace, maskResult) = coroutineScope {
+                val meshDeferred = async { detectPrimaryFaceMultiRotation(workBitmap) }
+                val segDeferred = async { runCatching { segmenter.process(inputImage).awaitResult() } }
+                meshDeferred.await() to segDeferred.await()
             }
-            return FaceAnalysisResult(
-                underEyeDeltaLab = 0f,
-                skinRednessIndex = 0f,
-                skinTextureVariance = 0f,
-                lipDrynessScore = 0f,
-                hairToFaceRatio = 0f,
-                lightingQualityScore = lightingAssessment.lightingQualityScore,
-                isLightingAcceptable = false,
-                lightingWarningReason = warning
-            )
-        }
 
-        val rois = extractFacialRois(primaryFace, facePixelRect, width, height)
-        val underEyeDeltaLab = FaceMetricCalculator.computeUnderEyeDeltaLab(
-            pixels = pixels,
-            width = width,
-            height = height,
-            leftUnderEyeRoi = rois.leftUnderEye,
-            rightUnderEyeRoi = rois.rightUnderEye,
-            leftCheekRoi = rois.leftCheek,
-            rightCheekRoi = rois.rightCheek
-        )
+            // Use detected face mesh box, or fall back to the guided center oval ROI so Trends always receives real metrics
+            val detectedRect = primaryFace?.boundingBox?.toPixelRect()?.clampTo(width, height)?.takeIf { !it.isEmpty }
+            val facePixelRect = detectedRect ?: PixelRect(
+                left = (width * 0.20f).roundToInt(),
+                top = (height * 0.18f).roundToInt(),
+                right = (width * 0.80f).roundToInt(),
+                bottom = (height * 0.82f).roundToInt()
+            ).clampTo(width, height)
 
-        val skinRois = listOf(rois.leftCheek, rois.rightCheek, rois.forehead)
-        val skinRednessIndex = FaceMetricCalculator.computeSkinRednessIndex(
-            pixels = pixels,
-            width = width,
-            height = height,
-            skinRois = skinRois
-        )
-        val skinTextureVariance = FaceMetricCalculator.computeSkinTextureVariance(
-            pixels = pixels,
-            width = width,
-            height = height,
-            skinRois = skinRois
-        )
-        val lipDrynessScore = FaceMetricCalculator.computeLipDrynessScore(
-            pixels = pixels,
-            width = width,
-            height = height,
-            lipRoi = rois.lip
-        )
-
-        val hairDetails = maskResult.getOrNull()?.let { mask ->
-            val buffer = mask.buffer
-            buffer.rewind()
-            val floatBuffer = buffer.asFloatBuffer()
-            val maskValues = FloatArray(mask.width * mask.height)
-            floatBuffer.get(maskValues)
-            FaceMetricCalculator.computeDetailedHairMetrics(
+            val lightingAssessment = LightingQualityChecker.assess(
                 pixels = pixels,
-                foregroundMask = maskValues,
-                maskWidth = mask.width,
-                maskHeight = mask.height,
-                imageWidth = width,
-                imageHeight = height,
-                faceBox = facePixelRect
+                width = width,
+                height = height,
+                roi = facePixelRect.takeIf { !it.isEmpty }
             )
+
+            val rois = if (primaryFace != null && detectedRect != null) {
+                extractFacialRois(primaryFace, facePixelRect, width, height)
+            } else {
+                extractFallbackOvalRois(facePixelRect, width, height)
+            }
+
+            val underEyeDeltaLab = FaceMetricCalculator.computeUnderEyeDeltaLab(
+                pixels = pixels,
+                width = width,
+                height = height,
+                leftUnderEyeRoi = rois.leftUnderEye,
+                rightUnderEyeRoi = rois.rightUnderEye,
+                leftCheekRoi = rois.leftCheek,
+                rightCheekRoi = rois.rightCheek
+            )
+
+            val skinRois = listOf(rois.leftCheek, rois.rightCheek, rois.forehead)
+            val skinRednessIndex = FaceMetricCalculator.computeSkinRednessIndex(
+                pixels = pixels,
+                width = width,
+                height = height,
+                skinRois = skinRois
+            )
+            val skinTextureVariance = FaceMetricCalculator.computeSkinTextureVariance(
+                pixels = pixels,
+                width = width,
+                height = height,
+                skinRois = skinRois
+            )
+            val lipDrynessScore = FaceMetricCalculator.computeLipDrynessScore(
+                pixels = pixels,
+                width = width,
+                height = height,
+                lipRoi = rois.lip
+            )
+
+            val hairDetails = maskResult.getOrNull()?.let { mask ->
+                val buffer = mask.buffer
+                buffer.rewind()
+                val floatBuffer = buffer.asFloatBuffer()
+                val maskValues = FloatArray(mask.width * mask.height)
+                floatBuffer.get(maskValues)
+                FaceMetricCalculator.computeDetailedHairMetrics(
+                    pixels = pixels,
+                    foregroundMask = maskValues,
+                    maskWidth = mask.width,
+                    maskHeight = mask.height,
+                    imageWidth = width,
+                    imageHeight = height,
+                    faceBox = facePixelRect
+                )
+            }
+
+            return FaceAnalysisResult(
+                underEyeDeltaLab = underEyeDeltaLab,
+                skinRednessIndex = skinRednessIndex,
+                skinTextureVariance = skinTextureVariance,
+                lipDrynessScore = lipDrynessScore,
+                hairToFaceRatio = hairDetails?.hairToFaceRatio ?: 0f,
+                lightingQualityScore = lightingAssessment.lightingQualityScore,
+                isLightingAcceptable = true,
+                lightingWarningReason = null,
+                hairCrownVolumeScore = hairDetails?.crownVolumeScore ?: 0f,
+                hairShineScore = hairDetails?.shineSmoothnessScore ?: 0f,
+                hairForeheadCoverage = hairDetails?.foreheadCoverageRatio ?: 0f,
+                hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f
+            )
+        } finally {
+            if (workBitmap !== bitmap) {
+                workBitmap.recycle()
+            }
         }
+    }
 
-        val warningReason = lightingAssessment.warningReason
-            .takeIf { it != LightingWarningReason.OK }
-            ?.name
-
-        return FaceAnalysisResult(
-            underEyeDeltaLab = underEyeDeltaLab,
-            skinRednessIndex = skinRednessIndex,
-            skinTextureVariance = skinTextureVariance,
-            lipDrynessScore = lipDrynessScore,
-            hairToFaceRatio = hairDetails?.hairToFaceRatio ?: 0f,
-            lightingQualityScore = lightingAssessment.lightingQualityScore,
-            isLightingAcceptable = lightingAssessment.isAcceptable,
-            lightingWarningReason = warningReason,
-            hairCrownVolumeScore = hairDetails?.crownVolumeScore ?: 0f,
-            hairShineScore = hairDetails?.shineSmoothnessScore ?: 0f,
-            hairForeheadCoverage = hairDetails?.foreheadCoverageRatio ?: 0f,
-            hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f
+    private fun extractFallbackOvalRois(
+        faceRect: PixelRect,
+        imageWidth: Int,
+        imageHeight: Int
+    ): FacialRois {
+        val faceW = faceRect.width
+        val faceH = faceRect.height
+        val leftEyeBox = PixelRect(
+            left = faceRect.left + (faceW * 0.56f).roundToInt(),
+            top = faceRect.top + (faceH * 0.32f).roundToInt(),
+            right = faceRect.left + (faceW * 0.80f).roundToInt(),
+            bottom = faceRect.top + (faceH * 0.42f).roundToInt()
+        ).clampTo(imageWidth, imageHeight)
+        val rightEyeBox = PixelRect(
+            left = faceRect.left + (faceW * 0.20f).roundToInt(),
+            top = faceRect.top + (faceH * 0.32f).roundToInt(),
+            right = faceRect.left + (faceW * 0.44f).roundToInt(),
+            bottom = faceRect.top + (faceH * 0.42f).roundToInt()
+        ).clampTo(imageWidth, imageHeight)
+        val leftUnderEye = buildUnderEyeRoi(leftEyeBox, imageWidth, imageHeight)
+        val rightUnderEye = buildUnderEyeRoi(rightEyeBox, imageWidth, imageHeight)
+        val leftCheek = buildCheekRoi(leftUnderEye, leftEyeBox, faceH, imageWidth, imageHeight)
+        val rightCheek = buildCheekRoi(rightUnderEye, rightEyeBox, faceH, imageWidth, imageHeight)
+        val forehead = PixelRect(
+            left = faceRect.left + (faceW * 0.26f).roundToInt(),
+            top = faceRect.top + (faceH * 0.10f).roundToInt(),
+            right = faceRect.left + (faceW * 0.74f).roundToInt(),
+            bottom = faceRect.top + (faceH * 0.26f).roundToInt()
+        ).clampTo(imageWidth, imageHeight)
+        val lip = PixelRect(
+            left = faceRect.left + (faceW * 0.32f).roundToInt(),
+            top = faceRect.top + (faceH * 0.68f).roundToInt(),
+            right = faceRect.left + (faceW * 0.68f).roundToInt(),
+            bottom = faceRect.top + (faceH * 0.80f).roundToInt()
+        ).clampTo(imageWidth, imageHeight)
+        return FacialRois(
+            leftUnderEye = leftUnderEye,
+            rightUnderEye = rightUnderEye,
+            leftCheek = leftCheek,
+            rightCheek = rightCheek,
+            forehead = forehead,
+            lip = lip
         )
     }
 

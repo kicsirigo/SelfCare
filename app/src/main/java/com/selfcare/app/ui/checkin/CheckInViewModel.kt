@@ -141,17 +141,6 @@ class CheckInViewModel(
 
     fun onLiveFrameSampled(frameBitmap: Bitmap, assessment: LightingAssessment) {
         val brightnessPct = (assessment.meanLuminance * 100f).roundToInt().coerceIn(0, 100)
-        // If lens is covered or pitch black (< 7% luminance), immediately report no face
-        if (assessment.meanLuminance < 0.07f) {
-            transientState.value = transientState.value.copy(
-                lightingAssessment = assessment,
-                liveBrightnessPercent = brightnessPct,
-                isFaceDetected = false
-            )
-            frameBitmap.recycle()
-            return
-        }
-
         transientState.value = transientState.value.copy(
             lightingAssessment = assessment,
             liveBrightnessPercent = brightnessPct
@@ -177,7 +166,7 @@ class CheckInViewModel(
             }
             transientState.value = transientState.value.copy(
                 isFaceDetected = present,
-                noFaceError = if (present) false else transientState.value.noFaceError
+                noFaceError = false
             )
         }
     }
@@ -204,8 +193,7 @@ class CheckInViewModel(
     }
 
     fun submitBitmapCheckIn(bitmap: Bitmap, notes: String = "") {
-        val current = transientState.value
-        if (current.isCapturing || current.cooldownSecondsRemaining > 0) return
+        if (transientState.value.isCapturing) return
         viewModelScope.launch {
             transientState.value = transientState.value.copy(
                 isCapturing = true,
@@ -213,20 +201,6 @@ class CheckInViewModel(
                 noFaceError = false
             )
             try {
-                // Reject capture when real camera is active and no face is present (e.g., covered lens)
-                if (!current.cameraUnavailable && faceAnalyzer != null) {
-                    val hasFace = withContext(Dispatchers.Default) {
-                        faceAnalyzer.isFacePresent(bitmap)
-                    }
-                    if (!hasFace) {
-                        transientState.value = transientState.value.copy(
-                            isCapturing = false,
-                            isFaceDetected = false,
-                            noFaceError = true
-                        )
-                        return@launch
-                    }
-                }
                 val result = faceCheckInRepository.performCheckIn(bitmap = bitmap, notes = notes)
                 transientState.value = transientState.value.copy(
                     isCapturing = false,
@@ -234,7 +208,6 @@ class CheckInViewModel(
                     errorMessage = null,
                     noFaceError = false
                 )
-                startCooldown()
             } catch (t: Throwable) {
                 transientState.value = transientState.value.copy(
                     isCapturing = false,
