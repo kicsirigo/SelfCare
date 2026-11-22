@@ -66,7 +66,9 @@ data class PendingScanConfirmation(
     val category: String,
     val routineSlot: String,
     val ingredientsText: String,
-    val parsedMatches: List<InciMatch>
+    val parsedMatches: List<InciMatch>,
+    val capturedPhoto: Bitmap? = null,
+    val referencePhoto: Bitmap? = null
 )
 
 data class ShelfUiState(
@@ -385,6 +387,10 @@ class ShelfViewModel(
                     is GeminiVisionResult.Success -> {
                         val info = visionResult.product
                         val matches = productRepository.parseIngredients(info.ingredientsText)
+                        val refPhoto = fetchReferenceProductPhoto(
+                            brand = info.brand,
+                            name = info.name
+                        )
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
@@ -395,7 +401,9 @@ class ShelfViewModel(
                                     category = info.category,
                                     routineSlot = info.routineSlot,
                                     ingredientsText = info.ingredientsText,
-                                    parsedMatches = matches
+                                    parsedMatches = matches,
+                                    capturedPhoto = createPreviewThumbnail(bitmap),
+                                    referencePhoto = refPhoto
                                 )
                             )
                         }
@@ -448,6 +456,7 @@ class ShelfViewModel(
                             )
                         }
                     } else {
+                        val preview = createPreviewThumbnail(bitmap)
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
@@ -458,7 +467,8 @@ class ShelfViewModel(
                                     category = "OTHER",
                                     routineSlot = InciConflictDetector.SLOT_NONE,
                                     ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
-                                    parsedMatches = inciMatches
+                                    parsedMatches = inciMatches,
+                                    capturedPhoto = preview
                                 )
                             )
                         }
@@ -474,6 +484,7 @@ class ShelfViewModel(
                             )
                         }
                     } else {
+                        val preview = createPreviewThumbnail(bitmap)
                         lookupStateFlow.update {
                             it.copy(
                                 isLookingUp = false,
@@ -484,7 +495,8 @@ class ShelfViewModel(
                                     category = "OTHER",
                                     routineSlot = InciConflictDetector.SLOT_NONE,
                                     ingredientsText = if (inciMatches.isNotEmpty()) recognized else "",
-                                    parsedMatches = inciMatches
+                                    parsedMatches = inciMatches,
+                                    capturedPhoto = preview
                                 )
                             )
                         }
@@ -492,6 +504,43 @@ class ShelfViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun fetchReferenceProductPhoto(brand: String, name: String): Bitmap? {
+        val queries = listOf("$brand $name".trim(), name.trim())
+            .filter { it.isNotBlank() }
+            .distinct()
+        for (q in queries) {
+            val result = productRepository.searchRemoteByName(q)
+            if (result is OpenBeautyFactsSearchResult.Success) {
+                val imageUrl = result.products.firstOrNull { !it.imageUrl.isNullOrBlank() }?.imageUrl
+                if (imageUrl != null) {
+                    val bmp = productRepository.fetchProductThumbnail(imageUrl)
+                    if (bmp != null) return bmp
+                }
+            }
+        }
+        return null
+    }
+
+    private fun createPreviewThumbnail(source: Bitmap, maxDim: Int = 420): Bitmap? {
+        return runCatching {
+            val w = source.width
+            val h = source.height
+            if (w <= 0 || h <= 0) return null
+            val largest = maxOf(w, h)
+            if (largest <= maxDim) {
+                source.copy(Bitmap.Config.ARGB_8888, false)
+            } else {
+                val scale = maxDim.toFloat() / largest.toFloat()
+                Bitmap.createScaledBitmap(
+                    source,
+                    (w * scale).toInt().coerceAtLeast(1),
+                    (h * scale).toInt().coerceAtLeast(1),
+                    true
+                )
+            }
+        }.getOrNull()
     }
 
     fun confirmPendingScanSave() {

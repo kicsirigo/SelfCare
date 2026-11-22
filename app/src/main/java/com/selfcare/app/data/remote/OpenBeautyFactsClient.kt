@@ -1,5 +1,7 @@
 package com.selfcare.app.data.remote
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.selfcare.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,7 +18,8 @@ data class OpenBeautyFactsProduct(
     val barcode: String,
     val name: String,
     val brand: String,
-    val ingredientsText: String
+    val ingredientsText: String,
+    val imageUrl: String? = null
 )
 
 sealed interface OpenBeautyFactsLookupResult {
@@ -51,7 +54,7 @@ class OpenBeautyFactsClient(
             val encoded = URLEncoder.encode(cleanBarcode, StandardCharsets.UTF_8.name())
             val normalizedBase = baseUrl.trimEnd('/')
             val url = "$normalizedBase/api/v2/product/$encoded.json" +
-                "?fields=code,product_name,brands,ingredients_text,ingredients_text_en"
+                "?fields=code,product_name,brands,ingredients_text,ingredients_text_en,image_front_small_url,image_front_url,image_url"
 
             val request = Request.Builder()
                 .url(url)
@@ -107,7 +110,7 @@ class OpenBeautyFactsClient(
             val normalizedBase = baseUrl.trimEnd('/')
             val url = "$normalizedBase/cgi/search.pl" +
                 "?search_terms=$encoded&search_simple=1&action=process&json=1&page_size=10" +
-                "&fields=code,product_name,brands,ingredients_text,ingredients_text_en"
+                "&fields=code,product_name,brands,ingredients_text,ingredients_text_en,image_front_small_url,image_front_url,image_url"
 
             val request = Request.Builder()
                 .url(url)
@@ -141,6 +144,22 @@ class OpenBeautyFactsClient(
             }
         }
 
+    suspend fun fetchProductThumbnail(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
+        val clean = imageUrl.trim()
+        if (!clean.startsWith("http://") && !clean.startsWith("https://")) return@withContext null
+        try {
+            val request = Request.Builder().url(clean).get().build()
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val bytes = response.body?.bytes() ?: return@withContext null
+                if (bytes.isEmpty()) return@withContext null
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     @Serializable
     private data class ObfProductResponseDto(
         val status: Int = 0,
@@ -161,16 +180,26 @@ class OpenBeautyFactsClient(
         @SerialName("ingredients_text")
         val ingredientsText: String? = null,
         @SerialName("ingredients_text_en")
-        val ingredientsTextEn: String? = null
+        val ingredientsTextEn: String? = null,
+        @SerialName("image_front_small_url")
+        val imageFrontSmallUrl: String? = null,
+        @SerialName("image_front_url")
+        val imageFrontUrl: String? = null,
+        @SerialName("image_url")
+        val imageUrl: String? = null
     ) {
         fun toDomain(fallbackBarcode: String): OpenBeautyFactsProduct {
             val resolvedIngredients = ingredientsTextEn?.takeIf { it.isNotBlank() }
                 ?: ingredientsText.orEmpty()
+            val resolvedImage = imageFrontSmallUrl?.takeIf { it.isNotBlank() }
+                ?: imageFrontUrl?.takeIf { it.isNotBlank() }
+                ?: imageUrl?.takeIf { it.isNotBlank() }
             return OpenBeautyFactsProduct(
                 barcode = code?.trim().takeUnless { it.isNullOrEmpty() } ?: fallbackBarcode,
                 name = productName?.trim().orEmpty(),
                 brand = brands?.trim().orEmpty(),
-                ingredientsText = resolvedIngredients.trim()
+                ingredientsText = resolvedIngredients.trim(),
+                imageUrl = resolvedImage
             )
         }
     }

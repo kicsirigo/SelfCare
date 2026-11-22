@@ -269,4 +269,7 @@
     <string name="shelf_scan_confirm_save">Yes, Save</string>
     <string name="shelf_scan_confirm_edit">Edit</string>
     <string name="shelf_scan_confirm_retake">Retake</string>
+    <string name="shelf_scan_your_photo">Your photo</string>
+    <string name="shelf_scan_matched_photo">AI match photo</string>
+    <string name="shelf_scan_no_ref_photo">No catalog photo</string>
 </resources>

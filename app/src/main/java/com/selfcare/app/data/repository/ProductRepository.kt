@@ -1,5 +1,6 @@
 package com.selfcare.app.data.repository
 
+import android.graphics.Bitmap
 import com.selfcare.app.data.local.dao.ProductDao
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.remote.OpenBeautyFactsClient
@@ -43,6 +44,9 @@ class ProductRepository(
     suspend fun getAllOnce(): List<ProductEntity> = productDao.getAllOnce()
 
     suspend fun getById(id: Long): ProductEntity? = productDao.getById(id)
+
+    suspend fun fetchProductThumbnail(imageUrl: String): Bitmap? =
+        openBeautyFactsClient.fetchProductThumbnail(imageUrl)
 
     suspend fun getByBarcode(barcode: String): ProductEntity? =
         productDao.getByBarcode(barcode.trim())

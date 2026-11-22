@@ -269,4 +269,7 @@
     <string name="shelf_scan_confirm_save">Igen, mentés</string>
     <string name="shelf_scan_confirm_edit">Szerkesztés</string>
     <string name="shelf_scan_confirm_retake">Újrafotózás</string>
+    <string name="shelf_scan_your_photo">A fotód</string>
+    <string name="shelf_scan_matched_photo">Talált termékfotó</string>
+    <string name="shelf_scan_no_ref_photo">Nincs katalóguskép</string>
 </resources>
