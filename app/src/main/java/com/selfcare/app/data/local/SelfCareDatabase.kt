@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.selfcare.app.data.local.dao.FaceCheckInDao
 import com.selfcare.app.data.local.dao.HaircutBaselineDao
 import com.selfcare.app.data.local.dao.HygieneDao
@@ -23,7 +25,7 @@ import com.selfcare.app.data.local.entity.RoutineLogEntity
         HygieneLogEntity::class,
         HaircutBaselineEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SelfCareDatabase : RoomDatabase() {
@@ -36,6 +38,13 @@ abstract class SelfCareDatabase : RoomDatabase() {
     companion object {
         private const val DATABASE_NAME = "selfcare.db"
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE face_check_ins ADD COLUMN blemishScore REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE face_check_ins ADD COLUMN blemishCount INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile
         private var instance: SelfCareDatabase? = null
 
@@ -45,7 +54,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
                     context.applicationContext,
                     SelfCareDatabase::class.java,
                     DATABASE_NAME
-                ).build().also { db ->
+                ).addMigrations(MIGRATION_1_2).build().also { db ->
                     instance = db
                 }
             }

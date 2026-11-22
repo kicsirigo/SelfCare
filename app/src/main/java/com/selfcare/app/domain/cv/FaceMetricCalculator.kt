@@ -49,6 +49,11 @@ data class HairDetailedMetrics(
     val templeSymmetryScore: Float
 )
 
+data class BlemishMetrics(
+    val blemishScore: Float,
+    val estimatedSpotCount: Int
+)
+
 /**
  * Pure-Kotlin computer vision metric calculators operating on ARGB pixel buffers,
  * ROI rectangles, and foreground masks so JVM unit tests run without native Bitmaps.
@@ -528,6 +533,117 @@ object FaceMetricCalculator {
             shineSmoothnessScore = shineSmoothnessScore,
             foreheadCoverageRatio = foreheadCoverage,
             templeSymmetryScore = templeSymmetry
+        )
+    }
+
+    /**
+     * Pure-Kotlin offline blemish / acne spot estimator.
+     * Detects localized erythematous/inflamed spots whose CIELAB redness (a*) spikes
+     * above each skin ROI's own baseline skin tone, filtering out 1-2px sensor noise
+     * and large lighting patches by connected-component spot area.
+     */
+    fun computeBlemishMetrics(
+        pixels: IntArray,
+        width: Int,
+        height: Int,
+        skinRois: List<PixelRect>
+    ): BlemishMetrics {
+        if (width <= 0 || height <= 0 || pixels.size < width * height || skinRois.isEmpty()) {
+            return BlemishMetrics(blemishScore = 0f, estimatedSpotCount = 0)
+        }
+
+        var totalSpots = 0
+        var severitySum = 0f
+
+        for (rawRoi in skinRois) {
+            val roi = rawRoi.clampTo(width, height)
+            if (roi.isEmpty || roi.width < 6 || roi.height < 6) continue
+
+            val roiW = roi.width
+            val roiH = roi.height
+            val count = roiW * roiH
+            val aVals = FloatArray(count)
+            val lVals = FloatArray(count)
+
+            var sumA = 0.0
+            var sumL = 0.0
+            var idx = 0
+            for (y in roi.top until roi.bottom) {
+                val rowOffset = y * width
+                for (x in roi.left until roi.right) {
+                    val lab = rgbToLab(pixels[rowOffset + x])
+                    aVals[idx] = lab.a
+                    lVals[idx] = lab.l
+                    sumA += lab.a
+                    sumL += lab.l
+                    idx++
+                }
+            }
+            val meanA = (sumA / count).toFloat()
+            val meanL = (sumL / count).toFloat()
+
+            // Candidate inflamed/blemish mask: locally redder than surrounding skin & not bright specular glare
+            val mask = BooleanArray(count)
+            for (i in 0 until count) {
+                val deltaA = aVals[i] - meanA
+                val deltaL = lVals[i] - meanL
+                if (deltaA > 4.6f && deltaL < 3.5f) {
+                    mask[i] = true
+                }
+            }
+
+            // Connected-component BFS to count distinct localized blemish spots
+            val visited = BooleanArray(count)
+            val queue = IntArray(count)
+            val minSpotArea = maxOf(3, (count / 900).coerceAtLeast(3))
+            val maxSpotArea = maxOf(28, (count / 10).coerceAtMost(240))
+
+            for (start in 0 until count) {
+                if (!mask[start] || visited[start]) continue
+                var head = 0
+                var tail = 0
+                queue[tail++] = start
+                visited[start] = true
+                var area = 0
+                var peakDeltaA = 0f
+
+                while (head < tail) {
+                    val cur = queue[head++]
+                    area++
+                    val dA = aVals[cur] - meanA
+                    if (dA > peakDeltaA) peakDeltaA = dA
+
+                    val cx = cur % roiW
+                    val cy = cur / roiW
+                    if (cx > 0) {
+                        val n = cur - 1
+                        if (mask[n] && !visited[n]) { visited[n] = true; queue[tail++] = n }
+                    }
+                    if (cx + 1 < roiW) {
+                        val n = cur + 1
+                        if (mask[n] && !visited[n]) { visited[n] = true; queue[tail++] = n }
+                    }
+                    if (cy > 0) {
+                        val n = cur - roiW
+                        if (mask[n] && !visited[n]) { visited[n] = true; queue[tail++] = n }
+                    }
+                    if (cy + 1 < roiH) {
+                        val n = cur + roiW
+                        if (mask[n] && !visited[n]) { visited[n] = true; queue[tail++] = n }
+                    }
+                }
+
+                if (area in minSpotArea..maxSpotArea) {
+                    totalSpots++
+                    severitySum += (peakDeltaA / 12f).coerceIn(0.4f, 1.5f)
+                }
+            }
+        }
+
+        val normalizedScore = (severitySum / 14f).coerceIn(0f, 1f)
+        return BlemishMetrics(
+            blemishScore = normalizedScore,
+            estimatedSpotCount = totalSpots
         )
     }
 

@@ -1,8 +1,11 @@
 package com.selfcare.app.ui.settings
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +51,7 @@ import com.selfcare.app.BuildConfig
 import com.selfcare.app.R
 import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.data.remote.AppUpdateInfo
 import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.ThemeMode
@@ -116,6 +121,27 @@ fun SettingsScreen(
         onAdjustEveningTime = viewModel::adjustEveningReminderTime,
         onSaveGeminiApiKey = viewModel::setGeminiApiKey,
         onTestGeminiApiKey = viewModel::testGeminiApiKey,
+        onCheckUpdates = viewModel::checkForUpdates,
+        onDownloadUpdate = viewModel::startUpdateDownload,
+        onCancelUpdateDownload = viewModel::cancelUpdateDownload,
+        onInstallUpdate = { apkUri ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !context.packageManager.canRequestPackageInstalls()
+            ) {
+                val permIntent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:${context.packageName}")
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(permIntent) }
+            } else {
+                val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                runCatching { context.startActivity(installIntent) }
+            }
+        },
         onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
         modifier = modifier
@@ -135,6 +161,10 @@ fun SettingsScreenContent(
     onAdjustEveningTime: (Int) -> Unit,
     onSaveGeminiApiKey: (String) -> Unit = {},
     onTestGeminiApiKey: (String) -> Unit = {},
+    onCheckUpdates: () -> Unit = {},
+    onDownloadUpdate: (AppUpdateInfo) -> Unit = {},
+    onCancelUpdateDownload: () -> Unit = {},
+    onInstallUpdate: (Uri) -> Unit = {},
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     modifier: Modifier = Modifier
@@ -471,6 +501,159 @@ fun SettingsScreenContent(
                             )
                         }
                         null -> Unit
+                    }
+                }
+            }
+        }
+
+        // App Updates (In-App GitHub Releases Download Manager)
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_updates_card"),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Import,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_updates_title),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_updates_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    when (val upd = state.updateState) {
+                        UpdateManagerState.Idle -> {
+                            OutlinedButton(
+                                onClick = onCheckUpdates,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("settings_check_updates_btn")
+                            ) {
+                                Text(text = stringResource(R.string.settings_updates_check_btn))
+                            }
+                        }
+                        UpdateManagerState.Checking -> {
+                            Text(
+                                text = stringResource(R.string.settings_updates_checking),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                        is UpdateManagerState.UpToDate -> {
+                            Text(
+                                text = stringResource(R.string.settings_updates_up_to_date, upd.latestVersion),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            OutlinedButton(
+                                onClick = onCheckUpdates,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = stringResource(R.string.settings_updates_check_btn))
+                            }
+                        }
+                        is UpdateManagerState.Available -> {
+                            val sizeMb = upd.info.apkSizeBytes / (1024f * 1024f)
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_updates_available,
+                                    upd.info.versionName,
+                                    sizeMb
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Button(
+                                onClick = { onDownloadUpdate(upd.info) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("settings_download_update_btn")
+                            ) {
+                                Text(text = stringResource(R.string.settings_updates_download_btn))
+                            }
+                        }
+                        is UpdateManagerState.Downloading -> {
+                            val progress = if (upd.totalBytes > 0L) {
+                                (upd.downloadedBytes.toFloat() / upd.totalBytes.toFloat()).coerceIn(0f, 1f)
+                            } else {
+                                0f
+                            }
+                            val pct = (progress * 100f).roundToInt().coerceIn(0, 100)
+                            val dlMb = upd.downloadedBytes / (1024f * 1024f)
+                            val totMb = upd.totalBytes / (1024f * 1024f)
+                            Text(
+                                text = stringResource(R.string.settings_updates_downloading, pct, dlMb, totMb),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (upd.totalBytes > 0L) {
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
+                            OutlinedButton(
+                                onClick = onCancelUpdateDownload,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = stringResource(R.string.action_cancel))
+                            }
+                        }
+                        is UpdateManagerState.ReadyToInstall -> {
+                            Text(
+                                text = stringResource(
+                                    if (upd.sha256Verified) {
+                                        R.string.settings_updates_ready_verified
+                                    } else {
+                                        R.string.settings_updates_ready
+                                    }
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Button(
+                                onClick = { onInstallUpdate(upd.apkUri) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("settings_install_update_btn")
+                            ) {
+                                Text(text = stringResource(R.string.settings_updates_install_btn))
+                            }
+                        }
+                        is UpdateManagerState.Error -> {
+                            Text(
+                                text = stringResource(R.string.settings_updates_error, upd.message),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            OutlinedButton(
+                                onClick = onCheckUpdates,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = stringResource(R.string.settings_updates_check_btn))
+                            }
+                        }
                     }
                 }
             }

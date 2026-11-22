@@ -276,4 +276,24 @@
     <string name="settings_gemini_test_btn">Test Key</string>
     <string name="settings_gemini_test_ok">Connected successfully (%1$s)</string>
     <string name="settings_gemini_test_fail">API key error: %1$s</string>
+
+    <!-- v1.3.0: Offline Blemish Detection & In-App Update Download Manager -->
+    <string name="trends_metric_blemish">Blemishes &amp; Spots</string>
+    <string name="metric_blemish_spots_count">~%1$d spots detected</string>
+    <string name="metric_blemish_desc_optimal">Clear skin across cheeks, forehead and chin (%1$d spots detected).</string>
+    <string name="metric_blemish_desc_good">Mild localized redness (~%1$d spots detected) within normal range.</string>
+    <string name="metric_blemish_desc_moderate">Moderate blemish activity (~%1$d spots) — targeted soothing or acne care advised.</string>
+    <string name="metric_blemish_desc_high">Elevated blemish activity (~%1$d spots) — stick to gentle cleansing and avoid picking.</string>
+    <string name="settings_updates_title">App Updates (Download Manager)</string>
+    <string name="settings_updates_subtitle">Checks GitHub Releases (HTTPS) and verifies SHA-256 checksum before install.</string>
+    <string name="settings_updates_check_btn">Check for Updates</string>
+    <string name="settings_updates_checking">Checking GitHub Releases…</string>
+    <string name="settings_updates_up_to_date">You are up to date (v%1$s)</string>
+    <string name="settings_updates_available">Update available: v%1$s (%2$.1f MB)</string>
+    <string name="settings_updates_download_btn">Download Update</string>
+    <string name="settings_updates_downloading">Downloading… %1$d%% (%2$.1f / %3$.1f MB)</string>
+    <string name="settings_updates_ready_verified">Downloaded &amp; SHA-256 verified — ready to install</string>
+    <string name="settings_updates_ready">Downloaded — ready to install</string>
+    <string name="settings_updates_install_btn">Install Update</string>
+    <string name="settings_updates_error">Update error: %1$s</string>
 </resources>

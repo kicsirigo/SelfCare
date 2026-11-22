@@ -22,5 +22,7 @@ data class FaceCheckInEntity(
     val hairToFaceRatio: Float,
     val lightingQualityScore: Float,
     val photoPath: String? = null,
-    val notes: String = ""
+    val notes: String = "",
+    val blemishScore: Float = 0f,
+    val blemishCount: Int = 0
 )

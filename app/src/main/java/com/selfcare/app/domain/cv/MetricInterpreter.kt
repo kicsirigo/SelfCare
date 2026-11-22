@@ -79,6 +79,18 @@ object MetricInterpreter {
         return MetricAssessment(level, hydrationScore, progress)
     }
 
+    fun interpretBlemish(blemishScore: Float, blemishCount: Int): MetricAssessment {
+        val level = when {
+            blemishCount <= 1 && blemishScore < 0.12f -> MetricStatusLevel.OPTIMAL
+            blemishCount <= 4 && blemishScore < 0.30f -> MetricStatusLevel.GOOD
+            blemishCount <= 9 && blemishScore < 0.60f -> MetricStatusLevel.MODERATE
+            else -> MetricStatusLevel.HIGH
+        }
+        val progress = blemishScore.coerceIn(0.06f, 1f)
+        val clarityScore = (100f - blemishScore.coerceIn(0f, 1f) * 95f).toInt().coerceIn(5, 99)
+        return MetricAssessment(level, clarityScore, progress)
+    }
+
     fun interpretHairDetails(
         crownVolumeScore: Float,
         shineScore: Float,

@@ -310,7 +310,9 @@ fun CheckInScreen(
                 redness = result.checkIn.skinRednessIndex,
                 texture = result.checkIn.skinTextureVariance,
                 lipDryness = result.checkIn.lipDrynessScore,
-                lightingScore = result.checkIn.lightingQualityScore
+                lightingScore = result.checkIn.lightingQualityScore,
+                blemishScore = result.checkIn.blemishScore,
+                blemishCount = result.checkIn.blemishCount
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -328,7 +330,9 @@ fun CheckInScreen(
                 redness = latest.skinRednessIndex,
                 texture = latest.skinTextureVariance,
                 lipDryness = latest.lipDrynessScore,
-                lightingScore = latest.lightingQualityScore
+                lightingScore = latest.lightingQualityScore,
+                blemishScore = latest.blemishScore,
+                blemishCount = latest.blemishCount
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -735,12 +739,15 @@ private fun CheckInResultSummaryCard(
     redness: Float,
     texture: Float,
     lipDryness: Float,
-    lightingScore: Float
+    lightingScore: Float,
+    blemishScore: Float = 0f,
+    blemishCount: Int = 0
 ) {
     val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
     val rednessEval = MetricInterpreter.interpretRedness(redness)
     val textureEval = MetricInterpreter.interpretTexture(texture)
     val lipEval = MetricInterpreter.interpretLipDryness(lipDryness)
+    val blemishEval = MetricInterpreter.interpretBlemish(blemishScore, blemishCount)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -767,6 +774,20 @@ private fun CheckInResultSummaryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            MetricGaugeRow(
+                title = stringResource(R.string.trends_metric_blemish),
+                assessment = blemishEval,
+                explanation = stringResource(
+                    when (blemishEval.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_blemish_desc_optimal
+                        MetricStatusLevel.GOOD -> R.string.metric_blemish_desc_good
+                        MetricStatusLevel.MODERATE -> R.string.metric_blemish_desc_moderate
+                        MetricStatusLevel.HIGH -> R.string.metric_blemish_desc_high
+                    },
+                    blemishCount
+                )
+            )
 
             MetricGaugeRow(
                 title = stringResource(R.string.trends_metric_under_eye),

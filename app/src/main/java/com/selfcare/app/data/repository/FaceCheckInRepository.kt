@@ -61,7 +61,14 @@ data class PersonalTrendsSummary(
     val textureTrend: MetricBaselineTrend,
     val lipDrynessTrend: MetricBaselineTrend,
     val hairToFaceTrend: MetricBaselineTrend,
-    val adherenceCorrelation: AdherenceCorrelation
+    val adherenceCorrelation: AdherenceCorrelation,
+    val blemishTrend: MetricBaselineTrend = MetricBaselineTrend(
+        latestValue = null,
+        rolling7DayAvg = null,
+        rolling30DayAvg = null,
+        deltaFrom30DayAvg = null,
+        direction = TrendDirection.INSUFFICIENT_DATA
+    )
 )
 
 data class CheckInSubmissionResult(
@@ -168,7 +175,9 @@ class FaceCheckInRepository(
             hairToFaceRatio = analysis.hairToFaceRatio,
             lightingQualityScore = analysis.lightingQualityScore,
             photoPath = savedPhotoPath,
-            notes = notes.trim()
+            notes = notes.trim(),
+            blemishScore = analysis.blemishScore,
+            blemishCount = analysis.blemishCount
         )
         val insertedId = faceCheckInDao.insert(entity)
         val persisted = faceCheckInDao.getById(insertedId) ?: entity.copy(id = insertedId)
@@ -245,6 +254,14 @@ class FaceCheckInRepository(
             deadband = 0.5f,
             lowerIsBetter = true
         )
+        val blemishTrend = buildMetricTrend(
+            sortedDesc = sortedDesc,
+            last7d = last7d,
+            last30d = last30d,
+            selector = { it.blemishScore },
+            deadband = 0.04f,
+            lowerIsBetter = true
+        )
         val lipDrynessTrend = buildMetricTrend(
             sortedDesc = sortedDesc,
             last7d = last7d,
@@ -279,7 +296,8 @@ class FaceCheckInRepository(
             textureTrend = textureTrend,
             lipDrynessTrend = lipDrynessTrend,
             hairToFaceTrend = hairToFaceTrend,
-            adherenceCorrelation = adherenceCorrelation
+            adherenceCorrelation = adherenceCorrelation,
+            blemishTrend = blemishTrend
         )
     }
 

@@ -10,8 +10,11 @@
     <!-- Used strictly for local routine and haircut reminder notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Used strictly for anonymous, read-only public Open Beauty Facts lookups -->
+    <!-- Used strictly for anonymous, read-only public Open Beauty Facts & GitHub Release update lookups -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Used strictly when the user taps Install Update in the in-app GitHub Release download manager -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".SelfCareApp"

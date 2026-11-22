@@ -276,4 +276,24 @@
     <string name="settings_gemini_test_btn">Kulcs teszt</string>
     <string name="settings_gemini_test_ok">Sikeres kapcsolat (%1$s)</string>
     <string name="settings_gemini_test_fail">API kulcs hiba: %1$s</string>
+
+    <!-- v1.3.0: Offline Blemish Detection & In-App Update Download Manager -->
+    <string name="trends_metric_blemish">Pattanások és gyulladt foltok</string>
+    <string name="metric_blemish_spots_count">~%1$d észlelt folt</string>
+    <string name="metric_blemish_desc_optimal">Tiszta arcbőr a homlokon, orcákon és állon (%1$d észlelt folt).</string>
+    <string name="metric_blemish_desc_good">Enyhe helyi bőrpír (~%1$d észlelt folt) a normál tartományban.</string>
+    <string name="metric_blemish_desc_moderate">Közepes pattanás-aktivitás (~%1$d folt) — célzott nyugtató vagy pattanás elleni ápolás javasolt.</string>
+    <string name="metric_blemish_desc_high">Fokozott pattanás-aktivitás (~%1$d folt) — gyengéd tisztítás javasolt, kerüld a nyomkodást.</string>
+    <string name="settings_updates_title">Frissítéskezelő (Download Manager)</string>
+    <string name="settings_updates_subtitle">GitHub Releases ellenőrzése (HTTPS) és automatikus SHA-256 ellenőrzés telepítés előtt.</string>
+    <string name="settings_updates_check_btn">Frissítések keresése</string>
+    <string name="settings_updates_checking">GitHub Releases ellenőrzése…</string>
+    <string name="settings_updates_up_to_date">Naprakész verzió (v%1$s)</string>
+    <string name="settings_updates_available">Új verzió elérhető: v%1$s (%2$.1f MB)</string>
+    <string name="settings_updates_download_btn">Frissítés letöltése</string>
+    <string name="settings_updates_downloading">Letöltés… %1$d%% (%2$.1f / %3$.1f MB)</string>
+    <string name="settings_updates_ready_verified">Letöltve és SHA-256 ellenőrizve — telepíthető</string>
+    <string name="settings_updates_ready">Letöltve — telepíthető</string>
+    <string name="settings_updates_install_btn">Telepítés indítása</string>
+    <string name="settings_updates_error">Frissítési hiba: %1$s</string>
 </resources>

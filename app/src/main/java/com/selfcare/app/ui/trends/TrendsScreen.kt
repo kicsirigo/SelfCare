@@ -212,6 +212,28 @@ fun TrendsScreen(
             }
 
             item {
+                val latestSpots = uiState.recentCheckIns.firstOrNull()?.blemishCount ?: 0
+                val latestBlemishScore = summary.blemishTrend.latestValue ?: 0f
+                val blemishEval = MetricInterpreter.interpretBlemish(latestBlemishScore, latestSpots)
+                MetricTrendCard(
+                    title = stringResource(R.string.trends_metric_blemish),
+                    trend = summary.blemishTrend,
+                    assessment = blemishEval,
+                    explanation = stringResource(
+                        when (blemishEval.level) {
+                            MetricStatusLevel.OPTIMAL -> R.string.metric_blemish_desc_optimal
+                            MetricStatusLevel.GOOD -> R.string.metric_blemish_desc_good
+                            MetricStatusLevel.MODERATE -> R.string.metric_blemish_desc_moderate
+                            MetricStatusLevel.HIGH -> R.string.metric_blemish_desc_high
+                        },
+                        latestSpots
+                    ),
+                    formatPattern = "%.2f",
+                    modifier = Modifier.testTag("trends_metric_card_blemish")
+                )
+            }
+
+            item {
                 AdherenceCorrelationCard(correlation = summary.adherenceCorrelation)
             }
 

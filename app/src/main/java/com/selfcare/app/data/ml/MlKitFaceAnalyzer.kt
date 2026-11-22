@@ -147,6 +147,14 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
             )
 
             val skinRois = listOf(rois.leftCheek, rois.rightCheek, rois.forehead)
+            val chinRoi = PixelRect(
+                left = facePixelRect.left + (facePixelRect.width * 0.28f).roundToInt(),
+                top = (rois.lip.bottom + 2).coerceAtMost(facePixelRect.bottom - 2),
+                right = facePixelRect.left + (facePixelRect.width * 0.72f).roundToInt(),
+                bottom = facePixelRect.bottom
+            ).clampTo(width, height)
+            val blemishRois = if (!chinRoi.isEmpty) skinRois + chinRoi else skinRois
+
             val skinRednessIndex = FaceMetricCalculator.computeSkinRednessIndex(
                 pixels = pixels,
                 width = width,
@@ -158,6 +166,12 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
                 width = width,
                 height = height,
                 skinRois = skinRois
+            )
+            val blemishMetrics = FaceMetricCalculator.computeBlemishMetrics(
+                pixels = pixels,
+                width = width,
+                height = height,
+                skinRois = blemishRois
             )
             val lipDrynessScore = FaceMetricCalculator.computeLipDrynessScore(
                 pixels = pixels,
@@ -195,7 +209,9 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
                 hairCrownVolumeScore = hairDetails?.crownVolumeScore ?: 0f,
                 hairShineScore = hairDetails?.shineSmoothnessScore ?: 0f,
                 hairForeheadCoverage = hairDetails?.foreheadCoverageRatio ?: 0f,
-                hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f
+                hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f,
+                blemishScore = blemishMetrics.blemishScore,
+                blemishCount = blemishMetrics.estimatedSpotCount
             )
         } finally {
             if (workBitmap !== bitmap) {

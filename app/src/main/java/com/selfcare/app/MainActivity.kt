@@ -156,7 +156,8 @@ private fun SelfCareScaffold(container: AppContainer) {
             settingsRepository = container.settingsRepository,
             backupRepository = container.backupRepository,
             reminderScheduler = container.reminderScheduler,
-            productVisionClient = container.productVisionClient
+            productVisionClient = container.productVisionClient,
+            appUpdateManager = container.appUpdateManager
         )
     )
     val shelfViewModel: ShelfViewModel = viewModel(
