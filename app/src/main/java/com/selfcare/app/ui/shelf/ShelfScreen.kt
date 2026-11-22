@@ -422,33 +422,9 @@ fun ShelfScreenContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.shelf_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            OutlinedButton(
-                onClick = onAddProductClick,
-                modifier = Modifier.testTag("shelf_add_product_btn")
-            ) {
-                Icon(
-                    imageVector = AppIcons.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.size(4.dp))
-                Text(text = stringResource(R.string.shelf_add_manual))
-            }
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -470,7 +446,7 @@ fun ShelfScreenContent(
                     .weight(1f)
                     .testTag("shelf_search_input")
             )
-            Button(
+            OutlinedButton(
                 onClick = onLookupClick,
                 modifier = Modifier.testTag("shelf_lookup_btn")
             ) {
@@ -478,6 +454,7 @@ fun ShelfScreenContent(
             }
         }
 
+        // Sleek 1-row primary action bar: Photo Scan (primary CTA) + OCR + Manual Add
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -485,7 +462,7 @@ fun ShelfScreenContent(
             Button(
                 onClick = onSmartScanClick,
                 modifier = Modifier
-                    .weight(1.3f)
+                    .weight(1.5f)
                     .testTag("shelf_smart_scan_btn")
             ) {
                 Icon(
@@ -502,20 +479,22 @@ fun ShelfScreenContent(
             }
             OutlinedButton(
                 onClick = onScanOcrClick,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("shelf_scan_ocr_btn")
+                modifier = Modifier.testTag("shelf_scan_ocr_btn")
             ) {
                 Icon(
                     imageVector = AppIcons.Scan,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.shelf_scan_label),
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.size(6.dp))
-                Text(
-                    text = stringResource(R.string.shelf_scan_label),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+            }
+            OutlinedButton(
+                onClick = onAddProductClick,
+                modifier = Modifier.testTag("shelf_add_product_btn")
+            ) {
+                Icon(
+                    imageVector = AppIcons.Add,
+                    contentDescription = stringResource(R.string.shelf_add_manual),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }

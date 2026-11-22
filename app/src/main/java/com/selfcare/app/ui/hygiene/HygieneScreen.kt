@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.data.repository.HygieneRepository
+import com.selfcare.app.ui.components.AnimatedMetricGaugeBar
 import com.selfcare.app.ui.icons.AppIcons
 
 @Composable
@@ -112,11 +113,46 @@ fun HygieneScreenContent(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.hygiene_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            val totalHabits = builtInItems.size + state.customHabits.size
+            val doneBuiltIn = builtInItems.count { state.completedByKey[it.first] == true }
+            val doneCustom = state.customHabits.count { it.completed }
+            val doneTotal = doneBuiltIn + doneCustom
+            val fraction = if (totalHabits > 0) doneTotal.toFloat() / totalHabits.toFloat() else 0f
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.hygiene_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "$doneTotal / $totalHabits",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    AnimatedMetricGaugeBar(
+                        targetFraction = fraction.coerceIn(0.02f, 1f),
+                        accentColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
 
         items(

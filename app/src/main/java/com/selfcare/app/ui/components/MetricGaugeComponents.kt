@@ -4,12 +4,14 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,10 +28,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.selfcare.app.R
 import com.selfcare.app.domain.cv.HairQualitativeSummary
@@ -39,6 +48,203 @@ import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.NeonGreen
 import com.selfcare.app.ui.theme.NeonWarning
 import java.util.Locale
+
+@Composable
+fun HeroScoreRing(
+    progress: Float,
+    centerValue: String,
+    centerSubtitle: String,
+    modifier: Modifier = Modifier,
+    ringSize: Dp = 104.dp,
+    accentColor: Color = MaterialTheme.colorScheme.primary
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+        label = "hero_ring_progress"
+    )
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+
+    Box(
+        modifier = modifier.size(ringSize),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = 9.dp.toPx()
+            val inset = strokePx / 2f
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+            if (animatedProgress > 0.005f) {
+                drawArc(
+                    color = accentColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f * animatedProgress,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = centerValue,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = centerSubtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun BentoMetricTile(
+    title: String,
+    assessment: MetricAssessment,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    val accent = statusLevelColor(assessment.level)
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "${assessment.scorePercent}%",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                StatusPillBadge(level = assessment.level)
+            }
+            AnimatedMetricGaugeBar(
+                targetFraction = (assessment.scorePercent / 100f).coerceIn(0.06f, 1f),
+                accentColor = accent
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+fun NeonSparklineChart(
+    values: List<Float>,
+    modifier: Modifier = Modifier,
+    lineColor: Color = NeonGreen
+) {
+    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(92.dp)
+    ) {
+        val w = size.width
+        val h = size.height
+        val padY = 10.dp.toPx()
+        val usableH = (h - padY * 2f).coerceAtLeast(1f)
+
+        // Subtle horizontal baseline grid
+        drawLine(
+            color = gridColor,
+            start = Offset(0f, padY + usableH * 0.5f),
+            end = Offset(w, padY + usableH * 0.5f),
+            strokeWidth = 1.dp.toPx()
+        )
+        drawLine(
+            color = gridColor,
+            start = Offset(0f, h - padY),
+            end = Offset(w, h - padY),
+            strokeWidth = 1.dp.toPx()
+        )
+
+        if (values.isEmpty()) return@Canvas
+        val minVal = (values.minOrNull() ?: 0f).coerceAtMost(0f)
+        val maxVal = (values.maxOrNull() ?: 100f).coerceAtLeast(minVal + 1f)
+        val range = (maxVal - minVal).coerceAtLeast(1f)
+
+        val points = if (values.size == 1) {
+            val y = padY + usableH * (1f - ((values[0] - minVal) / range).coerceIn(0f, 1f))
+            listOf(Offset(0f, y), Offset(w, y))
+        } else {
+            val stepX = w / (values.size - 1).toFloat()
+            values.mapIndexed { idx, v ->
+                val norm = ((v - minVal) / range).coerceIn(0f, 1f)
+                Offset(idx * stepX, padY + usableH * (1f - norm))
+            }
+        }
+
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (i in 1 until points.size) {
+                val prev = points[i - 1]
+                val cur = points[i]
+                val midX = (prev.x + cur.x) / 2f
+                cubicTo(midX, prev.y, midX, cur.y, cur.x, cur.y)
+            }
+        }
+
+        val fillPath = Path().apply {
+            addPath(linePath)
+            lineTo(points.last().x, h)
+            lineTo(points.first().x, h)
+            close()
+        }
+
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(lineColor.copy(alpha = 0.28f), Color.Transparent),
+                startY = padY,
+                endY = h
+            )
+        )
+        drawPath(
+            path = linePath,
+            color = lineColor,
+            style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Glowing latest point
+        val last = points.last()
+        drawCircle(color = lineColor.copy(alpha = 0.28f), radius = 8.dp.toPx(), center = last)
+        drawCircle(color = lineColor, radius = 4.dp.toPx(), center = last)
+    }
+}
 
 @Composable
 fun statusLevelColor(level: MetricStatusLevel): Color = when (level) {

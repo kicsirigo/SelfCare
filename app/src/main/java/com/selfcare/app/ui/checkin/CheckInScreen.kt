@@ -90,6 +90,7 @@ import com.selfcare.app.domain.cv.LightingWarningReason
 import com.selfcare.app.domain.cv.MetricInterpreter
 import com.selfcare.app.domain.cv.MetricStatusLevel
 import com.selfcare.app.ui.components.HairHealthAnalysisCard
+import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.components.MetricGaugeRow
 import com.selfcare.app.ui.icons.AppIcons
 import java.util.Locale
@@ -161,9 +162,9 @@ fun CheckInScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = stringResource(R.string.checkin_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    text = stringResource(R.string.checkin_privacy_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 FilterChip(
@@ -749,30 +750,46 @@ private fun CheckInResultSummaryCard(
     val lipEval = MetricInterpreter.interpretLipDryness(lipDryness)
     val blemishEval = MetricInterpreter.interpretBlemish(blemishScore, blemishCount)
 
+    val compositeScore = (
+        (underEye.scorePercent + rednessEval.scorePercent + textureEval.scorePercent + lipEval.scorePercent + blemishEval.scorePercent) / 5
+    ).coerceIn(5, 99)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.checkin_last_result_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+                HeroScoreRing(
+                    progress = compositeScore / 100f,
+                    centerValue = "$compositeScore",
+                    centerSubtitle = "/ 100",
+                    ringSize = 86.dp
                 )
-                Text(
-                    text = "${(lightingScore * 100f).toInt()}% light",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.checkin_last_result_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.checkin_brightness_live, (lightingScore * 100f).toInt()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             MetricGaugeRow(

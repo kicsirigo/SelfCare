@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.repository.RoutineRepository
+import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.icons.AppIcons
 
 @Composable
@@ -71,17 +72,67 @@ fun RoutineScreenContent(
 ) {
     val period = state.selectedPeriod
 
+    val totalSteps = state.defaultProducts.size
+    val activeSteps = state.defaultProducts.count { it.id !in state.skippedProductIds }
+    val completionFraction = when {
+        state.isCompletedToday -> 1f
+        totalSteps > 0 -> activeSteps.toFloat() / totalSteps.toFloat()
+        else -> 0f
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = stringResource(R.string.routine_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        // Whoop/Oura-style Daily Hero Ring Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                HeroScoreRing(
+                    progress = completionFraction,
+                    centerValue = if (state.isCompletedToday) "100%" else "$activeSteps/$totalSteps",
+                    centerSubtitle = if (state.isCompletedToday) {
+                        stringResource(R.string.hygiene_completed_label)
+                    } else {
+                        "${(completionFraction * 100).toInt()}%"
+                    },
+                    ringSize = 82.dp
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.routine_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(
+                            if (state.isCompletedToday) R.string.routine_completed_today
+                            else R.string.routine_override_hint
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (state.isCompletedToday) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
 
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(

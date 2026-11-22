@@ -200,13 +200,13 @@ private fun SelfCareScaffold(container: AppContainer) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             if (currentDestination == AppDestination.SETTINGS) {
                                 IconButton(
@@ -222,18 +222,14 @@ private fun SelfCareScaffold(container: AppContainer) {
                                 }
                             }
                             Text(
-                                text = if (currentDestination == AppDestination.SETTINGS) {
-                                    stringResource(R.string.settings_title)
-                                } else {
-                                    stringResource(R.string.app_name)
-                                },
-                                style = MaterialTheme.typography.titleMedium,
+                                text = stringResource(currentDestination.labelRes),
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                         }
 
-                        IconButton(
+                        Surface(
                             onClick = {
                                 if (currentDestination == AppDestination.SETTINGS) {
                                     currentDestination = previousDestination
@@ -242,43 +238,64 @@ private fun SelfCareScaffold(container: AppContainer) {
                                     currentDestination = AppDestination.SETTINGS
                                 }
                             },
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = if (currentDestination == AppDestination.SETTINGS) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (currentDestination == AppDestination.SETTINGS) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                                } else {
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+                                }
+                            ),
                             modifier = Modifier.testTag(AppDestination.SETTINGS.testTag)
                         ) {
-                            Icon(
-                                imageVector = AppIcons.Settings,
-                                contentDescription = stringResource(R.string.nav_settings),
-                                tint = if (currentDestination == AppDestination.SETTINGS) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(
+                                modifier = Modifier.padding(9.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Settings,
+                                    contentDescription = stringResource(R.string.nav_settings),
+                                    tint = if (currentDestination == AppDestination.SETTINGS) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                    )
                 }
             }
         },
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
-                androidx.compose.foundation.layout.Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
+                Surface(
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)
+                    ),
+                    tonalElevation = 4.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(56.dp)
                             .padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
@@ -288,16 +305,16 @@ private fun SelfCareScaffold(container: AppContainer) {
                             val selected = currentDestination == destination
                             Surface(
                                 onClick = { currentDestination = destination },
-                                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
                                 color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                                    MaterialTheme.colorScheme.primaryContainer
                                 } else {
                                     androidx.compose.ui.graphics.Color.Transparent
                                 },
                                 modifier = Modifier.testTag(destination.testTag)
                             ) {
                                 Box(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

@@ -40,6 +40,7 @@ import com.selfcare.app.domain.cv.MetricAssessment
 import com.selfcare.app.domain.cv.MetricInterpreter
 import com.selfcare.app.domain.cv.MetricStatusLevel
 import com.selfcare.app.ui.components.AnimatedMetricGaugeBar
+import com.selfcare.app.ui.components.NeonSparklineChart
 import com.selfcare.app.ui.components.StatusPillBadge
 import com.selfcare.app.ui.components.statusLevelColor
 import com.selfcare.app.ui.icons.AppIcons
@@ -62,18 +63,11 @@ fun TrendsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.trends_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = stringResource(R.string.trends_baseline_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = stringResource(R.string.trends_baseline_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         if (summary.totalCheckIns == 0) {
@@ -81,6 +75,49 @@ fun TrendsScreen(
                 TrendsEmptyStateCard()
             }
         } else {
+            item {
+                val sparklinePoints = uiState.recentCheckIns
+                    .take(14)
+                    .reversed()
+                    .map { item ->
+                        val u = MetricInterpreter.interpretUnderEye(item.underEyeDeltaLab).scorePercent
+                        val r = MetricInterpreter.interpretRedness(item.skinRednessIndex).scorePercent
+                        val t = MetricInterpreter.interpretTexture(item.skinTextureVariance).scorePercent
+                        val b = MetricInterpreter.interpretBlemish(item.blemishScore, item.blemishCount).scorePercent
+                        ((u + r + t + b) / 4f)
+                    }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.trends_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${sparklinePoints.lastOrNull()?.toInt() ?: 0}%",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        NeonSparklineChart(values = sparklinePoints)
+                    }
+                }
+            }
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
