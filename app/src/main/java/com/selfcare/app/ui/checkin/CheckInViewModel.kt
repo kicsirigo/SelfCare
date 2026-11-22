@@ -45,7 +45,10 @@ data class CheckInUiState(
     val isHaircutReminderTriggered: Boolean = false,
     val lastResult: CheckInSubmissionResult? = null,
     val baselineResetAtMillis: Long? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val shaveIntervalDays: Int = UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS,
+    val daysSinceLastShave: Int? = null,
+    val isShaveReminderDue: Boolean = false
 )
 
 class CheckInViewModel(
@@ -96,6 +99,12 @@ class CheckInViewModel(
             (growthPercent >= threshold ||
                 transient.lastResult?.haircutEvaluation?.isThresholdCrossed == true)
 
+        val todayEpochDay = faceCheckInRepository.currentEpochDay()
+        val daysSinceShave = settings.lastShaveEpochDay?.let { (todayEpochDay - it).toInt().coerceAtLeast(0) }
+        val latestStubble = transient.lastResult?.checkIn?.stubbleScore ?: latest?.stubbleScore ?: 0f
+        val shaveDue = (daysSinceShave != null && daysSinceShave >= settings.shaveIntervalDays) ||
+            latestStubble >= 0.62f
+
         CheckInUiState(
             hasCameraPermission = transient.hasCameraPermission,
             cameraUnavailable = transient.cameraUnavailable,
@@ -115,7 +124,10 @@ class CheckInViewModel(
             isHaircutReminderTriggered = reminderTriggered,
             lastResult = transient.lastResult,
             baselineResetAtMillis = transient.baselineResetAtMillis,
-            errorMessage = transient.errorMessage
+            errorMessage = transient.errorMessage,
+            shaveIntervalDays = settings.shaveIntervalDays,
+            daysSinceLastShave = daysSinceShave,
+            isShaveReminderDue = shaveDue
         )
     }.stateIn(
         scope = viewModelScope,
@@ -231,6 +243,12 @@ class CheckInViewModel(
     fun setAutoDeleteCheckInPhotos(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoDeleteCheckInPhotos(enabled)
+        }
+    }
+
+    fun markShavedToday() {
+        viewModelScope.launch {
+            settingsRepository.setLastShaveEpochDay(faceCheckInRepository.currentEpochDay())
         }
     }
 

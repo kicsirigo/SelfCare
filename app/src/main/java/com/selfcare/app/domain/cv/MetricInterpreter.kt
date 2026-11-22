@@ -25,6 +25,22 @@ data class HairQualitativeSummary(
     val templeSymmetryPercent: Int
 )
 
+enum class ImprovementTipCode {
+    BLEMISHES,
+    REDNESS,
+    TEXTURE,
+    UNDER_EYE,
+    LIPS,
+    SHAVE,
+    MAINTAIN
+}
+
+data class ObjectiveRatingSummary(
+    val scoreOutOfTen: Float,
+    val level: MetricStatusLevel,
+    val tips: List<ImprovementTipCode>
+)
+
 /**
  * Interprets raw CV metrics into clear qualitative statuses (Optimal / Good / Moderate / High)
  * and 0..100 visual gauge values. Never issues medical diagnoses.
@@ -89,6 +105,77 @@ object MetricInterpreter {
         val progress = blemishScore.coerceIn(0.06f, 1f)
         val clarityScore = (100f - blemishScore.coerceIn(0f, 1f) * 95f).toInt().coerceIn(5, 99)
         return MetricAssessment(level, clarityScore, progress)
+    }
+
+    fun interpretStubble(stubbleScore: Float): MetricAssessment {
+        val clamped = stubbleScore.coerceIn(0f, 1f)
+        val level = when {
+            clamped < 0.25f -> MetricStatusLevel.OPTIMAL
+            clamped < 0.50f -> MetricStatusLevel.GOOD
+            clamped < 0.72f -> MetricStatusLevel.MODERATE
+            else -> MetricStatusLevel.HIGH
+        }
+        val groomedScore = (100f - clamped * 90f).toInt().coerceIn(10, 99)
+        return MetricAssessment(level, groomedScore, clamped.coerceIn(0.06f, 1f))
+    }
+
+    /**
+     * Computes an objective 1.0..10.0 grooming & skin-care rating purely from on-device
+     * CV metrics (zero subjective beauty bias) and ranks concrete improvement tips.
+     */
+    fun computeObjectiveRating(
+        underEyeDelta: Float,
+        redness: Float,
+        texture: Float,
+        lipDryness: Float,
+        blemishScore: Float,
+        blemishCount: Int,
+        stubbleScore: Float,
+        shaveDue: Boolean = false
+    ): ObjectiveRatingSummary {
+        val underEye = interpretUnderEye(underEyeDelta)
+        val rednessEval = interpretRedness(redness)
+        val textureEval = interpretTexture(texture)
+        val lipEval = interpretLipDryness(lipDryness)
+        val blemishEval = interpretBlemish(blemishScore, blemishCount)
+        val stubbleEval = interpretStubble(stubbleScore)
+
+        val weighted100 = (
+            blemishEval.scorePercent * 0.26f +
+                rednessEval.scorePercent * 0.20f +
+                textureEval.scorePercent * 0.20f +
+                underEye.scorePercent * 0.14f +
+                lipEval.scorePercent * 0.10f +
+                stubbleEval.scorePercent * 0.10f
+            ).coerceIn(10f, 99f)
+
+        val rating10 = ((weighted100 / 10f) * 10f).toInt() / 10f // 1 decimal place
+        val level = when {
+            rating10 >= 8.2f -> MetricStatusLevel.OPTIMAL
+            rating10 >= 6.8f -> MetricStatusLevel.GOOD
+            rating10 >= 5.2f -> MetricStatusLevel.MODERATE
+            else -> MetricStatusLevel.HIGH
+        }
+
+        val candidates = mutableListOf<Pair<ImprovementTipCode, Int>>()
+        if (blemishEval.scorePercent < 82) candidates.add(ImprovementTipCode.BLEMISHES to blemishEval.scorePercent)
+        if (rednessEval.scorePercent < 82) candidates.add(ImprovementTipCode.REDNESS to rednessEval.scorePercent)
+        if (textureEval.scorePercent < 82) candidates.add(ImprovementTipCode.TEXTURE to textureEval.scorePercent)
+        if (underEye.scorePercent < 80) candidates.add(ImprovementTipCode.UNDER_EYE to underEye.scorePercent)
+        if (lipEval.scorePercent < 80) candidates.add(ImprovementTipCode.LIPS to lipEval.scorePercent)
+        if (shaveDue || stubbleScore >= 0.58f) candidates.add(ImprovementTipCode.SHAVE to stubbleEval.scorePercent)
+
+        val topTips = candidates
+            .sortedBy { it.second }
+            .map { it.first }
+            .take(3)
+            .ifEmpty { listOf(ImprovementTipCode.MAINTAIN) }
+
+        return ObjectiveRatingSummary(
+            scoreOutOfTen = rating10.coerceIn(1.0f, 10.0f),
+            level = level,
+            tips = topTips
+        )
     }
 
     fun interpretHairDetails(

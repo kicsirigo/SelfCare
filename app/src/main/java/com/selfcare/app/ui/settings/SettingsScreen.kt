@@ -93,6 +93,7 @@ fun SettingsScreen(
         onSelectLanguage = viewModel::setAppLanguage,
         onToggleAutoDelete = viewModel::setAutoDeleteCheckInPhotos,
         onChangeHaircutThreshold = viewModel::setHaircutThresholdPercent,
+        onChangeShaveInterval = viewModel::setShaveIntervalDays,
         onToggleMorningReminder = { enabled ->
             if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val granted = ContextCompat.checkSelfPermission(
@@ -155,6 +156,7 @@ fun SettingsScreenContent(
     onSelectLanguage: (AppLanguage) -> Unit,
     onToggleAutoDelete: (Boolean) -> Unit,
     onChangeHaircutThreshold: (Int) -> Unit,
+    onChangeShaveInterval: (Int) -> Unit = {},
     onToggleMorningReminder: (Boolean) -> Unit,
     onAdjustMorningTime: (Int) -> Unit,
     onToggleEveningReminder: (Boolean) -> Unit,
@@ -375,6 +377,21 @@ fun SettingsScreenContent(
                         onValueChange = { onChangeHaircutThreshold(it.roundToInt()) },
                         valueRange = UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT.toFloat()..
                             UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT.toFloat()
+                    )
+
+                    Text(
+                        text = "${stringResource(R.string.settings_shave_interval)}: " +
+                            stringResource(
+                                R.string.settings_shave_interval_value,
+                                settings.shaveIntervalDays
+                            ),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = settings.shaveIntervalDays.toFloat(),
+                        onValueChange = { onChangeShaveInterval(it.roundToInt()) },
+                        valueRange = UserSettings.MIN_SHAVE_INTERVAL_DAYS.toFloat()..
+                            UserSettings.MAX_SHAVE_INTERVAL_DAYS.toFloat()
                     )
                 }
             }

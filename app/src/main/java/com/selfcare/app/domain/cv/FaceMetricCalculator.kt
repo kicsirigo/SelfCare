@@ -647,6 +647,44 @@ object FaceMetricCalculator {
         )
     }
 
+    /**
+     * Pure-Kotlin offline facial hair / stubble estimator.
+     * Compares lower-face (chin & jawline) darkening (delta L*) and high-frequency
+     * micro-gradient density against the smoother upper-cheek baseline.
+     * Returns 0.0 (clean-shaven) .. 1.0 (heavy stubble / beard).
+     */
+    fun computeStubbleScore(
+        pixels: IntArray,
+        width: Int,
+        height: Int,
+        jawAndChinRois: List<PixelRect>,
+        referenceCheekRois: List<PixelRect>
+    ): Float {
+        if (width <= 0 || height <= 0 || pixels.size < width * height || jawAndChinRois.isEmpty()) {
+            return 0f
+        }
+        val refLabs = referenceCheekRois.mapNotNull { meanLab(pixels, width, height, it) }
+        val jawLabs = jawAndChinRois.mapNotNull { meanLab(pixels, width, height, it) }
+        if (jawLabs.isEmpty()) return 0f
+
+        val refL = if (refLabs.isNotEmpty()) refLabs.map { it.l }.average().toFloat() else 62f
+        val jawL = jawLabs.map { it.l }.average().toFloat()
+        val darkening = (refL - jawL).coerceAtLeast(0f)
+
+        val jawTexture = computeSkinTextureVariance(pixels, width, height, jawAndChinRois)
+        val refTexture = if (referenceCheekRois.isNotEmpty()) {
+            computeSkinTextureVariance(pixels, width, height, referenceCheekRois)
+        } else {
+            10f
+        }
+        val extraRoughness = (jawTexture - refTexture * 0.85f).coerceAtLeast(0f)
+
+        // Combine lower-face darkening (shadow/follicle density) and extra stubble micro-texture
+        val darkComponent = (darkening / 18f).coerceIn(0f, 1f)
+        val roughComponent = (extraRoughness / 22f).coerceIn(0f, 1f)
+        return (darkComponent * 0.55f + roughComponent * 0.45f).coerceIn(0f, 1f)
+    }
+
     private fun singleSideUnderEyeDelta(
         pixels: IntArray,
         width: Int,

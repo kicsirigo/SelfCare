@@ -296,4 +296,28 @@
     <string name="settings_updates_ready">Downloaded — ready to install</string>
     <string name="settings_updates_install_btn">Install Update</string>
     <string name="settings_updates_error">Update error: %1$s</string>
+
+    <!-- v2.1.0: Objective 10-Scale Rating, Actionable Advice & Shave/Stubble Tracker -->
+    <string name="checkin_rating_title">Objective Care Score</string>
+    <string name="checkin_rating_subtitle">100% offline score based on skin clarity, redness, texture, hydration &amp; grooming</string>
+    <string name="checkin_advice_title">How to Improve</string>
+    <string name="tip_blemishes">Target active spots: stick to gentle cleansing and consistent evening blemish treatment (avoid touching/picking).</string>
+    <string name="tip_redness">Calm surface redness: pause harsh acids/scrubs for 2–3 days and focus on barrier-repair hydration.</string>
+    <string name="tip_texture">Smooth skin texture: stay hydrated and use mild exfoliation 1–2 evenings per week.</string>
+    <string name="tip_under_eye">Brighten under-eyes: prioritize 7.5–8h sleep, reduce late salt intake, and apply lightweight eye hydration.</string>
+    <string name="tip_lips">Repair dry lips: apply an occlusive lip balm before bed and avoid licking dry lips.</string>
+    <string name="tip_shave">Time for a clean shave or trim: visible stubble detected or your shave interval is reached.</string>
+    <string name="tip_maintain">Great balance today — keep your current morning/evening routine and SPF consistent.</string>
+    <string name="metric_stubble_title">Stubble &amp; Shave Status</string>
+    <string name="metric_stubble_clean">Clean-shaven / smooth jawline.</string>
+    <string name="metric_stubble_light">Light stubble — still neat, no rush to shave.</string>
+    <string name="metric_stubble_medium">Medium stubble growing in — shave or trim soon.</string>
+    <string name="metric_stubble_heavy">Noticeable stubble — shaving or beard trimming recommended.</string>
+    <string name="shave_reminder_banner">Time to shave! (%1$s)</string>
+    <string name="shave_card_title">Shave Tracker</string>
+    <string name="shave_days_since">Last shaved %1$d day(s) ago (reminder every %2$d days)</string>
+    <string name="shave_no_log_yet">Tap below after shaving so SelfCare reminds you when it is time again.</string>
+    <string name="shave_just_shaved_btn">Just Shaved</string>
+    <string name="settings_shave_interval">Shave reminder interval</string>
+    <string name="settings_shave_interval_value">Every %d days</string>
 </resources>

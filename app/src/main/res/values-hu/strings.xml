@@ -296,4 +296,28 @@
     <string name="settings_updates_ready">Letöltve — telepíthető</string>
     <string name="settings_updates_install_btn">Telepítés indítása</string>
     <string name="settings_updates_error">Frissítési hiba: %1$s</string>
+
+    <!-- v2.1.0: Objective 10-Scale Rating, Actionable Advice & Shave/Stubble Tracker -->
+    <string name="checkin_rating_title">Objektív ápoltsági pontszám</string>
+    <string name="checkin_rating_subtitle">100% offline értékelés tisztaság, bőrpír, textúra, hidratáltság és borosta alapján</string>
+    <string name="checkin_advice_title">Hogyan javíthatsz rajta?</string>
+    <string name="tip_blemishes">Pattanások célzása: maradj a gyengéd lemosónál és a rendszeres esti pattanás elleni kezelésnél, kerüld a nyomkodást.</string>
+    <string name="tip_redness">Bőrpír csökkentése: tarts 2–3 nap szünetet az erős savakkal, és használj barrier-erősítő hidratálót.</string>
+    <string name="tip_texture">Textúra finomítása: figyelj a vízfogyasztásra, és heti 1–2 este használj kíméletes hámlasztót.</string>
+    <string name="tip_under_eye">Szem alatti terület frissítése: törekedj 7,5–8 óra alvásra, kevesebb esti sóra és könnyű hidratálásra.</string>
+    <string name="tip_lips">Ajkak helyreállítása: használj gazdag éjszakai ajakbalzsamot lefekvés előtt.</string>
+    <string name="tip_shave">Ideje borotválkozni vagy igazítani: erősebb borosta látszik vagy letelt a borotválkozási időszakod.</string>
+    <string name="tip_maintain">Nagyon jó állapotban van a bőröd — tartsd meg a jelenlegi reggeli/esti rutinod és a fényvédelmet.</string>
+    <string name="metric_stubble_title">Borosta és borotválkozás</string>
+    <string name="metric_stubble_clean">Frissen borotvált / sima állkapocsvonal.</string>
+    <string name="metric_stubble_light">Enyhe borosta — még rendezett, nem sürgős borotválkozni.</string>
+    <string name="metric_stubble_medium">Közepes borosta — hamarosan érdemes borotválkozni vagy igazítani.</string>
+    <string name="metric_stubble_heavy">Erősebb borosta — borotválkozás vagy fazonigazítás javasolt.</string>
+    <string name="shave_reminder_banner">Ideje borotválkozni! (%1$s)</string>
+    <string name="shave_card_title">Borotválkozás-követő</string>
+    <string name="shave_days_since">Utolsó borotválkozás: %1$d napja (emlékeztető: %2$d naponta)</string>
+    <string name="shave_no_log_yet">Koppints lent borotválkozás után, hogy az app szóljon, amikor újra esedékes.</string>
+    <string name="shave_just_shaved_btn">Most borotválkoztam</string>
+    <string name="settings_shave_interval">Borotválkozás emlékeztető</string>
+    <string name="settings_shave_interval_value">%d naponta</string>
 </resources>

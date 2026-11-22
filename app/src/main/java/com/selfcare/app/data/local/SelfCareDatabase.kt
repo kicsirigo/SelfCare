@@ -25,7 +25,7 @@ import com.selfcare.app.data.local.entity.RoutineLogEntity
         HygieneLogEntity::class,
         HaircutBaselineEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class SelfCareDatabase : RoomDatabase() {
@@ -45,6 +45,12 @@ abstract class SelfCareDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE face_check_ins ADD COLUMN stubbleScore REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         @Volatile
         private var instance: SelfCareDatabase? = null
 
@@ -54,7 +60,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
                     context.applicationContext,
                     SelfCareDatabase::class.java,
                     DATABASE_NAME
-                ).addMigrations(MIGRATION_1_2).build().also { db ->
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { db ->
                     instance = db
                 }
             }

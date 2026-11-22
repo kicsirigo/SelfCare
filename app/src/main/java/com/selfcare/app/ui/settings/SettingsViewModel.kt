@@ -122,6 +122,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setShaveIntervalDays(days: Int) {
+        viewModelScope.launch {
+            settingsRepository.setShaveIntervalDays(days)
+        }
+    }
+
     fun setGeminiApiKey(apiKey: String) {
         viewModelScope.launch {
             settingsRepository.setGeminiApiKey(apiKey)

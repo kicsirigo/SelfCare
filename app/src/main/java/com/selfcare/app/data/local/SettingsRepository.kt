@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.selfcare.app.ui.theme.ThemeMode
@@ -35,12 +36,17 @@ data class UserSettings(
     val eveningReminderMinute: Int = 0,
     val autoDeleteCheckInPhotos: Boolean = false,
     val haircutThresholdPercent: Int = DEFAULT_HAIRCUT_THRESHOLD_PERCENT,
-    val geminiApiKey: String = ""
+    val geminiApiKey: String = "",
+    val shaveIntervalDays: Int = DEFAULT_SHAVE_INTERVAL_DAYS,
+    val lastShaveEpochDay: Long? = null
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
         const val MIN_HAIRCUT_THRESHOLD_PERCENT = 5
         const val MAX_HAIRCUT_THRESHOLD_PERCENT = 60
+        const val DEFAULT_SHAVE_INTERVAL_DAYS = 3
+        const val MIN_SHAVE_INTERVAL_DAYS = 1
+        const val MAX_SHAVE_INTERVAL_DAYS = 14
     }
 }
 
@@ -75,7 +81,11 @@ class SettingsRepository(
                     UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT,
                     UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT
                 ),
-            geminiApiKey = decryptedApiKey
+            geminiApiKey = decryptedApiKey,
+            shaveIntervalDays = (prefs[KEY_SHAVE_INTERVAL_DAYS]
+                ?: UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS)
+                .coerceIn(UserSettings.MIN_SHAVE_INTERVAL_DAYS, UserSettings.MAX_SHAVE_INTERVAL_DAYS),
+            lastShaveEpochDay = prefs[KEY_LAST_SHAVE_EPOCH_DAY]
         )
     }
 
@@ -121,6 +131,21 @@ class SettingsRepository(
                 UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT,
                 UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT
             )
+        }
+    }
+
+    suspend fun setShaveIntervalDays(days: Int) {
+        dataStore.edit { prefs ->
+            prefs[KEY_SHAVE_INTERVAL_DAYS] = days.coerceIn(
+                UserSettings.MIN_SHAVE_INTERVAL_DAYS,
+                UserSettings.MAX_SHAVE_INTERVAL_DAYS
+            )
+        }
+    }
+
+    suspend fun setLastShaveEpochDay(epochDay: Long) {
+        dataStore.edit { prefs ->
+            prefs[KEY_LAST_SHAVE_EPOCH_DAY] = epochDay
         }
     }
 
@@ -175,6 +200,8 @@ class SettingsRepository(
             intPreferencesKey("haircut_threshold_percent")
         private val KEY_GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
         private val KEY_GEMINI_API_KEY_ENC = stringPreferencesKey("gemini_api_key_enc")
+        private val KEY_SHAVE_INTERVAL_DAYS = intPreferencesKey("shave_interval_days")
+        private val KEY_LAST_SHAVE_EPOCH_DAY = longPreferencesKey("last_shave_epoch_day")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

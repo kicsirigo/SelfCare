@@ -16,7 +16,8 @@ data class FaceAnalysisResult(
     val hairForeheadCoverage: Float = (hairToFaceRatio * 0.6f).coerceIn(0f, 1f),
     val hairTempleSymmetryScore: Float = if (hairToFaceRatio > 0f) 0.88f else 0f,
     val blemishScore: Float = 0f,
-    val blemishCount: Int = 0
+    val blemishCount: Int = 0,
+    val stubbleScore: Float = 0f
 )
 
 interface FaceAnalyzer {

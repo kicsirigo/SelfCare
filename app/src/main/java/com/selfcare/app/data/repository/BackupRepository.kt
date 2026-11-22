@@ -77,7 +77,8 @@ data class BackupFaceCheckIn(
     val photoPath: String? = null,
     val notes: String = "",
     val blemishScore: Float = 0f,
-    val blemishCount: Int = 0
+    val blemishCount: Int = 0,
+    val stubbleScore: Float = 0f
 )
 
 @Serializable
@@ -363,7 +364,8 @@ private fun FaceCheckInEntity.toBackup(): BackupFaceCheckIn = BackupFaceCheckIn(
     photoPath = photoPath,
     notes = notes,
     blemishScore = blemishScore,
-    blemishCount = blemishCount
+    blemishCount = blemishCount,
+    stubbleScore = stubbleScore
 )
 
 private fun BackupFaceCheckIn.toEntity(sanitizedPhotoPath: String?): FaceCheckInEntity = FaceCheckInEntity(
@@ -379,7 +381,8 @@ private fun BackupFaceCheckIn.toEntity(sanitizedPhotoPath: String?): FaceCheckIn
     photoPath = sanitizedPhotoPath,
     notes = notes,
     blemishScore = blemishScore,
-    blemishCount = blemishCount
+    blemishCount = blemishCount,
+    stubbleScore = stubbleScore
 )
 
 private fun HygieneLogEntity.toBackup(): BackupHygieneLog = BackupHygieneLog(

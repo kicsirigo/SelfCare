@@ -85,6 +85,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
+import com.selfcare.app.domain.cv.ImprovementTipCode
 import com.selfcare.app.domain.cv.LightingQualityChecker
 import com.selfcare.app.domain.cv.LightingWarningReason
 import com.selfcare.app.domain.cv.MetricInterpreter
@@ -187,6 +188,39 @@ fun CheckInScreen(
                     growthPercent = uiState.currentHairGrowthPercent,
                     thresholdPercent = uiState.haircutThresholdPercent
                 )
+            }
+
+            if (uiState.isShaveReminderDue) {
+                val shaveReason = if (uiState.daysSinceLastShave != null && uiState.daysSinceLastShave!! >= uiState.shaveIntervalDays) {
+                    stringResource(R.string.shave_days_since, uiState.daysSinceLastShave!!, uiState.shaveIntervalDays)
+                } else {
+                    stringResource(R.string.metric_stubble_heavy)
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("shave_reminder_banner")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sparkle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.shave_reminder_banner, shaveReason),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
             }
 
             if (!uiState.hasCameraPermission) {
@@ -313,7 +347,9 @@ fun CheckInScreen(
                 lipDryness = result.checkIn.lipDrynessScore,
                 lightingScore = result.checkIn.lightingQualityScore,
                 blemishScore = result.checkIn.blemishScore,
-                blemishCount = result.checkIn.blemishCount
+                blemishCount = result.checkIn.blemishCount,
+                stubbleScore = result.checkIn.stubbleScore,
+                shaveDue = uiState.isShaveReminderDue
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -333,7 +369,9 @@ fun CheckInScreen(
                 lipDryness = latest.lipDrynessScore,
                 lightingScore = latest.lightingQualityScore,
                 blemishScore = latest.blemishScore,
-                blemishCount = latest.blemishCount
+                blemishCount = latest.blemishCount,
+                stubbleScore = latest.stubbleScore,
+                shaveDue = uiState.isShaveReminderDue
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -346,6 +384,12 @@ fun CheckInScreen(
                 thresholdPercent = uiState.haircutThresholdPercent
             )
         }
+
+        ShaveTrackerCard(
+            daysSinceLastShave = uiState.daysSinceLastShave,
+            shaveIntervalDays = uiState.shaveIntervalDays,
+            onJustShaved = { viewModel.markShavedToday() }
+        )
 
         HaircutBaselineCard(
             hasBaseline = uiState.activeBaseline != null,
@@ -742,17 +786,27 @@ private fun CheckInResultSummaryCard(
     lipDryness: Float,
     lightingScore: Float,
     blemishScore: Float = 0f,
-    blemishCount: Int = 0
+    blemishCount: Int = 0,
+    stubbleScore: Float = 0f,
+    shaveDue: Boolean = false
 ) {
     val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
     val rednessEval = MetricInterpreter.interpretRedness(redness)
     val textureEval = MetricInterpreter.interpretTexture(texture)
     val lipEval = MetricInterpreter.interpretLipDryness(lipDryness)
     val blemishEval = MetricInterpreter.interpretBlemish(blemishScore, blemishCount)
-
-    val compositeScore = (
-        (underEye.scorePercent + rednessEval.scorePercent + textureEval.scorePercent + lipEval.scorePercent + blemishEval.scorePercent) / 5
-    ).coerceIn(5, 99)
+    val stubbleEval = MetricInterpreter.interpretStubble(stubbleScore)
+    val ratingSummary = MetricInterpreter.computeObjectiveRating(
+        underEyeDelta = underEyeDelta,
+        redness = redness,
+        texture = texture,
+        lipDryness = lipDryness,
+        blemishScore = blemishScore,
+        blemishCount = blemishCount,
+        stubbleScore = stubbleScore,
+        shaveDue = shaveDue
+    )
+    val ratingText = String.format(Locale.US, "%.1f", ratingSummary.scoreOutOfTen)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -769,28 +823,78 @@ private fun CheckInResultSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HeroScoreRing(
-                    progress = compositeScore / 100f,
-                    centerValue = "$compositeScore",
-                    centerSubtitle = "/ 100",
-                    ringSize = 86.dp
+                    progress = (ratingSummary.scoreOutOfTen / 10f).coerceIn(0.05f, 1f),
+                    centerValue = ratingText,
+                    centerSubtitle = "/ 10",
+                    ringSize = 92.dp
                 )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.checkin_last_result_title),
+                        text = stringResource(R.string.checkin_rating_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = stringResource(R.string.checkin_brightness_live, (lightingScore * 100f).toInt()),
-                        style = MaterialTheme.typography.labelSmall,
+                        text = stringResource(R.string.checkin_rating_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
+            // Actionable improvement tips ranked by lowest metrics
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("checkin_advice_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.checkin_advice_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    ratingSummary.tips.forEach { tip ->
+                        val tipRes = when (tip) {
+                            ImprovementTipCode.BLEMISHES -> R.string.tip_blemishes
+                            ImprovementTipCode.REDNESS -> R.string.tip_redness
+                            ImprovementTipCode.TEXTURE -> R.string.tip_texture
+                            ImprovementTipCode.UNDER_EYE -> R.string.tip_under_eye
+                            ImprovementTipCode.LIPS -> R.string.tip_lips
+                            ImprovementTipCode.SHAVE -> R.string.tip_shave
+                            ImprovementTipCode.MAINTAIN -> R.string.tip_maintain
+                        }
+                        Text(
+                            text = "• ${stringResource(tipRes)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            MetricGaugeRow(
+                title = stringResource(R.string.metric_stubble_title),
+                assessment = stubbleEval,
+                explanation = stringResource(
+                    when (stubbleEval.level) {
+                        MetricStatusLevel.OPTIMAL -> R.string.metric_stubble_clean
+                        MetricStatusLevel.GOOD -> R.string.metric_stubble_light
+                        MetricStatusLevel.MODERATE -> R.string.metric_stubble_medium
+                        MetricStatusLevel.HIGH -> R.string.metric_stubble_heavy
+                    }
+                )
+            )
 
             MetricGaugeRow(
                 title = stringResource(R.string.trends_metric_blemish),
@@ -907,6 +1011,65 @@ private fun HaircutReminderBanner(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer
             )
+        }
+    }
+}
+
+@Composable
+private fun ShaveTrackerCard(
+    daysSinceLastShave: Int?,
+    shaveIntervalDays: Int,
+    onJustShaved: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("checkin_shave_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = AppIcons.Sparkle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = stringResource(R.string.shave_card_title),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            Text(
+                text = if (daysSinceLastShave != null) {
+                    stringResource(R.string.shave_days_since, daysSinceLastShave, shaveIntervalDays)
+                } else {
+                    stringResource(R.string.shave_no_log_yet)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = onJustShaved,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("checkin_just_shaved_btn")
+            ) {
+                Icon(
+                    imageVector = AppIcons.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = stringResource(R.string.shave_just_shaved_btn))
+            }
         }
     }
 }

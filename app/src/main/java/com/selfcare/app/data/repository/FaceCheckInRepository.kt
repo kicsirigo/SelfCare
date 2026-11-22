@@ -177,7 +177,8 @@ class FaceCheckInRepository(
             photoPath = savedPhotoPath,
             notes = notes.trim(),
             blemishScore = analysis.blemishScore,
-            blemishCount = analysis.blemishCount
+            blemishCount = analysis.blemishCount,
+            stubbleScore = analysis.stubbleScore
         )
         val insertedId = faceCheckInDao.insert(entity)
         val persisted = faceCheckInDao.getById(insertedId) ?: entity.copy(id = insertedId)

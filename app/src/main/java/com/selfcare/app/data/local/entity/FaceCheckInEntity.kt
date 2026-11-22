@@ -24,5 +24,6 @@ data class FaceCheckInEntity(
     val photoPath: String? = null,
     val notes: String = "",
     val blemishScore: Float = 0f,
-    val blemishCount: Int = 0
+    val blemishCount: Int = 0,
+    val stubbleScore: Float = 0f
 )
