@@ -46,6 +46,9 @@
 
     <!-- Shelf -->
     <string name="shelf_title">Product Shelf</string>
+    <string name="shelf_smart_scan">Photo Scan Product (1 Photo)</string>
+    <string name="shelf_smart_scan_privacy">On-device scan: photo is deleted immediately; only text or barcode is searched.</string>
+    <string name="shelf_smart_scan_empty">No barcode or readable text found in photo. Try better lighting or enter manually.</string>
     <string name="shelf_scan_barcode">Scan Barcode</string>
     <string name="shelf_scan_label">Scan Label (OCR)</string>
     <string name="shelf_add_manual">Add Product</string>
@@ -214,4 +217,24 @@
     <string name="hair_growth_fresh">Fresh cut (+%1$.1f%%)</string>
     <string name="hair_growth_due">Trim due soon (+%1$.1f%%)</string>
     <string name="trends_hair_detail_summary">Volume %1$d%% | Shine %2$d%% | Symmetry %3$d%%</string>
+
+    <!-- INCI Caution Levels & Localized Conflict Rules -->
+    <string name="inci_caution_safe">Safe</string>
+    <string name="inci_caution_moderate">Moderate</string>
+    <string name="inci_caution_active">Active</string>
+    <string name="inci_caution_caution">Caution</string>
+    <string name="inci_conflict_retinoid_aha_bha_title">Retinoid + Exfoliating Acid</string>
+    <string name="inci_conflict_retinoid_aha_bha_rec">Use on alternating evenings or separate AM/PM routines to avoid barrier irritation.</string>
+    <string name="inci_conflict_rx_antibiotic_title">Prescription Antibiotic + Strong Acid/Retinoid</string>
+    <string name="inci_conflict_rx_antibiotic_rec">Separate topical prescription gels (e.g. Davercin) from strong acids or retinoids by using AM vs PM or buffering with moisturizer.</string>
+    <string name="inci_conflict_bpo_vitc_title">Benzoyl Peroxide + Vitamin C</string>
+    <string name="inci_conflict_bpo_vitc_rec">Benzoyl peroxide oxidizes ascorbic acid and reduces efficacy. Use Vitamin C in the morning and Benzoyl Peroxide in the evening.</string>
+    <string name="inci_conflict_retinoid_bpo_title">Retinoid + Benzoyl Peroxide</string>
+    <string name="inci_conflict_retinoid_bpo_rec">Combining both can cause severe dryness and degrade unstable retinoids. Use Benzoyl Peroxide in the morning and Retinoid at night.</string>
+    <string name="inci_conflict_retinoid_vitc_title">Retinoid + Direct Vitamin C (L-Ascorbic Acid)</string>
+    <string name="inci_conflict_retinoid_vitc_rec">Low-pH L-Ascorbic Acid and retinoids can increase irritation when layered together. Apply Vitamin C in the morning and Retinoid at night.</string>
+    <string name="inci_conflict_acids_peptides_title">Direct Acids + Copper Peptides</string>
+    <string name="inci_conflict_acids_peptides_rec">Low-pH exfoliating acids can destabilize copper peptides. Use them in separate routines (e.g., AM vs PM).</string>
+    <string name="inci_conflict_aha_bha_title">AHA + BHA Acid Stacking</string>
+    <string name="inci_conflict_aha_bha_rec">Layering multiple strong exfoliating acids increases the risk of over-exfoliation and barrier damage. Alternate nights unless formulated together.</string>
 </resources>

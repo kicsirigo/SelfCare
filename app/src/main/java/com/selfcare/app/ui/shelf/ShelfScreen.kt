@@ -41,8 +41,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +60,13 @@ import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
 import com.selfcare.app.ui.icons.AppIcons
+import java.io.File
+
+private enum class ScanCaptureMode {
+    SMART,
+    BARCODE,
+    OCR
+}
 
 @Composable
 fun ShelfScreen(
@@ -63,17 +74,42 @@ fun ShelfScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var pendingFile by remember { mutableStateOf<File?>(null) }
+    var pendingMode by remember { mutableStateOf(ScanCaptureMode.SMART) }
 
-    val barcodeLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        viewModel.onBarcodeBitmapCaptured(bitmap)
+    val fullResCameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val file = pendingFile
+        pendingFile = null
+        if (!success) {
+            ScanPhotoHelper.cleanupTempFile(file)
+            return@rememberLauncherForActivityResult
+        }
+        val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
+        when (pendingMode) {
+            ScanCaptureMode.SMART -> viewModel.onSmartPhotoCaptured(bitmap)
+            ScanCaptureMode.BARCODE -> viewModel.onBarcodeBitmapCaptured(bitmap)
+            ScanCaptureMode.OCR -> viewModel.onOcrBitmapCaptured(bitmap)
+        }
     }
 
-    val ocrLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        viewModel.onOcrBitmapCaptured(bitmap)
+    fun launchFullResScan(mode: ScanCaptureMode) {
+        try {
+            val capture = ScanPhotoHelper.createTempScanCapture(context)
+            pendingFile = capture.file
+            pendingMode = mode
+            fullResCameraLauncher.launch(capture.uri)
+        } catch (_: ActivityNotFoundException) {
+            ScanPhotoHelper.cleanupTempFile(pendingFile)
+            pendingFile = null
+            viewModel.openNewProductEditor()
+        } catch (_: Exception) {
+            ScanPhotoHelper.cleanupTempFile(pendingFile)
+            pendingFile = null
+            viewModel.openNewProductEditor()
+        }
     }
 
     ShelfScreenContent(
@@ -83,20 +119,9 @@ fun ShelfScreen(
         onSelectCategoryFilter = viewModel::selectCategoryFilter,
         onSelectPresetGroup = viewModel::selectPresetGroup,
         onAddPreset = viewModel::addPresetProduct,
-        onScanBarcodeClick = {
-            try {
-                barcodeLauncher.launch(null)
-            } catch (_: ActivityNotFoundException) {
-                viewModel.openNewProductEditor()
-            }
-        },
-        onScanOcrClick = {
-            try {
-                ocrLauncher.launch(null)
-            } catch (_: ActivityNotFoundException) {
-                viewModel.openNewProductEditor()
-            }
-        },
+        onSmartScanClick = { launchFullResScan(ScanCaptureMode.SMART) },
+        onScanBarcodeClick = { launchFullResScan(ScanCaptureMode.BARCODE) },
+        onScanOcrClick = { launchFullResScan(ScanCaptureMode.OCR) },
         onAddProductClick = { viewModel.openNewProductEditor() },
         onSelectRemoteProduct = viewModel::selectRemoteProduct,
         onDismissOfflineFallback = viewModel::dismissOfflineFallback,
@@ -123,6 +148,7 @@ fun ShelfScreenContent(
     onSelectCategoryFilter: (ShelfCategoryFilter) -> Unit,
     onSelectPresetGroup: (PresetGroup) -> Unit,
     onAddPreset: (PresetProduct) -> Unit,
+    onSmartScanClick: () -> Unit = {},
     onScanBarcodeClick: () -> Unit,
     onScanOcrClick: () -> Unit,
     onAddProductClick: () -> Unit,
@@ -217,6 +243,39 @@ fun ShelfScreenContent(
             ) {
                 Text(text = stringResource(R.string.shelf_lookup))
             }
+        }
+
+        Button(
+            onClick = onSmartScanClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("shelf_smart_scan_btn")
+        ) {
+            Icon(
+                imageVector = AppIcons.Camera,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.size(6.dp))
+            Text(text = stringResource(R.string.shelf_smart_scan))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = AppIcons.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = stringResource(R.string.shelf_smart_scan_privacy),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         Row(
@@ -578,6 +637,7 @@ private fun OfflineFallbackBanner(
     onDismiss: () -> Unit
 ) {
     val message = when (code) {
+        "SMART_SCAN_EMPTY" -> stringResource(R.string.shelf_smart_scan_empty)
         "BARCODE_NONE" -> stringResource(R.string.shelf_barcode_not_detected)
         "OCR_EMPTY" -> stringResource(R.string.shelf_ocr_no_text)
         else -> stringResource(R.string.shelf_offline_fallback)
@@ -659,8 +719,11 @@ private fun ConflictBanner(conflicts: List<DetectedConflict>) {
                 )
             }
             conflicts.forEach { conflict ->
+                val title = localizedConflictTitle(conflict)
+                val recommendation = localizedConflictRecommendation(conflict)
+                val slotText = slotLabel(conflict.slot)
                 Text(
-                    text = "${conflict.title} (${conflict.ingredientAName} + ${conflict.ingredientBName} - ${conflict.slot}): ${conflict.recommendation}",
+                    text = "$title (${conflict.ingredientAName} + ${conflict.ingredientBName} - $slotText): $recommendation",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -768,7 +831,7 @@ private fun InciMatchChips(matches: List<InciMatch>) {
                 onClick = {},
                 label = {
                     Text(
-                        text = "${match.canonicalName} (${match.cautionLevel})",
+                        text = "${match.canonicalName} (${cautionLevelLabel(match.cautionLevel)})",
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -1000,4 +1063,37 @@ private fun slotLabel(slot: String): String = when (slot.uppercase()) {
     InciConflictDetector.SLOT_BOTH -> stringResource(R.string.shelf_slot_both)
     InciConflictDetector.SLOT_HAIR -> stringResource(R.string.shelf_slot_hair)
     else -> stringResource(R.string.shelf_slot_none)
+}
+
+@Composable
+private fun cautionLevelLabel(level: String): String = when (level.uppercase()) {
+    "SAFE" -> stringResource(R.string.inci_caution_safe)
+    "MODERATE" -> stringResource(R.string.inci_caution_moderate)
+    "ACTIVE" -> stringResource(R.string.inci_caution_active)
+    "CAUTION" -> stringResource(R.string.inci_caution_caution)
+    else -> level
+}
+
+@Composable
+private fun localizedConflictTitle(conflict: DetectedConflict): String = when (conflict.ruleId) {
+    "retinoid_aha_bha" -> stringResource(R.string.inci_conflict_retinoid_aha_bha_title)
+    "rx_antibiotic_strong_acid" -> stringResource(R.string.inci_conflict_rx_antibiotic_title)
+    "benzoyl_peroxide_vitamin_c" -> stringResource(R.string.inci_conflict_bpo_vitc_title)
+    "retinoid_benzoyl_peroxide" -> stringResource(R.string.inci_conflict_retinoid_bpo_title)
+    "retinoid_direct_vitamin_c" -> stringResource(R.string.inci_conflict_retinoid_vitc_title)
+    "acids_copper_peptides" -> stringResource(R.string.inci_conflict_acids_peptides_title)
+    "aha_bha_stacking" -> stringResource(R.string.inci_conflict_aha_bha_title)
+    else -> conflict.title
+}
+
+@Composable
+private fun localizedConflictRecommendation(conflict: DetectedConflict): String = when (conflict.ruleId) {
+    "retinoid_aha_bha" -> stringResource(R.string.inci_conflict_retinoid_aha_bha_rec)
+    "rx_antibiotic_strong_acid" -> stringResource(R.string.inci_conflict_rx_antibiotic_rec)
+    "benzoyl_peroxide_vitamin_c" -> stringResource(R.string.inci_conflict_bpo_vitc_rec)
+    "retinoid_benzoyl_peroxide" -> stringResource(R.string.inci_conflict_retinoid_bpo_rec)
+    "retinoid_direct_vitamin_c" -> stringResource(R.string.inci_conflict_retinoid_vitc_rec)
+    "acids_copper_peptides" -> stringResource(R.string.inci_conflict_acids_peptides_rec)
+    "aha_bha_stacking" -> stringResource(R.string.inci_conflict_aha_bha_rec)
+    else -> conflict.recommendation
 }

@@ -46,6 +46,9 @@
 
     <!-- Shelf -->
     <string name="shelf_title">Termékpolc</string>
+    <string name="shelf_smart_scan">Termék fotózása (1 fotó)</string>
+    <string name="shelf_smart_scan_privacy">Eszközön futó elemzés: a fotó azonnal törlődik, csak a szöveg vagy vonalkód kerül keresésre.</string>
+    <string name="shelf_smart_scan_empty">Nem található vonalkód vagy olvasható szöveg a fotón. Próbáld jobb fényben vagy add meg kézzel.</string>
     <string name="shelf_scan_barcode">Vonalkód olvasása</string>
     <string name="shelf_scan_label">Címke olvasása (OCR)</string>
     <string name="shelf_add_manual">Termék hozzáadása</string>
@@ -214,4 +217,24 @@
     <string name="hair_growth_fresh">Friss fazon (+%1$.1f%%)</string>
     <string name="hair_growth_due">Vágás esedékes (+%1$.1f%%)</string>
     <string name="trends_hair_detail_summary">Dússág %1$d%% | Fény %2$d%% | Szimmetria %3$d%%</string>
+
+    <!-- INCI Caution Levels & Localized Conflict Rules -->
+    <string name="inci_caution_safe">Biztonságos</string>
+    <string name="inci_caution_moderate">Mérsékelt</string>
+    <string name="inci_caution_active">Aktív hatóanyag</string>
+    <string name="inci_caution_caution">Óvatosság</string>
+    <string name="inci_conflict_retinoid_aha_bha_title">Retinoid + Hámlasztó sav</string>
+    <string name="inci_conflict_retinoid_aha_bha_rec">Használd váltott estéken vagy külön reggeli és esti rutinban a bőrbarrier irritációjának elkerüléséhez.</string>
+    <string name="inci_conflict_rx_antibiotic_title">Vényköteles antibiotikum + Erős sav/Retinoid</string>
+    <string name="inci_conflict_rx_antibiotic_rec">Válaszd külön a vényköteles géleket (pl. Davercin) az erős savaktól és retinoidoktól (reggel és este), vagy hidratálóval rétegezve használd.</string>
+    <string name="inci_conflict_bpo_vitc_title">Benzoil-peroxid + C-vitamin</string>
+    <string name="inci_conflict_bpo_vitc_rec">A benzoil-peroxid oxidálja a C-vitamint és csökkenti a hatékonyságát. Használd a C-vitamint reggel, a benzoil-peroxidot este.</string>
+    <string name="inci_conflict_retinoid_bpo_title">Retinoid + Benzoil-peroxid</string>
+    <string name="inci_conflict_retinoid_bpo_rec">Együttes használatuk erős szárazságot okozhat és lebonthatja a retinoidot. A benzoil-peroxidot reggel, a retinoidot este alkalmazd.</string>
+    <string name="inci_conflict_retinoid_vitc_title">Retinoid + Tiszta C-vitamin (L-aszkorbinsav)</string>
+    <string name="inci_conflict_retinoid_vitc_rec">Az alacsony pH-jú C-vitamin és a retinoid együtt fokozhatja az irritációt. A C-vitamint reggel, a retinoidot este használd.</string>
+    <string name="inci_conflict_acids_peptides_title">Erős savak + Rézpeptidek</string>
+    <string name="inci_conflict_acids_peptides_rec">Az alacsony pH-jú hámlasztó savak destabilizálhatják a rézpeptideket. Használd őket külön rutinban (pl. reggel és este).</string>
+    <string name="inci_conflict_aha_bha_title">AHA + BHA savak halmozása</string>
+    <string name="inci_conflict_aha_bha_rec">Több erős hámlasztó sav rétegezése növeli a túlhámlasztás és a barrierkárosodás kockázatát. Váltogasd őket estéken, hacsak nem egy formulában vannak.</string>
 </resources>

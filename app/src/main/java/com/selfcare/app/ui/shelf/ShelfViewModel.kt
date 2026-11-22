@@ -285,6 +285,98 @@ class ShelfViewModel(
         }
     }
 
+    fun onSmartPhotoCaptured(bitmap: Bitmap?) {
+        if (bitmap == null) return
+        viewModelScope.launch {
+            lookupStateFlow.update {
+                it.copy(
+                    isLookingUp = true,
+                    offlineFallbackMessage = null,
+                    remoteResults = emptyList(),
+                    presetMatches = emptyList()
+                )
+            }
+            // 1. Try offline barcode scan first on the full-resolution photo
+            val scannedBarcode = barcodeScanner.scanBarcode(bitmap)
+            if (!scannedBarcode.isNullOrBlank()) {
+                searchQueryFlow.value = scannedBarcode
+                lookupBarcode(scannedBarcode)
+                return@launch
+            }
+
+            // 2. Fall back to offline on-device OCR on the same photo (photo never leaves device)
+            val recognized = ocrScanner.recognizeText(bitmap).trim()
+            if (recognized.isEmpty()) {
+                lookupStateFlow.update {
+                    it.copy(isLookingUp = false, offlineFallbackMessage = "SMART_SCAN_EMPTY")
+                }
+                return@launch
+            }
+
+            val inciMatches = productRepository.parseIngredients(recognized)
+            val extractedQuery = SmartScanQueryExtractor.extractProductSearchQuery(recognized)
+            val presetHits = SmartScanQueryExtractor.findPresetMatchesFromOcr(recognized, extractedQuery)
+
+            // 3. If the back INCI ingredient list was photographed (and no preset matched), open editor prefilled
+            if (SmartScanQueryExtractor.looksLikeIngredientList(recognized, inciMatches.size) && presetHits.isEmpty()) {
+                lookupStateFlow.update { it.copy(isLookingUp = false) }
+                editorFlow.value = ProductEditorState(
+                    rawIngredientsText = recognized,
+                    parsedMatches = inciMatches,
+                    source = "OCR"
+                )
+                return@launch
+            }
+
+            // 4. Otherwise search offline presets + anonymous Open Beauty Facts text query
+            val searchTerm = extractedQuery.ifBlank { recognized.take(40) }
+            searchQueryFlow.value = searchTerm
+            lookupStateFlow.update { it.copy(presetMatches = presetHits) }
+
+            when (val result = productRepository.searchRemoteByName(searchTerm)) {
+                is OpenBeautyFactsSearchResult.Success -> {
+                    if (result.products.isNotEmpty() || presetHits.isNotEmpty()) {
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                remoteResults = result.products,
+                                presetMatches = presetHits,
+                                offlineFallbackMessage = null
+                            )
+                        }
+                    } else {
+                        lookupStateFlow.update { it.copy(isLookingUp = false) }
+                        editorFlow.value = ProductEditorState(
+                            name = searchTerm,
+                            rawIngredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                            parsedMatches = inciMatches,
+                            source = "SMART_OCR"
+                        )
+                    }
+                }
+                is OpenBeautyFactsSearchResult.OfflineOrError -> {
+                    if (presetHits.isNotEmpty()) {
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                presetMatches = presetHits,
+                                offlineFallbackMessage = null
+                            )
+                        }
+                    } else {
+                        lookupStateFlow.update { it.copy(isLookingUp = false) }
+                        editorFlow.value = ProductEditorState(
+                            name = searchTerm,
+                            rawIngredientsText = if (inciMatches.isNotEmpty()) recognized else "",
+                            parsedMatches = inciMatches,
+                            source = "SMART_OCR"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun onBarcodeBitmapCaptured(bitmap: Bitmap?) {
         if (bitmap == null) return
         viewModelScope.launch {
