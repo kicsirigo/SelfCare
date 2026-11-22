@@ -79,8 +79,9 @@ class Tier2BoundaryCornerTest {
             checkInViewModel.assessLightingFromBitmap(darkBitmap)
         }
 
-        composeRule.waitUntilTagExists("checkin_lighting_warning")
-        composeRule.onNodeWithTag("checkin_lighting_warning").performScrollTo().assertIsDisplayed()
+        composeRule.waitUntilTagExists("checkin_brightness_badge")
+        composeRule.onNodeWithTag("checkin_brightness_badge").assertIsDisplayed()
+        composeRule.onNodeWithTag("checkin_capture_btn").assertIsDisplayed()
     }
 
     @Test

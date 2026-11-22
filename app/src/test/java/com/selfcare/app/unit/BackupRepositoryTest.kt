@@ -176,4 +176,19 @@ class BackupRepositoryTest {
         assertTrue(backupRepository.importFromJson("").isFailure)
         assertTrue(backupRepository.importFromJson("{not-valid-json").isFailure)
     }
+
+    @Test
+    fun sanitizePhotoPath_rejectsExternalAndTraversalPaths() {
+        val checkInsDir = tempFolder.newFolder("checkins")
+        val validFile = java.io.File(checkInsDir, "checkin_123.jpg")
+        val traversal = "${checkInsDir.absolutePath}/../secrets.txt"
+
+        assertEquals(
+            validFile.canonicalPath,
+            BackupRepository.sanitizePhotoPath(validFile.absolutePath, checkInsDir)
+        )
+        assertEquals(null, BackupRepository.sanitizePhotoPath("/etc/passwd", checkInsDir))
+        assertEquals(null, BackupRepository.sanitizePhotoPath(traversal, checkInsDir))
+        assertEquals(null, BackupRepository.sanitizePhotoPath(validFile.absolutePath, null))
+    }
 }

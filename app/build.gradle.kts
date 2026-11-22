@@ -28,8 +28,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.2.6"
+        versionCode = 12
+        versionName = "1.2.7"
 
         buildConfigField(
             "String",
@@ -70,10 +70,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             val releaseSigning = signingConfigs.getByName("release")
-            signingConfig = if (releaseSigning.storeFile?.exists() == true) {
-                releaseSigning
-            } else {
-                signingConfigs.getByName("debug")
+            if (releaseSigning.storeFile?.exists() == true) {
+                signingConfig = releaseSigning
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -1,9 +1,14 @@
 package com.selfcare.app.unit
 
+import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.data.remote.GeminiVisionProductClient
 import com.selfcare.app.data.remote.GeminiVisionResult
 import com.selfcare.app.domain.inci.InciConflictDetector
+import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -86,5 +91,37 @@ class GeminiVisionProductClientTest {
         val result = client.parseGeminiResponseJson(raw)
         assertTrue(result is GeminiVisionResult.Error)
         assertEquals("NO_PRODUCT_IDENTIFIED", (result as GeminiVisionResult.Error).reason)
+    }
+
+    @Test
+    fun testApiKey_sendsKeyInHeaderNotQueryParamAndRedactsKeyInErrors() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val secretKey = "AIzaSyTestSecretKey123456"
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"candidates":[]}"""))
+
+            val mockClient = GeminiVisionProductClient(baseUrl = server.url("/").toString())
+            val okResult = mockClient.testApiKey(secretKey)
+            assertTrue(okResult is GeminiKeyTestResult.Success)
+
+            val recorded = server.takeRequest()
+            assertEquals(secretKey, recorded.getHeader("x-goog-api-key"))
+            assertFalse("API key must not appear in URL query", recorded.path.orEmpty().contains("key="))
+            assertFalse("API key value must not appear in path", recorded.path.orEmpty().contains(secretKey))
+
+            // Verify error responses scrub any leaked API key or URL
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(400)
+                    .setBody("""{"error":{"message":"Invalid key $secretKey at https://generativelanguage.googleapis.com/v1beta?key=$secretKey"}}""")
+            )
+            val errResult = mockClient.testApiKey(secretKey)
+            assertTrue(errResult is GeminiKeyTestResult.Failure)
+            val reason = (errResult as GeminiKeyTestResult.Failure).reason
+            assertFalse("Error message must not leak API key", reason.contains(secretKey))
+        } finally {
+            server.shutdown()
+        }
     }
 }

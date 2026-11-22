@@ -16,7 +16,7 @@ object SmartScanQueryExtractor {
     )
     private val mostlyDigitsRegex = Regex("""^[\d\s\-./,:;()]+$""")
     private val boilerplatePrefixRegex = Regex(
-        """^(ingredients|inci|összetevők|osszetevok|composition|aqua|water|www\.|http|lot|exp|mfg|made in|for external use|külsőleges|developed with|fragrance[- ]?free|gently|clinically|new|új|uj|original|bestseller|limited)\b.*$""",
+        """^(ingredients|inci|összetevők|osszetevok|composition|aqua|water|www\.|http|lot|exp|mfg|made in|for external use|for normal|for dry|for oily|for sensitive|külsőleges|developed with|fragrance[- ]?free|gently|clinically|new|új|uj|original|bestseller|limited)\b.*$""",
         RegexOption.IGNORE_CASE
     )
     private val multiSpaceRegex = Regex("""\s+""")

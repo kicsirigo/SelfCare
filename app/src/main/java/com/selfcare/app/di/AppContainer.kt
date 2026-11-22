@@ -49,7 +49,8 @@ open class AppContainer(
         BackupRepository(
             database = database,
             settingsRepository = settingsRepository,
-            clock = clock
+            clock = clock,
+            checkInsDir = java.io.File(context.filesDir, "checkins")
         )
     }
 

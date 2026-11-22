@@ -17,6 +17,8 @@ import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.time.Clock
 
@@ -120,7 +122,8 @@ data class ImportSummary(
 class BackupRepository(
     private val database: SelfCareDatabase,
     private val settingsRepository: SettingsRepository,
-    private val clock: Clock = Clock.systemDefaultZone()
+    private val clock: Clock = Clock.systemDefaultZone(),
+    private val checkInsDir: File? = null
 ) {
 
     private val json = Json {
@@ -154,6 +157,9 @@ class BackupRepository(
         if (rawJson.isBlank()) {
             return Result.failure(IllegalArgumentException("Backup JSON is empty"))
         }
+        if (rawJson.toByteArray(Charsets.UTF_8).size > MAX_BACKUP_BYTES) {
+            return Result.failure(IllegalArgumentException("Backup JSON exceeds maximum allowed size"))
+        }
 
         val payload = runCatching {
             json.decodeFromString<SelfCareBackupPayload>(rawJson)
@@ -177,7 +183,9 @@ class BackupRepository(
 
                 payload.routineLogs.forEach { database.routineDao().upsert(it.toEntity()) }
                 payload.products.forEach { database.productDao().insert(it.toEntity()) }
-                payload.faceCheckIns.forEach { database.faceCheckInDao().insert(it.toEntity()) }
+                payload.faceCheckIns.forEach {
+                    database.faceCheckInDao().insert(it.toEntity(sanitizePhotoPath(it.photoPath, checkInsDir)))
+                }
                 payload.hygieneLogs.forEach { database.hygieneDao().upsert(it.toEntity()) }
                 payload.haircutBaselines.forEach {
                     database.haircutBaselineDao().insert(it.toEntity())
@@ -217,7 +225,21 @@ class BackupRepository(
         val rawJson = runCatching {
             val inputStream = contentResolver.openInputStream(uri)
                 ?: throw IOException("Unable to open input stream for $uri")
-            inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            inputStream.use { input ->
+                val buffer = ByteArray(8 * 1024)
+                val out = ByteArrayOutputStream()
+                var totalRead = 0
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read == -1) break
+                    totalRead += read
+                    if (totalRead > MAX_BACKUP_BYTES) {
+                        throw IOException("Backup file exceeds maximum allowed size ($MAX_BACKUP_BYTES bytes)")
+                    }
+                    out.write(buffer, 0, read)
+                }
+                out.toString(Charsets.UTF_8.name())
+            }
         }.getOrElse { error ->
             return Result.failure(error)
         }
@@ -226,6 +248,22 @@ class BackupRepository(
 
     companion object {
         const val CURRENT_SCHEMA_VERSION = 1
+        const val MAX_BACKUP_BYTES = 10 * 1024 * 1024
+
+        fun sanitizePhotoPath(rawPath: String?, allowedCheckInsDir: File?): String? {
+            if (rawPath.isNullOrBlank() || allowedCheckInsDir == null) return null
+            if (rawPath.contains('\u0000')) return null
+            return runCatching {
+                val baseCanonical = allowedCheckInsDir.canonicalFile
+                val targetCanonical = File(rawPath).canonicalFile
+                val allowedPrefix = baseCanonical.path + File.separator
+                if (targetCanonical.path.startsWith(allowedPrefix) && targetCanonical.parentFile == baseCanonical) {
+                    targetCanonical.absolutePath
+                } else {
+                    null
+                }
+            }.getOrNull()
+        }
     }
 }
 
@@ -324,7 +362,7 @@ private fun FaceCheckInEntity.toBackup(): BackupFaceCheckIn = BackupFaceCheckIn(
     notes = notes
 )
 
-private fun BackupFaceCheckIn.toEntity(): FaceCheckInEntity = FaceCheckInEntity(
+private fun BackupFaceCheckIn.toEntity(sanitizedPhotoPath: String?): FaceCheckInEntity = FaceCheckInEntity(
     id = id,
     dateEpochDay = dateEpochDay,
     timestampEpochMillis = timestampEpochMillis,
@@ -334,7 +372,7 @@ private fun BackupFaceCheckIn.toEntity(): FaceCheckInEntity = FaceCheckInEntity(
     lipDrynessScore = lipDrynessScore,
     hairToFaceRatio = hairToFaceRatio,
     lightingQualityScore = lightingQualityScore,
-    photoPath = photoPath,
+    photoPath = sanitizedPhotoPath,
     notes = notes
 )
 

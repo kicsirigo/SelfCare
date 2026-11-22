@@ -146,12 +146,30 @@ class OpenBeautyFactsClient(
 
     suspend fun fetchProductThumbnail(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
         val clean = imageUrl.trim()
-        if (!clean.startsWith("http://") && !clean.startsWith("https://")) return@withContext null
+        if (!clean.startsWith("https://", ignoreCase = true)) return@withContext null
         try {
             val request = Request.Builder().url(clean).get().build()
             okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
-                val bytes = response.body?.bytes() ?: return@withContext null
+                val body = response.body ?: return@withContext null
+                val contentLength = body.contentLength()
+                if (contentLength > MAX_THUMBNAIL_BYTES) return@withContext null
+
+                val buffer = ByteArray(8 * 1024)
+                val out = java.io.ByteArrayOutputStream()
+                var totalRead = 0
+                body.byteStream().use { input ->
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        totalRead += read
+                        if (totalRead > MAX_THUMBNAIL_BYTES) {
+                            return@withContext null
+                        }
+                        out.write(buffer, 0, read)
+                    }
+                }
+                val bytes = out.toByteArray()
                 if (bytes.isEmpty()) return@withContext null
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
             }
@@ -205,6 +223,8 @@ class OpenBeautyFactsClient(
     }
 
     companion object {
+        const val MAX_THUMBNAIL_BYTES = 5 * 1024 * 1024
+
         fun defaultOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)

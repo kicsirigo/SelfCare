@@ -79,9 +79,10 @@ class GeminiVisionProductClient(
                         })
                     }.toString()
 
-                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent?key=$cleanKey"
+                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
                     val request = Request.Builder()
                         .url(url)
+                        .header("x-goog-api-key", cleanKey)
                         .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
                         .build()
 
@@ -90,7 +91,7 @@ class GeminiVisionProductClient(
                         if (response.isSuccessful) {
                             return@withContext GeminiKeyTestResult.Success(model)
                         }
-                        val apiMsg = extractApiErrorMessage(bodyStr)
+                        val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
                         lastError = "HTTP ${response.code} ($model): $apiMsg"
                         // Auth/key errors won't be fixed by trying another model
                         if (response.code == 400 || response.code == 401 || response.code == 403) {
@@ -98,7 +99,7 @@ class GeminiVisionProductClient(
                         }
                     }
                 } catch (e: Exception) {
-                    lastError = "${e::class.simpleName}: ${e.message}"
+                    lastError = sanitizeExceptionReason(model, e)
                 }
             }
             GeminiKeyTestResult.Failure(lastError)
@@ -114,25 +115,26 @@ class GeminiVisionProductClient(
             val base64Image = try {
                 encodeBitmapToBase64Jpeg(bitmap)
             } catch (e: Exception) {
-                return@withContext GeminiVisionResult.Error("Image encode error: ${e.message}")
+                return@withContext GeminiVisionResult.Error("Image encode error (${e::class.simpleName})")
             }
 
             var lastError = "Unknown Gemini error"
             for (model in MODEL_FALLBACK_CHAIN) {
                 try {
                     val payload = buildRequestPayload(base64Image, disableThinking = model.startsWith("gemini-2.5"))
-                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent?key=$cleanKey"
+                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
                     val request = Request.Builder()
                         .url(url)
+                        .header("x-goog-api-key", cleanKey)
                         .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
                         .build()
 
                     httpClient.newCall(request).execute().use { response ->
                         val bodyStr = response.body?.string().orEmpty()
                         if (!response.isSuccessful) {
-                            val apiMsg = extractApiErrorMessage(bodyStr)
+                            val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
                             lastError = "HTTP ${response.code} ($model): $apiMsg"
-                            // If 404/429/503, try next fallback model; if 400/401/403 key error, stop immediately
+                            // If 404/429/503, try next fallback model; if 401/403 key error, stop immediately
                             if (response.code == 401 || response.code == 403) {
                                 return@withContext GeminiVisionResult.Error(lastError)
                             }
@@ -148,7 +150,7 @@ class GeminiVisionProductClient(
                         }
                     }
                 } catch (e: Exception) {
-                    lastError = "$model ${e::class.simpleName}: ${e.message}"
+                    lastError = sanitizeExceptionReason(model, e)
                 }
             }
             GeminiVisionResult.Error(lastError)
@@ -196,13 +198,29 @@ class GeminiVisionProductClient(
         }
     }
 
-    private fun extractApiErrorMessage(body: String): String {
+    private fun extractApiErrorMessage(body: String, apiKey: String): String {
         if (body.isBlank()) return "Empty error response"
-        return runCatching {
+        val raw = runCatching {
             val root = json.parseToJsonElement(body).jsonObject
             root["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
                 ?.take(140)
         }.getOrNull() ?: body.take(140)
+        return sanitizeSensitiveText(raw, apiKey)
+    }
+
+    private fun sanitizeExceptionReason(model: String, e: Exception): String {
+        val typeName = e::class.simpleName ?: "Exception"
+        return "$model: Network/request error ($typeName)"
+    }
+
+    private fun sanitizeSensitiveText(text: String, apiKey: String): String {
+        var sanitized = text
+        if (apiKey.isNotEmpty()) {
+            sanitized = sanitized.replace(apiKey, "[REDACTED]")
+        }
+        return sanitized
+            .replace(Regex("key=[^&\\s]+", RegexOption.IGNORE_CASE), "key=[REDACTED]")
+            .replace(Regex("https?://\\S+", RegexOption.IGNORE_CASE), "[URL]")
     }
 
     private fun buildRequestPayload(base64Image: String, disableThinking: Boolean): String {

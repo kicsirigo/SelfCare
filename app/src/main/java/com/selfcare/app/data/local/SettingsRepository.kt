@@ -49,10 +49,14 @@ private val Context.selfCareSettingsDataStore: DataStore<Preferences> by prefere
 )
 
 class SettingsRepository(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val secretCipher: SecretTextCipher = AndroidKeystoreSecretCipher
 ) {
 
     val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
+        val decryptedApiKey = prefs[KEY_GEMINI_API_KEY_ENC]
+            ?.let { secretCipher.decrypt(it) }
+            .orEmpty()
         UserSettings(
             themeMode = ThemeMode.entries.firstOrNull {
                 it.name == prefs[KEY_THEME_MODE]
@@ -71,7 +75,7 @@ class SettingsRepository(
                     UserSettings.MIN_HAIRCUT_THRESHOLD_PERCENT,
                     UserSettings.MAX_HAIRCUT_THRESHOLD_PERCENT
                 ),
-            geminiApiKey = prefs[KEY_GEMINI_API_KEY].orEmpty()
+            geminiApiKey = decryptedApiKey
         )
     }
 
@@ -121,8 +125,20 @@ class SettingsRepository(
     }
 
     suspend fun setGeminiApiKey(apiKey: String) {
+        val clean = apiKey.trim()
         dataStore.edit { prefs ->
-            prefs[KEY_GEMINI_API_KEY] = apiKey.trim()
+            // Always scrub any legacy plaintext key
+            prefs.remove(KEY_GEMINI_API_KEY)
+            if (clean.isEmpty()) {
+                prefs.remove(KEY_GEMINI_API_KEY_ENC)
+            } else {
+                val encrypted = secretCipher.encrypt(clean)
+                if (!encrypted.isNullOrEmpty()) {
+                    prefs[KEY_GEMINI_API_KEY_ENC] = encrypted
+                } else {
+                    prefs.remove(KEY_GEMINI_API_KEY_ENC)
+                }
+            }
         }
     }
 
@@ -158,6 +174,7 @@ class SettingsRepository(
         private val KEY_HAIRCUT_THRESHOLD_PERCENT =
             intPreferencesKey("haircut_threshold_percent")
         private val KEY_GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        private val KEY_GEMINI_API_KEY_ENC = stringPreferencesKey("gemini_api_key_enc")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)
