@@ -582,12 +582,14 @@ object FaceMetricCalculator {
             val meanA = (sumA / count).toFloat()
             val meanL = (sumL / count).toFloat()
 
-            // Candidate inflamed/blemish mask: locally redder than surrounding skin & not bright specular glare
+            // Candidate inflamed/blemish mask: locally redder than surrounding skin OR localized dark mark
             val mask = BooleanArray(count)
             for (i in 0 until count) {
                 val deltaA = aVals[i] - meanA
                 val deltaL = lVals[i] - meanL
-                if (deltaA > 4.6f && deltaL < 3.5f) {
+                val isInflamedRedSpot = deltaA > 3.2f && deltaL < 4.0f
+                val isDarkBlemishMark = deltaL < -7.5f && deltaA > 1.0f
+                if (isInflamedRedSpot || isDarkBlemishMark) {
                     mask[i] = true
                 }
             }
@@ -635,12 +637,12 @@ object FaceMetricCalculator {
 
                 if (area in minSpotArea..maxSpotArea) {
                     totalSpots++
-                    severitySum += (peakDeltaA / 12f).coerceIn(0.4f, 1.5f)
+                    severitySum += (peakDeltaA / 9.5f).coerceIn(0.45f, 1.5f)
                 }
             }
         }
 
-        val normalizedScore = (severitySum / 14f).coerceIn(0f, 1f)
+        val normalizedScore = (severitySum / 9.5f).coerceIn(0f, 1f)
         return BlemishMetrics(
             blemishScore = normalizedScore,
             estimatedSpotCount = totalSpots
@@ -680,8 +682,8 @@ object FaceMetricCalculator {
         val extraRoughness = (jawTexture - refTexture * 0.85f).coerceAtLeast(0f)
 
         // Combine lower-face darkening (shadow/follicle density) and extra stubble micro-texture
-        val darkComponent = (darkening / 18f).coerceIn(0f, 1f)
-        val roughComponent = (extraRoughness / 22f).coerceIn(0f, 1f)
+        val darkComponent = (darkening / 12f).coerceIn(0f, 1f)
+        val roughComponent = (extraRoughness / 12f).coerceIn(0f, 1f)
         return (darkComponent * 0.55f + roughComponent * 0.45f).coerceIn(0f, 1f)
     }
 

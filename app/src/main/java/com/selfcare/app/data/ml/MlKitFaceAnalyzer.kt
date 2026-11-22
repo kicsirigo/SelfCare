@@ -98,8 +98,8 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
             )
         }
 
-        // Downscale huge camera captures (e.g. 12MP+) so ML Kit & pixel analysis stay fast and never OOM
-        val workBitmap = downscaleIfNeeded(bitmap, maxDim = 720)
+        // Downscale huge camera captures (e.g. 12MP+) to 1080px to preserve pores, blemishes & stubble while avoiding OOM
+        val workBitmap = downscaleIfNeeded(bitmap, maxDim = 1080)
         val width = workBitmap.width
         val height = workBitmap.height
 

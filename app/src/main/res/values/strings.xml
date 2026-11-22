@@ -357,4 +357,21 @@
     <string name="nutrient_iron">Iron</string>
     <string name="nutrient_calcium">Calcium</string>
     <string name="nutrient_omega_3">Omega-3 (EPA + DHA)</string>
+
+    <!-- v2.3.0: Holistic medication, vitamin, routine & hygiene-aware tips -->
+    <string name="tip_isotretinoin_vitamin_a_warning">Safety note (%1$s): avoid extra Vitamin A supplements while on isotretinoin therapy — verify with your dermatologist.</string>
+    <string name="tip_blemishes_systemic_med">You are on %1$s — avoid harsh acne acids or scrubs, stick to a gentle cleanser + barrier moisturizer, and follow your dermatologist.</string>
+    <string name="tip_blemishes_with_supplement">Your shelf includes %1$s for internal skin support — pair it with a gentle cleanser and avoid picking spots.</string>
+    <string name="tip_redness_systemic_med">Redness and sensitivity are common during %1$s — focus strictly on soothing barrier hydration and avoid exfoliating acids.</string>
+    <string name="tip_texture_systemic_med">Do not exfoliate while on %1$s — smooth skin texture safely with rich barrier-repair hydration instead.</string>
+    <string name="tip_texture_with_supplement">Support skin smoothness alongside %1$s on your shelf with steady hydration and a gentle barrier moisturizer.</string>
+    <string name="tip_under_eye_with_product">Brighten under-eyes with %1$s from your shelf alongside 7.5–8h sleep and good hydration.</string>
+    <string name="tip_under_eye_with_supplement">Stay consistent with %1$s from your shelf, prioritize 7.5–8h sleep, and hydrate well for fresher under-eyes.</string>
+    <string name="tip_lips_systemic_med">Isotretinoin (%1$s) strongly dries lips — reapply a thick occlusive lip balm frequently throughout the day and night.</string>
+    <string name="tip_lips_unlogged_with_product">Dry lips detected and no lip balm logged today — apply %1$s from your shelf and log it in Hygiene.</string>
+    <string name="tip_lips_unlogged">Dry lips detected and no lip balm logged today — apply an occlusive lip balm now.</string>
+    <string name="tip_shave_with_actives">Time to shave — because you use %1$s, shave gently with a sharp blade and skip harsh actives right after.</string>
+    <string name="tip_shave_with_aftershave">Time to shave — follow up with %1$s from your shelf to calm the jawline afterward.</string>
+    <string name="tip_routine_reminder">You have not logged today\'s skincare routine yet — staying consistent helps improve your score.</string>
+    <string name="hair_shelf_support_note">Hair care on shelf: %1$s</string>
 </resources>

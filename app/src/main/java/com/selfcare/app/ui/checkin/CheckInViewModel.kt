@@ -10,7 +10,10 @@ import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.repository.CheckInSubmissionResult
 import com.selfcare.app.data.repository.FaceCheckInRepository
+import com.selfcare.app.data.repository.HygieneRepository
 import com.selfcare.app.data.repository.ProductRepository
+import com.selfcare.app.data.repository.RoutineRepository
+import com.selfcare.app.domain.cv.CheckInDailyContext
 import com.selfcare.app.domain.cv.HaircutTracker
 import com.selfcare.app.domain.cv.LightingAssessment
 import com.selfcare.app.domain.cv.LightingQualityChecker
@@ -52,7 +55,8 @@ data class CheckInUiState(
     val shaveIntervalDays: Int = UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS,
     val daysSinceLastShave: Int? = null,
     val isShaveReminderDue: Boolean = false,
-    val shelfProducts: List<ShelfProductSummary> = emptyList()
+    val shelfProducts: List<ShelfProductSummary> = emptyList(),
+    val dailyContext: CheckInDailyContext = CheckInDailyContext()
 )
 
 class CheckInViewModel(
@@ -60,7 +64,9 @@ class CheckInViewModel(
     private val haircutTracker: HaircutTracker,
     private val settingsRepository: SettingsRepository,
     private val faceAnalyzer: FaceAnalyzer? = null,
-    private val productRepository: ProductRepository? = null
+    private val productRepository: ProductRepository? = null,
+    private val routineRepository: RoutineRepository? = null,
+    private val hygieneRepository: HygieneRepository? = null
 ) : ViewModel() {
 
     private data class TransientState(
@@ -83,13 +89,46 @@ class CheckInViewModel(
     private var liveFaceCheckJob: Job? = null
     private var cooldownJob: Job? = null
 
+    private val dailyContextFlow = combine(
+        routineRepository?.observeAllLogs() ?: flowOf(emptyList()),
+        hygieneRepository?.observeAllLogs() ?: flowOf(emptyList())
+    ) { routineLogs, hygieneLogs ->
+        val today = faceCheckInRepository.currentEpochDay()
+        val todayRoutines = routineLogs.filter { it.dateEpochDay == today }
+        val morningDone = todayRoutines.any { it.period.equals("MORNING", ignoreCase = true) }
+        val eveningDone = todayRoutines.any { it.period.equals("EVENING", ignoreCase = true) }
+        val lipBalmDone = hygieneLogs.any {
+            it.dateEpochDay == today &&
+                it.completed &&
+                (it.habitKey.contains("lip", ignoreCase = true) ||
+                    it.label.contains("lip", ignoreCase = true) ||
+                    it.label.contains("ajak", ignoreCase = true))
+        }
+        CheckInDailyContext(
+            morningRoutineDone = morningDone,
+            eveningRoutineDone = eveningDone,
+            lipBalmLoggedToday = lipBalmDone
+        )
+    }
+
     val uiState: StateFlow<CheckInUiState> = combine(
         transientState,
         settingsRepository.settings,
         haircutTracker.observeActiveBaseline(),
         faceCheckInRepository.observeRecentCheckIns(1),
-        productRepository?.observeAllProducts() ?: flowOf(emptyList())
-    ) { transient, settings, baseline, recentCheckIns, products ->
+        productRepository?.observeAllProducts() ?: flowOf(emptyList<com.selfcare.app.data.local.entity.ProductEntity>()),
+        dailyContextFlow
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        val transient = values[0] as TransientState
+        val settings = values[1] as UserSettings
+        val baseline = values[2] as HaircutBaselineEntity?
+        @Suppress("UNCHECKED_CAST")
+        val recentCheckIns = values[3] as List<FaceCheckInEntity>
+        @Suppress("UNCHECKED_CAST")
+        val products = values[4] as List<com.selfcare.app.data.local.entity.ProductEntity>
+        val dailyCtx = values[5] as CheckInDailyContext
+
         val latest = recentCheckIns.firstOrNull()
         val latestRatio = transient.lastResult?.checkIn?.hairToFaceRatio ?: latest?.hairToFaceRatio
         val growthPercent = if (baseline != null && latestRatio != null) {
@@ -109,7 +148,7 @@ class CheckInViewModel(
         val daysSinceShave = settings.lastShaveEpochDay?.let { (todayEpochDay - it).toInt().coerceAtLeast(0) }
         val latestStubble = transient.lastResult?.checkIn?.stubbleScore ?: latest?.stubbleScore ?: 0f
         val shaveDue = (daysSinceShave != null && daysSinceShave >= settings.shaveIntervalDays) ||
-            latestStubble >= 0.62f
+            latestStubble >= 0.52f
 
         val shelfSummaries = products.map { p ->
             ShelfProductSummary(
@@ -142,7 +181,8 @@ class CheckInViewModel(
             shaveIntervalDays = settings.shaveIntervalDays,
             daysSinceLastShave = daysSinceShave,
             isShaveReminderDue = shaveDue,
-            shelfProducts = shelfSummaries
+            shelfProducts = shelfSummaries,
+            dailyContext = dailyCtx
         )
     }.stateIn(
         scope = viewModelScope,
@@ -307,7 +347,9 @@ class CheckInViewModel(
             haircutTracker: HaircutTracker,
             settingsRepository: SettingsRepository,
             faceAnalyzer: FaceAnalyzer? = null,
-            productRepository: ProductRepository? = null
+            productRepository: ProductRepository? = null,
+            routineRepository: RoutineRepository? = null,
+            hygieneRepository: HygieneRepository? = null
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -316,7 +358,9 @@ class CheckInViewModel(
                     haircutTracker = haircutTracker,
                     settingsRepository = settingsRepository,
                     faceAnalyzer = faceAnalyzer,
-                    productRepository = productRepository
+                    productRepository = productRepository,
+                    routineRepository = routineRepository,
+                    hygieneRepository = hygieneRepository
                 ) as T
             }
         }

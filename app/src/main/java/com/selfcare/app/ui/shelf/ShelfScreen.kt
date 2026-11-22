@@ -719,17 +719,6 @@ fun ShelfScreenContent(
                 )
             }
 
-            // Quick-Add Presets (Rx creams, Hair & Scalp, Skincare, Vitamins, Medications)
-            item {
-                QuickPresetsCard(
-                    selectedGroup = state.selectedPresetGroup,
-                    presets = state.visiblePresets,
-                    addedIds = state.addedPresetIds,
-                    onSelectGroup = onSelectPresetGroup,
-                    onAddPreset = onAddPreset
-                )
-            }
-
             item {
                 Spacer(modifier = Modifier.height(12.dp))
             }

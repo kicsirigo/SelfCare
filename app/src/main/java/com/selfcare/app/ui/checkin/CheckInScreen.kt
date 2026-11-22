@@ -9,9 +9,13 @@ import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Matrix
+import android.hardware.camera2.CaptureRequest
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -85,6 +89,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
+import com.selfcare.app.domain.cv.CheckInDailyContext
 import com.selfcare.app.domain.cv.ImprovementTipCode
 import com.selfcare.app.domain.cv.LightingQualityChecker
 import com.selfcare.app.domain.cv.LightingWarningReason
@@ -95,6 +100,7 @@ import com.selfcare.app.domain.cv.TipVariant
 import com.selfcare.app.ui.components.HairHealthAnalysisCard
 import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.components.MetricGaugeRow
+import com.selfcare.app.ui.components.statusLevelColor
 import com.selfcare.app.ui.icons.AppIcons
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -374,7 +380,8 @@ fun CheckInScreen(
                 blemishCount = latest.blemishCount,
                 stubbleScore = latest.stubbleScore,
                 shaveDue = uiState.isShaveReminderDue,
-                shelfProducts = uiState.shelfProducts
+                shelfProducts = uiState.shelfProducts,
+                dailyContext = uiState.dailyContext
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -384,7 +391,8 @@ fun CheckInScreen(
                     templeSymmetryScore = 0.88f
                 ),
                 growthPercent = uiState.currentHairGrowthPercent,
-                thresholdPercent = uiState.haircutThresholdPercent
+                thresholdPercent = uiState.haircutThresholdPercent,
+                hairSupportProduct = MetricInterpreter.findHairSupportProduct(uiState.shelfProducts)
             )
         }
 
@@ -458,6 +466,7 @@ private fun MissingCameraPermissionCard(
     }
 }
 
+@OptIn(ExperimentalCamera2Interop::class)
 @Composable
 private fun CameraPreviewCard(
     cameraUnavailable: Boolean,
@@ -507,9 +516,29 @@ private fun CameraPreviewCard(
                             val preview = Preview.Builder().build().apply {
                                 surfaceProvider = previewView.surfaceProvider
                             }
-                            val capture = ImageCapture.Builder()
-                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                                .build()
+                            val captureBuilder = ImageCapture.Builder()
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                            // Minimize OEM skin-smoothing / beauty post-processing for honest CV skin metrics
+                            runCatching {
+                                Camera2Interop.Extender(captureBuilder)
+                                    .setCaptureRequestOption(
+                                        CaptureRequest.NOISE_REDUCTION_MODE,
+                                        CaptureRequest.NOISE_REDUCTION_MODE_MINIMAL
+                                    )
+                                    .setCaptureRequestOption(
+                                        CaptureRequest.EDGE_MODE,
+                                        CaptureRequest.EDGE_MODE_OFF
+                                    )
+                                    .setCaptureRequestOption(
+                                        CaptureRequest.CONTROL_SCENE_MODE,
+                                        CaptureRequest.CONTROL_SCENE_MODE_DISABLED
+                                    )
+                                    .setCaptureRequestOption(
+                                        CaptureRequest.CONTROL_EFFECT_MODE,
+                                        CaptureRequest.CONTROL_EFFECT_MODE_OFF
+                                    )
+                            }
+                            val capture = captureBuilder.build()
 
                             var lastAnalyzedMs = 0L
                             val analysis = ImageAnalysis.Builder()
@@ -792,7 +821,8 @@ private fun CheckInResultSummaryCard(
     blemishCount: Int = 0,
     stubbleScore: Float = 0f,
     shaveDue: Boolean = false,
-    shelfProducts: List<ShelfProductSummary> = emptyList()
+    shelfProducts: List<ShelfProductSummary> = emptyList(),
+    dailyContext: CheckInDailyContext = CheckInDailyContext()
 ) {
     val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
     val rednessEval = MetricInterpreter.interpretRedness(redness)
@@ -809,9 +839,11 @@ private fun CheckInResultSummaryCard(
         blemishCount = blemishCount,
         stubbleScore = stubbleScore,
         shaveDue = shaveDue,
-        shelfProducts = shelfProducts
+        shelfProducts = shelfProducts,
+        dailyContext = dailyContext
     )
     val ratingText = String.format(Locale.US, "%.1f", ratingSummary.scoreOutOfTen)
+    val ratingAccent = statusLevelColor(ratingSummary.level)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -831,7 +863,8 @@ private fun CheckInResultSummaryCard(
                     progress = (ratingSummary.scoreOutOfTen / 10f).coerceIn(0.05f, 1f),
                     centerValue = ratingText,
                     centerSubtitle = "/ 10",
-                    ringSize = 92.dp
+                    ringSize = 92.dp,
+                    accentColor = ratingAccent
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -888,38 +921,64 @@ private fun CheckInResultSummaryCard(
                     ratingSummary.contextualTips.forEach { tip ->
                         val productName = tip.matchedProductName
                         val tipText = when (tip.code) {
-                            ImprovementTipCode.BLEMISHES -> {
-                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                            ImprovementTipCode.ISOTRETINOIN_VITAMIN_A_WARNING -> {
+                                stringResource(
+                                    R.string.tip_isotretinoin_vitamin_a_warning,
+                                    productName.orEmpty()
+                                )
+                            }
+                            ImprovementTipCode.BLEMISHES -> when {
+                                tip.variant == TipVariant.SYSTEMIC_MEDICATION_CARE && productName != null ->
+                                    stringResource(R.string.tip_blemishes_systemic_med, productName)
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
                                     stringResource(R.string.tip_blemishes_with_product, productName)
-                                } else {
-                                    stringResource(R.string.tip_blemishes)
-                                }
+                                tip.variant == TipVariant.HAS_SUPPLEMENT_SUPPORT && productName != null ->
+                                    stringResource(R.string.tip_blemishes_with_supplement, productName)
+                                else -> stringResource(R.string.tip_blemishes)
                             }
-                            ImprovementTipCode.REDNESS -> {
-                                when {
-                                    tip.variant == TipVariant.ACTIVE_IRRITATION_CAUTION && productName != null ->
-                                        stringResource(R.string.tip_redness_active_caution, productName)
-                                    tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
-                                        stringResource(R.string.tip_redness_with_product, productName)
-                                    else -> stringResource(R.string.tip_redness)
-                                }
+                            ImprovementTipCode.REDNESS -> when {
+                                tip.variant == TipVariant.SYSTEMIC_MEDICATION_CARE && productName != null ->
+                                    stringResource(R.string.tip_redness_systemic_med, productName)
+                                tip.variant == TipVariant.ACTIVE_IRRITATION_CAUTION && productName != null ->
+                                    stringResource(R.string.tip_redness_active_caution, productName)
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
+                                    stringResource(R.string.tip_redness_with_product, productName)
+                                else -> stringResource(R.string.tip_redness)
                             }
-                            ImprovementTipCode.TEXTURE -> {
-                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                            ImprovementTipCode.TEXTURE -> when {
+                                tip.variant == TipVariant.SYSTEMIC_MEDICATION_CARE && productName != null ->
+                                    stringResource(R.string.tip_texture_systemic_med, productName)
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
                                     stringResource(R.string.tip_texture_with_product, productName)
-                                } else {
-                                    stringResource(R.string.tip_texture)
-                                }
+                                tip.variant == TipVariant.HAS_SUPPLEMENT_SUPPORT && productName != null ->
+                                    stringResource(R.string.tip_texture_with_supplement, productName)
+                                else -> stringResource(R.string.tip_texture)
                             }
-                            ImprovementTipCode.UNDER_EYE -> stringResource(R.string.tip_under_eye)
-                            ImprovementTipCode.LIPS -> {
-                                if (tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null) {
+                            ImprovementTipCode.UNDER_EYE -> when {
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
+                                    stringResource(R.string.tip_under_eye_with_product, productName)
+                                tip.variant == TipVariant.HAS_SUPPLEMENT_SUPPORT && productName != null ->
+                                    stringResource(R.string.tip_under_eye_with_supplement, productName)
+                                else -> stringResource(R.string.tip_under_eye)
+                            }
+                            ImprovementTipCode.LIPS -> when {
+                                tip.variant == TipVariant.SYSTEMIC_MEDICATION_CARE && productName != null ->
+                                    stringResource(R.string.tip_lips_systemic_med, productName)
+                                tip.variant == TipVariant.HYGIENE_UNLOGGED_REMINDER && productName != null ->
+                                    stringResource(R.string.tip_lips_unlogged_with_product, productName)
+                                tip.variant == TipVariant.HYGIENE_UNLOGGED_REMINDER ->
+                                    stringResource(R.string.tip_lips_unlogged)
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
                                     stringResource(R.string.tip_lips_with_product, productName)
-                                } else {
-                                    stringResource(R.string.tip_lips)
-                                }
+                                else -> stringResource(R.string.tip_lips)
                             }
-                            ImprovementTipCode.SHAVE -> stringResource(R.string.tip_shave)
+                            ImprovementTipCode.SHAVE -> when {
+                                tip.variant == TipVariant.ACTIVE_IRRITATION_CAUTION && productName != null ->
+                                    stringResource(R.string.tip_shave_with_actives, productName)
+                                tip.variant == TipVariant.HAS_TARGETED_PRODUCT && productName != null ->
+                                    stringResource(R.string.tip_shave_with_aftershave, productName)
+                                else -> stringResource(R.string.tip_shave)
+                            }
                             ImprovementTipCode.SPF_WITH_ACTIVES -> {
                                 if (productName != null) {
                                     stringResource(R.string.tip_spf_with_actives, productName)
@@ -927,12 +986,17 @@ private fun CheckInResultSummaryCard(
                                     stringResource(R.string.tip_spf_generic)
                                 }
                             }
+                            ImprovementTipCode.ROUTINE_REMINDER -> stringResource(R.string.tip_routine_reminder)
                             ImprovementTipCode.MAINTAIN -> stringResource(R.string.tip_maintain)
                         }
                         Text(
                             text = "• $tipText",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = if (tip.code == ImprovementTipCode.ISOTRETINOIN_VITAMIN_A_WARNING) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            }
                         )
                     }
                 }

@@ -58,15 +58,15 @@ class PresetCatalogAndMetricInterpreterTest {
 
     @Test
     fun metricInterpreter_mapsRawValuesToHumanQualitativeLevels() {
-        assertEquals(MetricStatusLevel.OPTIMAL, MetricInterpreter.interpretUnderEye(5.0f).level)
-        assertEquals(MetricStatusLevel.GOOD, MetricInterpreter.interpretUnderEye(11.0f).level)
-        assertEquals(MetricStatusLevel.MODERATE, MetricInterpreter.interpretUnderEye(19.0f).level)
-        assertEquals(MetricStatusLevel.HIGH, MetricInterpreter.interpretUnderEye(28.0f).level)
+        assertEquals(MetricStatusLevel.OPTIMAL, MetricInterpreter.interpretUnderEye(4.5f).level)
+        assertEquals(MetricStatusLevel.GOOD, MetricInterpreter.interpretUnderEye(8.5f).level)
+        assertEquals(MetricStatusLevel.MODERATE, MetricInterpreter.interpretUnderEye(14.5f).level)
+        assertEquals(MetricStatusLevel.HIGH, MetricInterpreter.interpretUnderEye(22.0f).level)
 
         assertEquals(MetricStatusLevel.OPTIMAL, MetricInterpreter.interpretRedness(0.16f).level)
         assertEquals(MetricStatusLevel.HIGH, MetricInterpreter.interpretRedness(0.65f).level)
 
-        assertEquals(MetricStatusLevel.OPTIMAL, MetricInterpreter.interpretLipDryness(0.18f).level)
+        assertEquals(MetricStatusLevel.OPTIMAL, MetricInterpreter.interpretLipDryness(0.14f).level)
         assertEquals(MetricStatusLevel.HIGH, MetricInterpreter.interpretLipDryness(0.75f).level)
 
         val hairSummary = MetricInterpreter.interpretHairDetails(

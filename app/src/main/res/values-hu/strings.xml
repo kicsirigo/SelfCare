@@ -357,4 +357,21 @@
     <string name="nutrient_iron">Vas</string>
     <string name="nutrient_calcium">Kalcium</string>
     <string name="nutrient_omega_3">Omega-3 (EPA + DHA)</string>
+
+    <!-- v2.3.0: Holisztikus gyógyszer-, vitamin-, rutin- és higiénia-tudatos tanácsok -->
+    <string name="tip_isotretinoin_vitamin_a_warning">Biztonsági figyelmeztetés (%1$s): izotretinoin kúra mellett kerüld a plusz A-vitamint — egyeztesd a bőrgyógyászoddal!</string>
+    <string name="tip_blemishes_systemic_med">Mivel %1$s kezelés alatt állsz, kerüld a savas hámlasztókat és szárító krémeket — csak kíméletes lemosót és barrier-hidratálót használj, és kövesd a bőrgyógyászod utasítását.</string>
+    <string name="tip_blemishes_with_supplement">A polcodon lévő %1$s belülről támogatja a bőrödet — egészítsd ki kíméletes arctisztítással, és ne nyomkodd a foltokat.</string>
+    <string name="tip_redness_systemic_med">A bőrpír és érzékenység gyakori %1$s mellett — fókuszálj a nyugtató barrier-hidratálásra, és ne használj savakat.</string>
+    <string name="tip_texture_systemic_med">Ne hámlassz %1$s kúra közben — a textúrát inkább gazdag, nyugtató barrier-hidratálással támogasd.</string>
+    <string name="tip_texture_with_supplement">A polcodon lévő %1$s mellett figyelj a napi folyadékbevitelre és a barrier-védő hidratálásra a simább textúráért.</string>
+    <string name="tip_under_eye_with_product">A szem alatti terület frissítéséhez használd a polcodon lévő %1$s terméket 7,5–8 óra alvás mellett.</string>
+    <string name="tip_under_eye_with_supplement">Tartsd következetesen a polcodon lévő %1$s szedését, és figyelj a 7,5–8 óra alvásra a kipihentebb tekintetért.</string>
+    <string name="tip_lips_systemic_med">Az izotretinoin (%1$s) erősen szárítja az ajkakat — napközben és éjszakára is gyakran kenj fel gazdag ajakbalzsamot.</string>
+    <string name="tip_lips_unlogged_with_product">Szárazabb ajkak, és ma még nem jelöltél be ajakbalzsamot — használd a polcodon lévő %1$s terméket!</string>
+    <string name="tip_lips_unlogged">Szárazabb ajkak, és ma még nem jelöltél be ajakbalzsamot a Higiénia fülön — érdemes most felkenni.</string>
+    <string name="tip_shave_with_actives">Ideje borotválkozni — mivel %1$s is van a rutinodban, borotválkozz kíméletesen, és utána kerüld az erős aktív anyagokat.</string>
+    <string name="tip_shave_with_aftershave">Ideje borotválkozni — utána használd a polcodon lévő %1$s terméket a bőr megnyugtatására.</string>
+    <string name="tip_routine_reminder">Ma még nem pipáltad ki a napi rutinodat — a következetesség segít a legjobb eredmény elérésében.</string>
+    <string name="hair_shelf_support_note">Hajápolás a polcodon: %1$s</string>
 </resources>

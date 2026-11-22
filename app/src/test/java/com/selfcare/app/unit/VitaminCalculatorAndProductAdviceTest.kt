@@ -2,8 +2,10 @@ package com.selfcare.app.unit
 
 import com.selfcare.app.data.remote.GeminiVisionProductClient
 import com.selfcare.app.data.remote.GeminiVisionResult
+import com.selfcare.app.domain.cv.CheckInDailyContext
 import com.selfcare.app.domain.cv.ImprovementTipCode
 import com.selfcare.app.domain.cv.MetricInterpreter
+import com.selfcare.app.domain.cv.MetricStatusLevel
 import com.selfcare.app.domain.cv.ShelfProductSummary
 import com.selfcare.app.domain.cv.TipVariant
 import com.selfcare.app.domain.health.AgeGroup
@@ -146,5 +148,64 @@ class VitaminCalculatorAndProductAdviceTest {
         val parsedMed = client.parseGeminiResponseJson(medResp)
         assertTrue(parsedMed is GeminiVisionResult.Success)
         assertEquals("MEDICATION", (parsedMed as GeminiVisionResult.Success).product.category)
+    }
+
+    @Test
+    fun `medinac isotretinoin switches tips to systemic care warns on vitamin A and flags SPF`() {
+        val shelf = listOf(
+            ShelfProductSummary("Medinac 20 mg", "MEDICATION", "Isotretinoin 20 mg"),
+            ShelfProductSummary("Daily Multivitamin", "VITAMIN", "Vitamin A, Vitamin C, Zinc")
+        )
+        val result = MetricInterpreter.computeObjectiveRating(
+            underEyeDelta = 4f,
+            redness = 0.28f,
+            texture = 12f,
+            lipDryness = 0.35f,
+            blemishScore = 0.65f,
+            blemishCount = 7,
+            stubbleScore = 0.12f,
+            shelfProducts = shelf,
+            dailyContext = CheckInDailyContext(morningRoutineDone = true)
+        )
+
+        assertTrue(result.contextualTips.any { it.code == ImprovementTipCode.ISOTRETINOIN_VITAMIN_A_WARNING })
+        assertTrue(result.contextualTips.any { it.code == ImprovementTipCode.SPF_WITH_ACTIVES })
+        val blemishTip = result.contextualTips.first { it.code == ImprovementTipCode.BLEMISHES }
+        assertEquals(TipVariant.SYSTEMIC_MEDICATION_CARE, blemishTip.variant)
+        assertEquals("Medinac 20 mg", blemishTip.matchedProductName)
+    }
+
+    @Test
+    fun `vitamins hygiene and routine context personalize under eye lips and routine reminder`() {
+        val shelf = listOf(
+            ShelfProductSummary("Magnesium Bisglycinate", "VITAMIN", "Magnesium, Vitamin B6"),
+            ShelfProductSummary("Bepanthen Lip Balm", "OTHER", "Panthenol, Petrolatum")
+        )
+        val result = MetricInterpreter.computeObjectiveRating(
+            underEyeDelta = 14f,
+            redness = 0.16f,
+            texture = 5f,
+            lipDryness = 0.40f,
+            blemishScore = 0.05f,
+            blemishCount = 0,
+            stubbleScore = 0.10f,
+            shelfProducts = shelf,
+            dailyContext = CheckInDailyContext(
+                morningRoutineDone = false,
+                eveningRoutineDone = false,
+                lipBalmLoggedToday = false
+            )
+        )
+
+        val underEyeTip = result.contextualTips.first { it.code == ImprovementTipCode.UNDER_EYE }
+        assertEquals(TipVariant.HAS_SUPPLEMENT_SUPPORT, underEyeTip.variant)
+        assertEquals("Magnesium Bisglycinate", underEyeTip.matchedProductName)
+
+        val lipTip = result.contextualTips.first { it.code == ImprovementTipCode.LIPS }
+        assertEquals(TipVariant.HYGIENE_UNLOGGED_REMINDER, lipTip.variant)
+        assertEquals("Bepanthen Lip Balm", lipTip.matchedProductName)
+
+        assertTrue(result.contextualTips.any { it.code == ImprovementTipCode.ROUTINE_REMINDER })
+        assertTrue(result.level != MetricStatusLevel.OPTIMAL)
     }
 }

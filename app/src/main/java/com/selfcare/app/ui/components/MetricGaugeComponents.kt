@@ -249,7 +249,7 @@ fun NeonSparklineChart(
 @Composable
 fun statusLevelColor(level: MetricStatusLevel): Color = when (level) {
     MetricStatusLevel.OPTIMAL -> NeonGreen
-    MetricStatusLevel.GOOD -> MaterialTheme.colorScheme.primary
+    MetricStatusLevel.GOOD -> Color(0xFFA3E635) // Lime / yellow-green distinct from Optimal NeonGreen
     MetricStatusLevel.MODERATE -> NeonWarning
     MetricStatusLevel.HIGH -> MaterialTheme.colorScheme.error
 }
@@ -368,7 +368,8 @@ fun HairHealthAnalysisCard(
     summary: HairQualitativeSummary,
     growthPercent: Float,
     thresholdPercent: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hairSupportProduct: String? = null
 ) {
     Card(
         modifier = modifier
@@ -457,6 +458,14 @@ fun HairHealthAnalysisCard(
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = if (due) NeonWarning else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            if (!hairSupportProduct.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.hair_shelf_support_note, hairSupportProduct),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

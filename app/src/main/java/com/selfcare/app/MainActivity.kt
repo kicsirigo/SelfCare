@@ -175,7 +175,9 @@ private fun SelfCareScaffold(container: AppContainer) {
             haircutTracker = container.haircutTracker,
             settingsRepository = container.settingsRepository,
             faceAnalyzer = container.faceAnalyzer,
-            productRepository = container.productRepository
+            productRepository = container.productRepository,
+            routineRepository = container.routineRepository,
+            hygieneRepository = container.hygieneRepository
         )
     )
     val trendsViewModel: TrendsViewModel = viewModel(
