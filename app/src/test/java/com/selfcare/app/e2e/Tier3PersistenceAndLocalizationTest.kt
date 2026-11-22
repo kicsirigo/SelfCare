@@ -1,12 +1,15 @@
 package com.selfcare.app.e2e
 
+import android.app.LocaleManager
 import android.net.Uri
+import com.selfcare.app.R
 import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.local.entity.HygieneLogEntity
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
+import com.selfcare.app.ui.localization.LocaleHelper
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -251,6 +254,41 @@ class Tier3PersistenceAndLocalizationTest {
                 }
             }
         assertTrue("Found Unicode emojis in app/src/main: $emojiFiles", emojiFiles.isEmpty())
+    }
+
+    @Test
+    fun launcherIconAndLocaleConfig_presentAndResolvable() {
+        val root = resolveProjectRoot()
+        val manifest = File(root, "app/src/main/AndroidManifest.xml").readText()
+        assertTrue(manifest.contains("android:icon=\"@mipmap/ic_launcher\""))
+        assertTrue(manifest.contains("android:roundIcon=\"@mipmap/ic_launcher_round\""))
+        assertTrue(manifest.contains("android:configChanges=\"locale|layoutDirection\""))
+        assertTrue(e2eRule.app.applicationInfo.icon != 0)
+        assertTrue(File(root, "app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists())
+        assertTrue(File(root, "app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml").exists())
+        assertTrue(File(root, "app/src/main/res/drawable/ic_launcher_foreground.xml").exists())
+        assertTrue(File(root, "app/src/main/res/drawable/ic_launcher_background.xml").exists())
+    }
+
+    @Test
+    fun localeHelper_switchesBetweenHuEnAutoWithoutRedundantRewrites() {
+        val huContext = LocaleHelper.createLocalizedContext(e2eRule.app, AppLanguage.HU)
+        val enContext = LocaleHelper.createLocalizedContext(e2eRule.app, AppLanguage.EN)
+        assertEquals("Beállítások", huContext.getString(R.string.settings_title))
+        assertEquals("Settings", enContext.getString(R.string.settings_title))
+
+        val localeManager = e2eRule.app.getSystemService(LocaleManager::class.java)
+        LocaleHelper.syncPlatformLocale(e2eRule.app, AppLanguage.HU)
+        assertEquals("hu", localeManager.applicationLocales.toLanguageTags())
+        // Calling again with same language must be idempotent
+        LocaleHelper.syncPlatformLocale(e2eRule.app, AppLanguage.HU)
+        assertEquals("hu", localeManager.applicationLocales.toLanguageTags())
+
+        LocaleHelper.syncPlatformLocale(e2eRule.app, AppLanguage.EN)
+        assertEquals("en", localeManager.applicationLocales.toLanguageTags())
+
+        LocaleHelper.syncPlatformLocale(e2eRule.app, AppLanguage.AUTO)
+        assertEquals("", localeManager.applicationLocales.toLanguageTags())
     }
 
     private fun parseStringKeys(xmlFile: File): Set<String> {

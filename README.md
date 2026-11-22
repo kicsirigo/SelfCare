@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v1.0.0-10B981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/Release-v1.0.1-10B981?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.1)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-44%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-46%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -74,7 +74,7 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v1.0.1) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
 
 - **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
 - **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.
@@ -146,7 +146,7 @@ cp .env.example .env
 # Compile debug Kotlin sources
 ./gradlew compileDebugKotlin
 
-# Run all 44 unit & Robolectric E2E tests
+# Run all 46 unit & Robolectric E2E tests
 ./gradlew testDebugUnitTest
 
 # Build Debug APK
@@ -157,7 +157,7 @@ cp .env.example .env
 
 ## Testing
 
-The test suite includes **44 automated tests** across **12 test suites** (`app/src/test/java/com/selfcare/app/`):
+The test suite includes **46 automated tests** across **12 test suites** (`app/src/test/java/com/selfcare/app/`):
 - **Unit Suites (29 tests):**
   - `RoutineRepositoryTest` (1-tap completion, skip overrides, midnight rollover, duplicate prevention)
   - `BackupRepositoryTest` (full JSON export/import roundtrip across all 5 Room tables & settings)

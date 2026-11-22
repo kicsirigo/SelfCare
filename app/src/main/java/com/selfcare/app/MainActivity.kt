@@ -75,16 +75,18 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SelfCareRoot(container: AppContainer) {
-    val settings by container.settingsRepository.settings
-        .collectAsStateWithLifecycle(initialValue = UserSettings())
+    val loadedSettings by container.settingsRepository.settings
+        .collectAsStateWithLifecycle(initialValue = null)
+    val settings = loadedSettings ?: UserSettings()
     val baseContext = LocalContext.current
 
     val localizedContext = remember(baseContext, settings.appLanguage) {
         LocaleHelper.createLocalizedContext(baseContext, settings.appLanguage)
     }
 
-    LaunchedEffect(settings.appLanguage) {
-        LocaleHelper.syncPlatformLocale(baseContext, settings.appLanguage)
+    LaunchedEffect(loadedSettings?.appLanguage) {
+        val persistedLanguage = loadedSettings?.appLanguage ?: return@LaunchedEffect
+        LocaleHelper.syncPlatformLocale(baseContext, persistedLanguage)
     }
 
     val registryOwner = LocalActivityResultRegistryOwner.current

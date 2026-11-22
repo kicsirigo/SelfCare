@@ -35,10 +35,13 @@ object LocaleHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             runCatching {
                 val localeManager = context.getSystemService(LocaleManager::class.java) ?: return
-                localeManager.applicationLocales = when (language) {
+                val targetLocales = when (language) {
                     AppLanguage.AUTO -> LocaleList.getEmptyLocaleList()
                     AppLanguage.EN -> LocaleList.forLanguageTags("en")
                     AppLanguage.HU -> LocaleList.forLanguageTags("hu")
+                }
+                if (localeManager.applicationLocales.toLanguageTags() != targetLocales.toLanguageTags()) {
+                    localeManager.applicationLocales = targetLocales
                 }
             }
         }
