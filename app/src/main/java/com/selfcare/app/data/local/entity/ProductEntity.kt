@@ -23,5 +23,6 @@ data class ProductEntity(
     val matchedInciJson: String = "[]",
     val source: String = "MANUAL",
     val createdAtEpochMillis: Long,
-    val updatedAtEpochMillis: Long
+    val updatedAtEpochMillis: Long,
+    val photoPath: String? = null
 )

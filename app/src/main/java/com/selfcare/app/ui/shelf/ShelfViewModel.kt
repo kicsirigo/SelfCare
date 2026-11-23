@@ -61,7 +61,8 @@ data class ProductEditorState(
     val isDefaultInRoutine: Boolean = false,
     val rawIngredientsText: String = "",
     val parsedMatches: List<InciMatch> = emptyList(),
-    val source: String = "MANUAL"
+    val source: String = "MANUAL",
+    val photoPath: String? = null
 )
 
 data class PendingScanConfirmation(
@@ -73,7 +74,7 @@ data class PendingScanConfirmation(
     val ingredientsText: String,
     val parsedMatches: List<InciMatch>,
     val capturedPhoto: Bitmap? = null,
-    val referencePhoto: Bitmap? = null,
+    val referencePhotos: List<Bitmap> = emptyList(),
     val geminiErrorDetail: String? = null
 )
 
@@ -423,9 +424,10 @@ class ShelfViewModel(
                     is GeminiVisionResult.Success -> {
                         val info = visionResult.product
                         val matches = productRepository.parseIngredients(info.ingredientsText)
-                        val refPhoto = fetchReferenceProductPhoto(
+                        val refPhotos = fetchReferenceProductPhotos(
                             brand = info.brand,
-                            name = info.name
+                            name = info.name,
+                            category = info.category
                         )
                         lookupStateFlow.update {
                             it.copy(
@@ -440,7 +442,7 @@ class ShelfViewModel(
                                     ingredientsText = info.ingredientsText,
                                     parsedMatches = matches,
                                     capturedPhoto = createPreviewThumbnail(bitmap),
-                                    referencePhoto = refPhoto
+                                    referencePhotos = refPhotos
                                 )
                             )
                         }
@@ -568,21 +570,27 @@ class ShelfViewModel(
         }
     }
 
-    private suspend fun fetchReferenceProductPhoto(brand: String, name: String): Bitmap? {
-        val queries = listOf("$brand $name".trim(), name.trim())
-            .filter { it.isNotBlank() }
-            .distinct()
-        for (q in queries) {
-            val result = productRepository.searchRemoteByName(q)
-            if (result is OpenBeautyFactsSearchResult.Success) {
-                val imageUrl = result.products.firstOrNull { !it.imageUrl.isNullOrBlank() }?.imageUrl
-                if (imageUrl != null) {
-                    val bmp = productRepository.fetchProductThumbnail(imageUrl)
-                    if (bmp != null) return bmp
-                }
+    private suspend fun fetchReferenceProductPhotos(
+        brand: String,
+        name: String,
+        category: String = "OTHER",
+        targetCount: Int = 3
+    ): List<Bitmap> {
+        val urls = productRepository.findReferenceImageUrls(
+            brand = brand,
+            name = name,
+            category = category,
+            desiredCount = targetCount
+        )
+        val bitmaps = mutableListOf<Bitmap>()
+        for (url in urls) {
+            if (bitmaps.size >= targetCount) break
+            val bmp = productRepository.fetchProductThumbnail(url)
+            if (bmp != null) {
+                bitmaps.add(bmp)
             }
         }
-        return null
+        return bitmaps
     }
 
     private fun createPreviewThumbnail(source: Bitmap, maxDim: Int = 420): Bitmap? {
@@ -612,6 +620,7 @@ class ShelfViewModel(
             return
         }
         viewModelScope.launch {
+            val savedPhotoPath = pending.capturedPhoto?.let { productRepository.saveProductPhoto(it) }
             productRepository.saveProduct(
                 name = pending.name,
                 brand = pending.brand,
@@ -620,7 +629,8 @@ class ShelfViewModel(
                 routineSlot = pending.routineSlot,
                 isDefaultInRoutine = pending.routineSlot != InciConflictDetector.SLOT_NONE,
                 rawIngredientsText = pending.ingredientsText,
-                source = pending.source
+                source = pending.source,
+                photoPath = savedPhotoPath
             )
             lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
         }
@@ -629,16 +639,20 @@ class ShelfViewModel(
     fun confirmPendingScanEdit() {
         val pending = lookupStateFlow.value.pendingScanConfirmation ?: return
         lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
-        editorFlow.value = ProductEditorState(
-            name = pending.name,
-            brand = pending.brand,
-            category = pending.category,
-            routineSlot = pending.routineSlot,
-            isDefaultInRoutine = pending.routineSlot != InciConflictDetector.SLOT_NONE,
-            rawIngredientsText = pending.ingredientsText,
-            parsedMatches = pending.parsedMatches,
-            source = pending.source
-        )
+        viewModelScope.launch {
+            val savedPhotoPath = pending.capturedPhoto?.let { productRepository.saveProductPhoto(it) }
+            editorFlow.value = ProductEditorState(
+                name = pending.name,
+                brand = pending.brand,
+                category = pending.category,
+                routineSlot = pending.routineSlot,
+                isDefaultInRoutine = pending.routineSlot != InciConflictDetector.SLOT_NONE,
+                rawIngredientsText = pending.ingredientsText,
+                parsedMatches = pending.parsedMatches,
+                source = pending.source,
+                photoPath = savedPhotoPath
+            )
+        }
     }
 
     fun retakePendingScan() {
@@ -742,7 +756,8 @@ class ShelfViewModel(
             isDefaultInRoutine = product.isDefaultInRoutine,
             rawIngredientsText = product.rawIngredientsText,
             parsedMatches = productRepository.parseProductMatches(product),
-            source = product.source
+            source = product.source,
+            photoPath = product.photoPath
         )
     }
 
@@ -805,7 +820,8 @@ class ShelfViewModel(
                 routineSlot = current.routineSlot,
                 isDefaultInRoutine = current.isDefaultInRoutine,
                 rawIngredientsText = current.rawIngredientsText,
-                source = current.source
+                source = current.source,
+                photoPath = current.photoPath
             )
             editorFlow.value = null
             lookupStateFlow.update {

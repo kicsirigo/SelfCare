@@ -374,4 +374,6 @@
     <string name="tip_shave_with_aftershave">Ideje borotválkozni — utána használd a polcodon lévő %1$s terméket a bőr megnyugtatására.</string>
     <string name="tip_routine_reminder">Ma még nem pipáltad ki a napi rutinodat — a következetesség segít a legjobb eredmény elérésében.</string>
     <string name="hair_shelf_support_note">Hajápolás a polcodon: %1$s</string>
+    <string name="shelf_scan_photo_saved_offline">Helyben, privát módon elmentve a Polc kártyádhoz.</string>
+    <string name="shelf_scan_matched_photos_count">Referencia-találatok (%d db)</string>
 </resources>

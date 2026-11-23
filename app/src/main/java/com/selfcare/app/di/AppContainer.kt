@@ -109,7 +109,8 @@ open class AppContainer(
             productDao = database.productDao(),
             openBeautyFactsClient = openBeautyFactsClient,
             inciEngine = inciEngine,
-            clock = clock
+            clock = clock,
+            productsPhotoDir = java.io.File(context.filesDir, "products")
         )
     }
 

@@ -10,8 +10,13 @@ import com.selfcare.app.data.remote.OpenBeautyFactsSearchResult
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciEngine
 import com.selfcare.app.domain.inci.InciMatch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.time.Clock
+import java.util.UUID
 
 sealed interface BarcodeLookupOutcome {
     data class LocalFound(val product: ProductEntity) : BarcodeLookupOutcome
@@ -27,7 +32,8 @@ class ProductRepository(
     private val productDao: ProductDao,
     private val openBeautyFactsClient: OpenBeautyFactsClient,
     private val inciEngine: InciEngine,
-    private val clock: Clock = Clock.systemDefaultZone()
+    private val clock: Clock = Clock.systemDefaultZone(),
+    private val productsPhotoDir: File? = null
 ) {
 
     fun observeAllProducts(): Flow<List<ProductEntity>> = productDao.observeAll()
@@ -47,6 +53,44 @@ class ProductRepository(
 
     suspend fun fetchProductThumbnail(imageUrl: String): Bitmap? =
         openBeautyFactsClient.fetchProductThumbnail(imageUrl)
+
+    suspend fun findReferenceImageUrls(
+        brand: String,
+        name: String,
+        category: String = "OTHER",
+        desiredCount: Int = 3
+    ): List<String> = openBeautyFactsClient.findReferenceImageUrls(
+        brand = brand,
+        name = name,
+        category = category,
+        desiredCount = desiredCount
+    )
+
+    suspend fun saveProductPhoto(bitmap: Bitmap): String? = withContext(Dispatchers.IO) {
+        val dir = productsPhotoDir ?: return@withContext null
+        runCatching {
+            if (!dir.exists()) dir.mkdirs()
+            val nomedia = File(dir, ".nomedia")
+            if (!nomedia.exists()) runCatching { nomedia.createNewFile() }
+            val target = File(dir, "prod_${UUID.randomUUID()}.jpg")
+            FileOutputStream(target).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+            }
+            target.absolutePath
+        }.getOrNull()
+    }
+
+    private fun deleteProductPhotoFile(path: String?) {
+        val dir = productsPhotoDir ?: return
+        if (path.isNullOrBlank()) return
+        runCatching {
+            val file = File(path).canonicalFile
+            val root = dir.canonicalFile
+            if (file.path.startsWith(root.path + File.separator) && file.exists()) {
+                file.delete()
+            }
+        }
+    }
 
     suspend fun getByBarcode(barcode: String): ProductEntity? =
         productDao.getByBarcode(barcode.trim())
@@ -83,7 +127,8 @@ class ProductRepository(
         routineSlot: String = "NONE",
         isDefaultInRoutine: Boolean = false,
         rawIngredientsText: String = "",
-        source: String = "MANUAL"
+        source: String = "MANUAL",
+        photoPath: String? = null
     ): ProductEntity {
         val now = clock.millis()
         val existing = if (id > 0L) productDao.getById(id) else null
@@ -103,7 +148,8 @@ class ProductRepository(
             matchedInciJson = matchedJson,
             source = source.ifBlank { existing?.source ?: "MANUAL" },
             createdAtEpochMillis = existing?.createdAtEpochMillis ?: now,
-            updatedAtEpochMillis = now
+            updatedAtEpochMillis = now,
+            photoPath = photoPath ?: existing?.photoPath
         )
 
         val insertedId = if (existing == null) {
@@ -116,7 +162,9 @@ class ProductRepository(
     }
 
     suspend fun deleteProduct(id: Long) {
+        val existing = productDao.getById(id)
         productDao.deleteById(id)
+        deleteProductPhotoFile(existing?.photoPath)
     }
 
     suspend fun setRoutineSlot(

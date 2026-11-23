@@ -374,4 +374,6 @@
     <string name="tip_shave_with_aftershave">Time to shave — follow up with %1$s from your shelf to calm the jawline afterward.</string>
     <string name="tip_routine_reminder">You have not logged today\'s skincare routine yet — staying consistent helps improve your score.</string>
     <string name="hair_shelf_support_note">Hair care on shelf: %1$s</string>
+    <string name="shelf_scan_photo_saved_offline">Saved privately on-device for your Shelf card.</string>
+    <string name="shelf_scan_matched_photos_count">Reference matches (%d)</string>
 </resources>

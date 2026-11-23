@@ -168,4 +168,43 @@ class OpenBeautyFactsTest {
         val errorResult = client.searchByName("Retinol")
         assertTrue(errorResult is OpenBeautyFactsSearchResult.OfflineOrError)
     }
+
+    @Test
+    fun buildSmartReferenceQueries_stripsDosageAndPackNoise() {
+        val queries = OpenBeautyFactsClient.buildSmartReferenceQueries(
+            brand = "BioCo",
+            name = "D3-vitamin 2000 NE 90 db filmtabletta"
+        )
+        assertTrue(queries.any { it.equals("BioCo D3-vitamin 2000 NE 90 db filmtabletta", ignoreCase = true) })
+        assertTrue(queries.any { it.contains("BioCo D3-vitamin", ignoreCase = true) && !it.contains("90 db") })
+    }
+
+    @Test
+    fun findReferenceImageUrls_collectsAtLeastThreeDistinctHttpsImages() = runTest {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "products": [
+                        {"product_name": "Effaclar Duo 1", "image_front_small_url": "https://images.example.com/1.jpg"},
+                        {"product_name": "Effaclar Duo 2", "image_front_small_url": "https://images.example.com/2.jpg"},
+                        {"product_name": "Effaclar Duo 3", "image_front_url": "https://images.example.com/3.jpg"},
+                        {"product_name": "Effaclar Duo 4", "image_url": "http://insecure.example.com/4.jpg"}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+        )
+
+        val urls = client.findReferenceImageUrls(
+            brand = "La Roche-Posay",
+            name = "Effaclar Duo+M 40 ml",
+            category = "OTHER",
+            desiredCount = 3
+        )
+        assertEquals(3, urls.size)
+        assertTrue(urls.all { it.startsWith("https://") })
+    }
 }

@@ -253,93 +253,105 @@ fun ShelfScreenContent(
                         }
                     }
 
-                    // Side-by-side visual comparison: Your captured photo vs AI matched product photo
-                    if (pending.capturedPhoto != null || pending.referencePhoto != null) {
-                        Row(
+                    // Visual comparison: Your captured photo + up to 3 matched reference photos
+                    if (pending.capturedPhoto != null || pending.referencePhotos.isNotEmpty()) {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(112.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
+                            if (pending.capturedPhoto != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (pending.capturedPhoto != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(84.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
                                         Image(
                                             bitmap = pending.capturedPhoto.asImageBitmap(),
                                             contentDescription = stringResource(R.string.shelf_scan_your_photo),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
                                         )
-                                    } else {
-                                        Icon(
-                                            imageVector = AppIcons.Camera,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(28.dp)
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.shelf_scan_your_photo),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.shelf_scan_photo_saved_offline),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
-                                Text(
-                                    text = stringResource(R.string.shelf_scan_your_photo),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
 
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(112.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
+                            Text(
+                                text = if (pending.referencePhotos.isNotEmpty()) {
+                                    stringResource(
+                                        R.string.shelf_scan_matched_photos_count,
+                                        pending.referencePhotos.size
+                                    )
+                                } else {
+                                    stringResource(R.string.shelf_scan_matched_photo)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            if (pending.referencePhotos.isNotEmpty()) {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    if (pending.referencePhoto != null) {
-                                        Image(
-                                            bitmap = pending.referencePhoto.asImageBitmap(),
-                                            contentDescription = stringResource(R.string.shelf_scan_matched_photo),
-                                            contentScale = ContentScale.Fit,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
-                                    } else {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.padding(6.dp)
+                                    items(pending.referencePhotos) { refBmp ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(92.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                imageVector = AppIcons.Bottle,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(26.dp)
-                                            )
-                                            Text(
-                                                text = stringResource(R.string.shelf_scan_no_ref_photo),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            Image(
+                                                bitmap = refBmp.asImageBitmap(),
+                                                contentDescription = stringResource(R.string.shelf_scan_matched_photo),
+                                                contentScale = ContentScale.Fit,
+                                                modifier = Modifier.fillMaxSize()
                                             )
                                         }
                                     }
                                 }
-                                Text(
-                                    text = stringResource(R.string.shelf_scan_matched_photo),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.Bottle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.shelf_scan_no_ref_photo),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -992,6 +1004,14 @@ private fun ProductShelfCard(
     onDelete: () -> Unit
 ) {
     val product = item.entity
+    val localPhotoBitmap = remember(product.photoPath) {
+        val path = product.photoPath
+        if (path.isNullOrBlank()) null
+        else runCatching {
+            val f = File(path)
+            if (f.exists()) android.graphics.BitmapFactory.decodeFile(f.absolutePath) else null
+        }.getOrNull()
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1006,9 +1026,19 @@ private fun ProductShelfCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (localPhotoBitmap != null) {
+                    Image(
+                        bitmap = localPhotoBitmap.asImageBitmap(),
+                        contentDescription = product.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = product.name,

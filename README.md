@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v2.3.1-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v2.3.1)
+[![Version](https://img.shields.io/badge/Release-v2.4.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v2.4.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-70%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-72%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -46,7 +46,7 @@
 - **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, occlusives, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`, `Selenium Sulfide`), and **7 active conflict rules** (including *Prescription Antibiotic + Strong Acid/Retinoid*).
 - **Vitamins, Supplements & Medications Support** — Track vitamins (`Vitamin D3`, `Vitamin C`, `Magnesium`, `Omega-3`, `Zinc`, `B-Complex`, `Multivitamin`) and OTC medications/ointments (`Sudocrem`, `Bepanthen Plus`, `Ibuprofen`, `Cetirizine`) alongside skincare, Rx, and hair products, with dedicated filter chips and presets.
 - **100% Offline Age-Based Daily Vitamin Reference Calculator (`VitaminCalculator`)** — Enter your birthday locally (stored strictly on-device) to calculate EFSA/NIH daily vitamin & mineral reference intakes by age, cross-referenced automatically against supplements on your Shelf *(informational only — never replaces a balanced diet or medical advice)*.
-- **In-App Live CameraX Product Scanner + Optional Gemini Vision (Fallback to Offline OCR)** — Rear-camera viewfinder with live product-detection feedback. Recognizes skincare, haircare, vitamins/supplements, and medications/ointments via Gemini Vision (`gemini-3.5-flash-lite` primary, `gemini-2.5-flash` fallback) or falls back automatically to 100% on-device OCR + offline category inference + offline presets.
+- **In-App Live CameraX Product Scanner + Optional Gemini Vision (Fallback to Offline OCR)** — Rear-camera viewfinder with live product-detection feedback. Recognizes skincare, haircare, vitamins/supplements, and medications/ointments via Gemini Vision (`gemini-3.5-flash-lite` primary, `gemini-2.5-flash` fallback), shows up to **3 multi-source reference photos** (`OpenBeautyFacts` + `OpenFoodFacts` + `Wikimedia Commons`) for visual confirmation, and **privately saves your captured product photo on-device** (`filesDir/products/` with `.nomedia`) to display on your Shelf card.
 - **Full EN/HU Localized Active Conflict Alerts & Delete Safeguards** — All 7 INCI conflict warnings, routine slots, and caution badges render in English or Hungarian, and every delete action requires confirmation.
 
 ### 100% Offline CameraX (`Camera2Interop`) + Bundled ML Kit Face, Stubble & Hair Check-In *(Centered Dock Tab)*
@@ -80,7 +80,7 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v2.3.1) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v2.4.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
 
 - **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
 - **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.
