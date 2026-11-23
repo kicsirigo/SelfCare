@@ -1,6 +1,6 @@
 package com.selfcare.app.unit
 
-import com.selfcare.app.data.remote.GeminiVisionProductClient
+import com.selfcare.app.data.remote.GroqVisionProductClient
 import com.selfcare.app.data.remote.GeminiVisionResult
 import com.selfcare.app.domain.cv.CheckInDailyContext
 import com.selfcare.app.domain.cv.ImprovementTipCode
@@ -117,35 +117,31 @@ class VitaminCalculatorAndProductAdviceTest {
     }
 
     @Test
-    fun `gemini vision parser accepts VITAMIN and MEDICATION categories`() {
-        val client = GeminiVisionProductClient()
+    fun `groq vision parser accepts VITAMIN and MEDICATION categories`() {
+        val client = GroqVisionProductClient()
         val vitaminResp = """
             {
-              "candidates": [{
-                "content": {
-                  "parts": [{
-                    "text": "{\"name\":\"Vitamin D3 2000 IU\",\"brand\":\"GAL\",\"category\":\"VITAMIN\",\"routineSlot\":\"MORNING\",\"ingredients\":\"Vitamin D3 (Cholecalciferol 50 mcg)\"}"
-                  }]
+              "choices": [{
+                "message": {
+                  "content": "{\"name\":\"Vitamin D3 2000 IU\",\"brand\":\"GAL\",\"category\":\"VITAMIN\",\"routineSlot\":\"MORNING\",\"ingredients\":\"Vitamin D3 (Cholecalciferol 50 mcg)\"}"
                 }
               }]
             }
         """.trimIndent()
-        val parsedVit = client.parseGeminiResponseJson(vitaminResp)
+        val parsedVit = client.parseGroqResponseJson(vitaminResp)
         assertTrue(parsedVit is GeminiVisionResult.Success)
         assertEquals("VITAMIN", (parsedVit as GeminiVisionResult.Success).product.category)
 
         val medResp = """
             {
-              "candidates": [{
-                "content": {
-                  "parts": [{
-                    "text": "{\"name\":\"Sudocrem\",\"brand\":\"Teva\",\"category\":\"OINTMENT\",\"routineSlot\":\"EVENING\",\"ingredients\":\"Zinc Oxide, Panthenol\"}"
-                  }]
+              "choices": [{
+                "message": {
+                  "content": "{\"name\":\"Sudocrem\",\"brand\":\"Teva\",\"category\":\"OINTMENT\",\"routineSlot\":\"EVENING\",\"ingredients\":\"Zinc Oxide, Panthenol\"}"
                 }
               }]
             }
         """.trimIndent()
-        val parsedMed = client.parseGeminiResponseJson(medResp)
+        val parsedMed = client.parseGroqResponseJson(medResp)
         assertTrue(parsedMed is GeminiVisionResult.Success)
         assertEquals("MEDICATION", (parsedMed as GeminiVisionResult.Success).product.category)
     }

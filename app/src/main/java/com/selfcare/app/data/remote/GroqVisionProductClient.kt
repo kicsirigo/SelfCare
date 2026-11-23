@@ -22,6 +22,29 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
+data class IdentifiedProductInfo(
+    val name: String,
+    val brand: String,
+    val category: String,
+    val routineSlot: String,
+    val ingredientsText: String
+)
+
+sealed interface GeminiVisionResult {
+    data class Success(val product: IdentifiedProductInfo, val modelUsed: String = "") : GeminiVisionResult
+    data class Error(val reason: String) : GeminiVisionResult
+}
+
+sealed interface GeminiKeyTestResult {
+    data class Success(val modelUsed: String) : GeminiKeyTestResult
+    data class Failure(val reason: String) : GeminiKeyTestResult
+}
+
+interface ProductVisionClient {
+    suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
+    suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
+}
+
 /**
  * Groq Vision client using OpenAI-compatible chat completions with Meta Llama 4 Scout / Maverick.
  * Fast (~1s), generous free tier (1,000 req/day), and resilient to Gemini AI Studio 503 spikes.
@@ -37,8 +60,42 @@ class GroqVisionProductClient(
         isLenient = true
     }
 
+    @Volatile
+    private var cachedVisionModels: List<String>? = null
+
     private fun isTransientRetryableStatus(code: Int): Boolean =
         code == 429 || code == 500 || code == 502 || code == 503 || code == 504
+
+    /**
+     * Queries Groq's live `/openai/v1/models` endpoint to discover active vision-capable models
+     * enabled on the user's account, preventing hardcoded 404s when preview models rotate.
+     */
+    private fun discoverVisionModels(cleanKey: String, useCache: Boolean): List<String> {
+        if (useCache) {
+            cachedVisionModels?.takeIf { it.isNotEmpty() }?.let { return it }
+        }
+        val discovered = runCatching {
+            val url = "${baseUrl.trimEnd('/')}/openai/v1/models"
+            val req = Request.Builder()
+                .url(url)
+                .header("Authorization", "Bearer $cleanKey")
+                .get()
+                .build()
+            httpClient.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) return@use emptyList<String>()
+                val body = resp.body?.string().orEmpty()
+                val root = json.parseToJsonElement(body).jsonObject
+                val data = root["data"]?.jsonArray.orEmpty()
+                val allIds = data.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull?.trim() }
+                    .filter { it.isNotBlank() }
+                selectVisionModelsFromCatalog(allIds)
+            }
+        }.getOrDefault(emptyList())
+
+        val resolved = if (discovered.isNotEmpty()) discovered else DEFAULT_VISION_MODELS
+        cachedVisionModels = resolved
+        return resolved
+    }
 
     override suspend fun testApiKey(apiKey: String): GeminiKeyTestResult =
         withContext(Dispatchers.IO) {
@@ -47,9 +104,10 @@ class GroqVisionProductClient(
                 return@withContext GeminiKeyTestResult.Failure("API key is empty")
             }
 
-            var lastError = "Unknown error"
+            val modelsToTry = discoverVisionModels(cleanKey, useCache = false)
+            val errors = mutableListOf<String>()
             val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
-            for (model in MODEL_FALLBACK_CHAIN) {
+            for (model in modelsToTry) {
                 val payload = buildJsonObject {
                     put("model", model)
                     put("max_tokens", 16)
@@ -77,12 +135,15 @@ class GroqVisionProductClient(
                                 return@withContext GeminiKeyTestResult.Success(shortModelLabel(model))
                             }
                             val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
-                            lastError = "HTTP ${response.code} (${shortModelLabel(model)}): $apiMsg"
+                            val err = "HTTP ${response.code} (${shortModelLabel(model)}): $apiMsg"
                             if (response.code == 400 || response.code == 401 || response.code == 403) {
-                                return@withContext GeminiKeyTestResult.Failure(lastError)
+                                return@withContext GeminiKeyTestResult.Failure(err)
                             }
                             shouldRetry = isTransientRetryableStatus(response.code) &&
                                 attempt < MAX_TRANSIENT_ATTEMPTS - 1
+                            if (!shouldRetry) {
+                                errors.add(err)
+                            }
                         }
                         if (shouldRetry) {
                             delayFn(RETRY_BACKOFF_MS[attempt])
@@ -90,12 +151,12 @@ class GroqVisionProductClient(
                         }
                         break
                     } catch (e: Exception) {
-                        lastError = sanitizeExceptionReason(shortModelLabel(model), e)
+                        errors.add(sanitizeExceptionReason(shortModelLabel(model), e))
                         break
                     }
                 }
             }
-            GeminiKeyTestResult.Failure(lastError)
+            GeminiKeyTestResult.Failure(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
     override suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult =
@@ -111,9 +172,10 @@ class GroqVisionProductClient(
                 return@withContext GeminiVisionResult.Error("Image encode error (${e::class.simpleName})")
             }
 
+            val modelsToTry = discoverVisionModels(cleanKey, useCache = true)
             val errors = mutableListOf<String>()
             val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
-            for (model in MODEL_FALLBACK_CHAIN) {
+            for (model in modelsToTry) {
                 val payload = buildVisionPayload(model, base64Image)
                 val label = shortModelLabel(model)
                 for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
@@ -308,10 +370,35 @@ class GroqVisionProductClient(
         const val DEFAULT_BASE_URL = "https://api.groq.com"
         const val MAX_TRANSIENT_ATTEMPTS = 3
         val RETRY_BACKOFF_MS = longArrayOf(800L, 1800L)
-        val MODEL_FALLBACK_CHAIN = listOf(
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "meta-llama/llama-4-maverick-17b-128e-instruct"
+        val DEFAULT_VISION_MODELS = listOf(
+            "meta-llama/llama-4-scout-17b-16e-instruct"
         )
+
+        fun selectVisionModelsFromCatalog(modelIds: List<String>): List<String> {
+            val visionCandidates = modelIds.filter { id ->
+                val lower = id.lowercase()
+                !lower.contains("guard") &&
+                    !lower.contains("whisper") &&
+                    !lower.contains("tts") &&
+                    (
+                        lower.contains("llama-4-scout") ||
+                            lower.contains("llama-4") ||
+                            lower.contains("vision") ||
+                            lower.contains("-vl") ||
+                            lower.contains("pixtral") ||
+                            lower.contains("llava")
+                        )
+            }
+            return visionCandidates.sortedBy { id ->
+                val lower = id.lowercase()
+                when {
+                    lower.contains("llama-4-scout") -> 0
+                    lower.contains("llama-4") -> 1
+                    lower.contains("vision") -> 2
+                    else -> 3
+                }
+            }
+        }
 
         fun shortModelLabel(fullModelId: String): String =
             fullModelId.substringAfter('/').removeSuffix("-instruct")
@@ -330,34 +417,5 @@ class GroqVisionProductClient(
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
-    }
-}
-
-/**
- * Automatically routes API calls to Groq Vision when the user provides a Groq API key (`gsk_...`),
- * or falls back to Gemini Vision for Google AI Studio keys (`AIza...`).
- */
-class AutoRoutingVisionClient(
-    private val groqClient: ProductVisionClient = GroqVisionProductClient(),
-    private val geminiClient: ProductVisionClient = GeminiVisionProductClient()
-) : ProductVisionClient {
-
-    private fun isGroqKey(apiKey: String): Boolean =
-        apiKey.trim().startsWith("gsk_", ignoreCase = true)
-
-    override suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult {
-        return if (isGroqKey(apiKey)) {
-            groqClient.identifyProduct(bitmap, apiKey)
-        } else {
-            geminiClient.identifyProduct(bitmap, apiKey)
-        }
-    }
-
-    override suspend fun testApiKey(apiKey: String): GeminiKeyTestResult {
-        return if (isGroqKey(apiKey)) {
-            groqClient.testApiKey(apiKey)
-        } else {
-            geminiClient.testApiKey(apiKey)
-        }
     }
 }

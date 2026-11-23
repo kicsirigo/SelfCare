@@ -1,10 +1,8 @@
 package com.selfcare.app.unit
 
-import com.selfcare.app.data.remote.AutoRoutingVisionClient
 import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.data.remote.GeminiVisionResult
 import com.selfcare.app.data.remote.GroqVisionProductClient
-import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.domain.inci.InciConflictDetector
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -43,16 +41,33 @@ class GroqVisionProductClientTest {
     }
 
     @Test
-    fun testApiKey_sendsBearerAuthHeaderAndRetries503BeforeFallingBack() = runTest {
+    fun testApiKey_discoversLiveVisionModelsFromCatalogAndRetries503() = runTest {
         val server = MockWebServer()
         server.start()
         try {
             val secretKey = "gsk_TestSecretGroqKey987654321"
-            // 3 attempts on llama-4-scout return 503
+            // 1. Live /openai/v1/models discovery response
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                          "data": [
+                            {"id": "whisper-large-v3"},
+                            {"id": "llama-3.3-70b-versatile"},
+                            {"id": "meta-llama/llama-4-scout-17b-16e-instruct"},
+                            {"id": "qwen/qwen2.5-vl-32b-instruct"}
+                          ]
+                        }
+                        """.trimIndent()
+                    )
+            )
+            // 2. 3 attempts on llama-4-scout return 503
             repeat(3) {
                 server.enqueue(MockResponse().setResponseCode(503).setBody("""{"error":{"message":"Overloaded"}}"""))
             }
-            // Fallback llama-4-maverick succeeds
+            // 3. Discovered fallback qwen2.5-vl succeeds
             server.enqueue(MockResponse().setResponseCode(200).setBody("""{"choices":[{"message":{"content":"OK"}}]}"""))
 
             val delays = mutableListOf<Long>()
@@ -63,46 +78,21 @@ class GroqVisionProductClientTest {
 
             val result = mockClient.testApiKey(secretKey)
             assertTrue(result is GeminiKeyTestResult.Success)
-            assertEquals("llama-4-maverick-17b-128e", (result as GeminiKeyTestResult.Success).modelUsed)
+            assertEquals("qwen2.5-vl-32b", (result as GeminiKeyTestResult.Success).modelUsed)
             assertEquals(listOf(800L, 1800L), delays)
 
-            val firstReq = server.takeRequest()
-            assertEquals("Bearer $secretKey", firstReq.getHeader("Authorization"))
+            val modelsReq = server.takeRequest()
+            assertEquals("/openai/v1/models", modelsReq.path)
+            assertEquals("Bearer $secretKey", modelsReq.getHeader("Authorization"))
 
             // Verify error messages redact the Groq API key
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(401)
-                    .setBody("""{"error":{"message":"Invalid key $secretKey"}}""")
-            )
+            server.enqueue(MockResponse().setResponseCode(401).setBody("""{"error":{"message":"Invalid key $secretKey"}}"""))
+            server.enqueue(MockResponse().setResponseCode(401).setBody("""{"error":{"message":"Invalid key $secretKey"}}"""))
             val err = mockClient.testApiKey(secretKey)
             assertTrue(err is GeminiKeyTestResult.Failure)
             assertFalse((err as GeminiKeyTestResult.Failure).reason.contains(secretKey))
         } finally {
             server.shutdown()
         }
-    }
-
-    @Test
-    fun autoRoutingVisionClient_routesGskKeysToGroqAndOtherKeysToGemini() = runTest {
-        val groqFake = object : ProductVisionClient {
-            override suspend fun identifyProduct(bitmap: android.graphics.Bitmap, apiKey: String) =
-                GeminiVisionResult.Error("groq")
-            override suspend fun testApiKey(apiKey: String) =
-                GeminiKeyTestResult.Success("llama-4-scout-17b-16e")
-        }
-        val geminiFake = object : ProductVisionClient {
-            override suspend fun identifyProduct(bitmap: android.graphics.Bitmap, apiKey: String) =
-                GeminiVisionResult.Error("gemini")
-            override suspend fun testApiKey(apiKey: String) =
-                GeminiKeyTestResult.Success("gemini-3.8-flash")
-        }
-
-        val router = AutoRoutingVisionClient(groqClient = groqFake, geminiClient = geminiFake)
-        val groqRes = router.testApiKey("gsk_live_abc123")
-        val geminiRes = router.testApiKey("AIzaSyTest123")
-
-        assertEquals("llama-4-scout-17b-16e", (groqRes as GeminiKeyTestResult.Success).modelUsed)
-        assertEquals("gemini-3.8-flash", (geminiRes as GeminiKeyTestResult.Success).modelUsed)
     }
 }

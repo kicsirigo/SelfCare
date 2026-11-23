@@ -641,9 +641,10 @@ fun SettingsScreenContent(
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
+                            modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -662,7 +663,11 @@ fun SettingsScreenContent(
                             onClick = { showPatchNotes = true },
                             modifier = Modifier.testTag("settings_patch_notes_btn")
                         ) {
-                            Text(text = stringResource(R.string.settings_patch_notes_btn))
+                            Text(
+                                text = stringResource(R.string.settings_patch_notes_btn),
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
                     }
                     Text(

@@ -252,19 +252,19 @@
     <string name="shelf_live_product_detected">Termék érzékelve — fotózható</string>
     <string name="shelf_live_hold_product">Tartsd a terméket stabilan a keretbe</string>
     <string name="shelf_live_capture_btn">Termék fotózása</string>
-    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Gemini 3.8 Flash + ML Kit OCR)</string>
+    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Groq Llama 4 Scout + ML Kit OCR)</string>
     <string name="shelf_offline_ocr_badge">Offline OCR mód (kulcs nélkül)</string>
     <string name="shelf_camera_permission_needed">Kameraengedély szükséges az élő termékszkennerhez.</string>
-    <string name="settings_ai_vision_title">AI termékfelismerés (Groq / Gemini)</string>
-    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Llama 4 Scout Vision, 1 000 kérés/nap, villámgyors, 503 nélkül) vagy Gemini kulcsot. Üresen 100% offline Vonalkód + INCI OCR fut. A szelfik soha nem hagyják el az eszközt.</string>
-    <string name="settings_gemini_key_label">Groq (gsk_...) vagy Gemini API kulcs</string>
-    <string name="settings_gemini_key_hint">gsk_... vagy AIza... kulcs beillesztése</string>
+    <string name="settings_ai_vision_title">Groq Vision AI (Llama 4 Scout)</string>
+    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Llama 4 Scout Vision, 1 000 kérés/nap, ~1 mp válaszidő). Üresen 100% offline Vonalkód + INCI OCR fut. A szelfik soha nem hagyják el az eszközt.</string>
+    <string name="settings_gemini_key_label">Groq API kulcs (gsk_...)</string>
+    <string name="settings_gemini_key_hint">gsk_... kulcs beillesztése (opcionális)</string>
     <string name="settings_gemini_key_saved">API kulcs helyben elmentve</string>
     <string name="settings_gemini_key_clear">Törlés</string>
 
     <!-- v1.2.2: AI Scan Confirmation Dialog -->
     <string name="shelf_scan_confirm_title">Jó termékre gondoltam?</string>
-    <string name="shelf_scan_source_gemini">Gemini AI felismerés</string>
+    <string name="shelf_scan_source_gemini">Groq Vision felismerés</string>
     <string name="shelf_scan_source_ocr">Offline OCR felismerés</string>
     <string name="shelf_scan_confirm_save">Igen, mentés</string>
     <string name="shelf_scan_confirm_edit">Szerkesztés</string>
@@ -272,7 +272,7 @@
     <string name="shelf_scan_your_photo">A fotód</string>
     <string name="shelf_scan_matched_photo">Talált termékfotó</string>
     <string name="shelf_scan_no_ref_photo">Nincs katalóguskép</string>
-    <string name="shelf_gemini_fallback_error">Gemini AI hiba (Offline OCR futott helyette): %1$s</string>
+    <string name="shelf_gemini_fallback_error">Groq Vision hiba (Offline OCR futott helyette): %1$s</string>
     <string name="settings_gemini_test_btn">Kulcs teszt</string>
     <string name="settings_gemini_test_ok">Sikeres kapcsolat (%1$s)</string>
     <string name="settings_gemini_test_fail">API kulcs hiba: %1$s</string>
@@ -403,5 +403,5 @@
     <string name="shelf_lens_paste_btn">Beillesztés</string>
     <string name="shelf_lens_flow_hint">Fotózd le a terméket Google Lens-szel, majd nyomj a Megosztás → SelfCare gombra (vagy másold ki a nevét és illeszd be).</string>
     <string name="shelf_scan_source_google_lens">Google Lens</string>
-    <string name="shelf_vision_ai_active_badge">Élő vonalkód + Vision AI aktív (Groq / Gemini) + Offline INCI OCR</string>
+    <string name="shelf_vision_ai_active_badge">Élő vonalkód + Groq Vision aktív (Llama 4 Scout) + Offline INCI OCR</string>
 </resources>

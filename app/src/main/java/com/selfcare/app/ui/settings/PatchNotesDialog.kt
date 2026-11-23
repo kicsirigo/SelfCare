@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.4.1",
+            title = "Groq Vision Dynamic Model Discovery & UI Polish",
+            highlights = listOf(
+                "Completely removed the Google Gemini API client — Shelf visual scanning now runs exclusively on Groq Vision alongside Live Barcode and 100% Offline INCI OCR.",
+                "Added live model discovery via Groq's /openai/v1/models endpoint so the app automatically picks active vision models enabled on your account (removing the retired Llama 4 Maverick 404).",
+                "Fixed the Settings 'Patch Notes' button text wrapping on narrow screens."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.4.0",
             title = "Groq Vision (Llama 4 Scout) + Live Barcode + Offline INCI OCR",
             highlights = listOf(
