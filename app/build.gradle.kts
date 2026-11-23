@@ -28,8 +28,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "2.3.0"
+        versionCode = 19
+        versionName = "2.3.1"
 
         buildConfigField(
             "String",

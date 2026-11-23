@@ -81,59 +81,59 @@ object MetricInterpreter {
 
     fun interpretUnderEye(deltaLab: Float): MetricAssessment {
         val level = when {
-            deltaLab < 5.5f -> MetricStatusLevel.OPTIMAL
-            deltaLab < 11f -> MetricStatusLevel.GOOD
-            deltaLab < 18f -> MetricStatusLevel.MODERATE
+            deltaLab < 7.0f -> MetricStatusLevel.OPTIMAL
+            deltaLab < 13.5f -> MetricStatusLevel.GOOD
+            deltaLab < 21f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
-        val progress = (deltaLab / 26f).coerceIn(0.08f, 1f)
-        val healthScore = (100f - (deltaLab / 26f) * 100f).toInt().coerceIn(5, 99)
+        val progress = (deltaLab / 30f).coerceIn(0.08f, 1f)
+        val healthScore = (100f - (deltaLab / 30f) * 100f).toInt().coerceIn(5, 99)
         return MetricAssessment(level, healthScore, progress)
     }
 
     fun interpretRedness(rednessIndex: Float): MetricAssessment {
-        // Subtract normal healthy human skin CIELAB a* baseline (~0.13) before penalizing erythema
-        val excess = (rednessIndex - 0.13f).coerceAtLeast(0f)
+        // Subtract normal healthy human skin CIELAB a* baseline (~0.15) before penalizing erythema
+        val excess = (rednessIndex - 0.15f).coerceAtLeast(0f)
         val level = when {
-            rednessIndex < 0.19f -> MetricStatusLevel.OPTIMAL
-            rednessIndex < 0.27f -> MetricStatusLevel.GOOD
-            rednessIndex < 0.38f -> MetricStatusLevel.MODERATE
+            rednessIndex < 0.21f -> MetricStatusLevel.OPTIMAL
+            rednessIndex < 0.31f -> MetricStatusLevel.GOOD
+            rednessIndex < 0.44f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
-        val progress = (excess / 0.36f).coerceIn(0.08f, 1f)
-        val calmScore = (100f - (excess / 0.36f) * 100f).toInt().coerceIn(5, 99)
+        val progress = (excess / 0.42f).coerceIn(0.08f, 1f)
+        val calmScore = (100f - (excess / 0.42f) * 100f).toInt().coerceIn(5, 99)
         return MetricAssessment(level, calmScore, progress)
     }
 
     fun interpretTexture(textureVariance: Float): MetricAssessment {
         val level = when {
-            textureVariance < 6f -> MetricStatusLevel.OPTIMAL
-            textureVariance < 13f -> MetricStatusLevel.GOOD
-            textureVariance < 24f -> MetricStatusLevel.MODERATE
+            textureVariance < 9f -> MetricStatusLevel.OPTIMAL
+            textureVariance < 17f -> MetricStatusLevel.GOOD
+            textureVariance < 29f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
-        val progress = (textureVariance / 32f).coerceIn(0.08f, 1f)
-        val smoothScore = (100f - (textureVariance / 32f) * 100f).toInt().coerceIn(5, 99)
+        val progress = (textureVariance / 40f).coerceIn(0.08f, 1f)
+        val smoothScore = (100f - (textureVariance / 40f) * 100f).toInt().coerceIn(5, 99)
         return MetricAssessment(level, smoothScore, progress)
     }
 
     fun interpretLipDryness(lipDrynessScore: Float): MetricAssessment {
         val level = when {
-            lipDrynessScore < 0.18f -> MetricStatusLevel.OPTIMAL
-            lipDrynessScore < 0.32f -> MetricStatusLevel.GOOD
-            lipDrynessScore < 0.50f -> MetricStatusLevel.MODERATE
+            lipDrynessScore < 0.21f -> MetricStatusLevel.OPTIMAL
+            lipDrynessScore < 0.37f -> MetricStatusLevel.GOOD
+            lipDrynessScore < 0.56f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
-        val progress = (lipDrynessScore / 0.72f).coerceIn(0.08f, 1f)
-        val hydrationScore = (100f - (lipDrynessScore / 0.72f) * 100f).toInt().coerceIn(5, 99)
+        val progress = (lipDrynessScore / 0.80f).coerceIn(0.08f, 1f)
+        val hydrationScore = (100f - (lipDrynessScore / 0.80f) * 100f).toInt().coerceIn(5, 99)
         return MetricAssessment(level, hydrationScore, progress)
     }
 
     fun interpretBlemish(blemishScore: Float, blemishCount: Int): MetricAssessment {
         val level = when {
-            blemishCount == 0 && blemishScore < 0.08f -> MetricStatusLevel.OPTIMAL
-            blemishCount <= 2 && blemishScore < 0.24f -> MetricStatusLevel.GOOD
-            blemishCount <= 6 && blemishScore < 0.50f -> MetricStatusLevel.MODERATE
+            blemishCount <= 1 && blemishScore < 0.11f -> MetricStatusLevel.OPTIMAL
+            blemishCount <= 4 && blemishScore < 0.28f -> MetricStatusLevel.GOOD
+            blemishCount <= 8 && blemishScore < 0.55f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
         val progress = blemishScore.coerceIn(0.06f, 1f)
@@ -144,12 +144,12 @@ object MetricInterpreter {
     fun interpretStubble(stubbleScore: Float): MetricAssessment {
         val clamped = stubbleScore.coerceIn(0f, 1f)
         val level = when {
-            clamped < 0.20f -> MetricStatusLevel.OPTIMAL
-            clamped < 0.42f -> MetricStatusLevel.GOOD
-            clamped < 0.62f -> MetricStatusLevel.MODERATE
+            clamped < 0.24f -> MetricStatusLevel.OPTIMAL
+            clamped < 0.48f -> MetricStatusLevel.GOOD
+            clamped < 0.68f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
-        val groomedScore = (100f - clamped * 92f).toInt().coerceIn(8, 99)
+        val groomedScore = (100f - clamped * 90f).toInt().coerceIn(10, 99)
         return MetricAssessment(level, groomedScore, clamped.coerceIn(0.06f, 1f))
     }
 
@@ -196,23 +196,23 @@ object MetricInterpreter {
             stubbleEval.scorePercent
         ).toFloat()
 
-        // Blend 80% weighted average with 20% weakest-link so real issues visibly affect the rating
-        val calibrated100 = (weighted100 * 0.80f + weakest * 0.20f).coerceIn(10f, 99f)
+        // Blend 90% weighted average with 10% weakest-link for balanced realism without shadow over-penalization
+        val calibrated100 = (weighted100 * 0.90f + weakest * 0.10f).coerceIn(10f, 99f)
         val rating10 = ((calibrated100 / 10f) * 10f).toInt() / 10f // 1 decimal place
         val level = when {
-            rating10 >= 8.5f -> MetricStatusLevel.OPTIMAL
+            rating10 >= 8.3f -> MetricStatusLevel.OPTIMAL
             rating10 >= 6.8f -> MetricStatusLevel.GOOD
             rating10 >= 5.0f -> MetricStatusLevel.MODERATE
             else -> MetricStatusLevel.HIGH
         }
 
         val candidates = mutableListOf<Pair<ImprovementTipCode, Int>>()
-        if (blemishEval.scorePercent < 84) candidates.add(ImprovementTipCode.BLEMISHES to blemishEval.scorePercent)
-        if (rednessEval.scorePercent < 82) candidates.add(ImprovementTipCode.REDNESS to rednessEval.scorePercent)
-        if (textureEval.scorePercent < 82) candidates.add(ImprovementTipCode.TEXTURE to textureEval.scorePercent)
-        if (underEye.scorePercent < 80) candidates.add(ImprovementTipCode.UNDER_EYE to underEye.scorePercent)
-        if (lipEval.scorePercent < 80) candidates.add(ImprovementTipCode.LIPS to lipEval.scorePercent)
-        if (shaveDue || stubbleScore >= 0.48f) candidates.add(ImprovementTipCode.SHAVE to stubbleEval.scorePercent)
+        if (blemishEval.scorePercent < 82) candidates.add(ImprovementTipCode.BLEMISHES to blemishEval.scorePercent)
+        if (rednessEval.scorePercent < 80) candidates.add(ImprovementTipCode.REDNESS to rednessEval.scorePercent)
+        if (textureEval.scorePercent < 80) candidates.add(ImprovementTipCode.TEXTURE to textureEval.scorePercent)
+        if (underEye.scorePercent < 78) candidates.add(ImprovementTipCode.UNDER_EYE to underEye.scorePercent)
+        if (lipEval.scorePercent < 78) candidates.add(ImprovementTipCode.LIPS to lipEval.scorePercent)
+        if (shaveDue || stubbleScore >= 0.56f) candidates.add(ImprovementTipCode.SHAVE to stubbleEval.scorePercent)
 
         // Holistic Shelf Classification (Medications + Vitamins + Topical Skincare + SPF)
         val systemicIsotretinoin = findProductMatching(shelfProducts, ISOTRETINOIN_KEYWORDS)

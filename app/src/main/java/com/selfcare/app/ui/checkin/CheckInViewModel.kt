@@ -148,7 +148,7 @@ class CheckInViewModel(
         val daysSinceShave = settings.lastShaveEpochDay?.let { (todayEpochDay - it).toInt().coerceAtLeast(0) }
         val latestStubble = transient.lastResult?.checkIn?.stubbleScore ?: latest?.stubbleScore ?: 0f
         val shaveDue = (daysSinceShave != null && daysSinceShave >= settings.shaveIntervalDays) ||
-            latestStubble >= 0.52f
+            (latestStubble >= 0.68f && daysSinceShave != 0)
 
         val shelfSummaries = products.map { p ->
             ShelfProductSummary(

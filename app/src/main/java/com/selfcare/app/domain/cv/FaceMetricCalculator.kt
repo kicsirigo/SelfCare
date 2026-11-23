@@ -587,8 +587,8 @@ object FaceMetricCalculator {
             for (i in 0 until count) {
                 val deltaA = aVals[i] - meanA
                 val deltaL = lVals[i] - meanL
-                val isInflamedRedSpot = deltaA > 3.2f && deltaL < 4.0f
-                val isDarkBlemishMark = deltaL < -7.5f && deltaA > 1.0f
+                val isInflamedRedSpot = deltaA > 3.9f && deltaL < 4.0f
+                val isDarkBlemishMark = deltaL < -8.5f && deltaA > 1.5f
                 if (isInflamedRedSpot || isDarkBlemishMark) {
                     mask[i] = true
                 }
@@ -637,12 +637,12 @@ object FaceMetricCalculator {
 
                 if (area in minSpotArea..maxSpotArea) {
                     totalSpots++
-                    severitySum += (peakDeltaA / 9.5f).coerceIn(0.45f, 1.5f)
+                    severitySum += (peakDeltaA / 11f).coerceIn(0.4f, 1.5f)
                 }
             }
         }
 
-        val normalizedScore = (severitySum / 9.5f).coerceIn(0f, 1f)
+        val normalizedScore = (severitySum / 12f).coerceIn(0f, 1f)
         return BlemishMetrics(
             blemishScore = normalizedScore,
             estimatedSpotCount = totalSpots
@@ -679,12 +679,15 @@ object FaceMetricCalculator {
         } else {
             10f
         }
-        val extraRoughness = (jawTexture - refTexture * 0.85f).coerceAtLeast(0f)
+        val extraRoughness = (jawTexture - refTexture * 1.05f).coerceAtLeast(0f)
 
-        // Combine lower-face darkening (shadow/follicle density) and extra stubble micro-texture
-        val darkComponent = (darkening / 12f).coerceIn(0f, 1f)
-        val roughComponent = (extraRoughness / 12f).coerceIn(0f, 1f)
-        return (darkComponent * 0.55f + roughComponent * 0.45f).coerceIn(0f, 1f)
+        // Subtract natural overhead-lighting jaw shadow (~5 L* units) so smooth shadowed skin is not misread as stubble
+        val effectiveDarkening = (darkening - 5.0f).coerceAtLeast(0f)
+        val darkComponent = (effectiveDarkening / 15f).coerceIn(0f, 1f)
+        val roughComponent = (extraRoughness / 16f).coerceIn(0f, 1f)
+        val combined = (darkComponent * 0.40f + roughComponent * 0.60f).coerceIn(0f, 1f)
+        // If jawline is smooth (no extra bristle micro-texture), cap pure shadow contribution
+        return if (roughComponent < 0.12f) combined.coerceAtMost(0.24f) else combined
     }
 
     private fun singleSideUnderEyeDelta(
