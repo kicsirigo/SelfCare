@@ -55,19 +55,19 @@ class GroqVisionProductClientTest {
                         {
                           "data": [
                             {"id": "whisper-large-v3"},
-                            {"id": "llama-3.3-70b-versatile"},
-                            {"id": "meta-llama/llama-4-scout-17b-16e-instruct"},
-                            {"id": "qwen/qwen2.5-vl-32b-instruct"}
+                            {"id": "openai/gpt-oss-120b"},
+                            {"id": "qwen/qwen3.8-27b"},
+                            {"id": "meta-models/muse-spark-open"}
                           ]
                         }
                         """.trimIndent()
                     )
             )
-            // 2. 3 attempts on llama-4-scout return 503
+            // 2. 3 attempts on qwen3.8-27b return 503
             repeat(3) {
                 server.enqueue(MockResponse().setResponseCode(503).setBody("""{"error":{"message":"Overloaded"}}"""))
             }
-            // 3. Discovered fallback qwen2.5-vl succeeds
+            // 3. Discovered fallback muse-spark-open succeeds
             server.enqueue(MockResponse().setResponseCode(200).setBody("""{"choices":[{"message":{"content":"OK"}}]}"""))
 
             val delays = mutableListOf<Long>()
@@ -78,7 +78,7 @@ class GroqVisionProductClientTest {
 
             val result = mockClient.testApiKey(secretKey)
             assertTrue(result is GeminiKeyTestResult.Success)
-            assertEquals("qwen2.5-vl-32b", (result as GeminiKeyTestResult.Success).modelUsed)
+            assertEquals("muse-spark-open", (result as GeminiKeyTestResult.Success).modelUsed)
             assertEquals(listOf(800L, 1800L), delays)
 
             val modelsReq = server.takeRequest()

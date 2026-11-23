@@ -252,11 +252,11 @@
     <string name="shelf_live_product_detected">Termék érzékelve — fotózható</string>
     <string name="shelf_live_hold_product">Tartsd a terméket stabilan a keretbe</string>
     <string name="shelf_live_capture_btn">Termék fotózása</string>
-    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Groq Llama 4 Scout + ML Kit OCR)</string>
+    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Groq Qwen 3.8 27B + ML Kit OCR)</string>
     <string name="shelf_offline_ocr_badge">Offline OCR mód (kulcs nélkül)</string>
     <string name="shelf_camera_permission_needed">Kameraengedély szükséges az élő termékszkennerhez.</string>
-    <string name="settings_ai_vision_title">Groq Vision AI (Llama 4 Scout)</string>
-    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Llama 4 Scout Vision, 1 000 kérés/nap, ~1 mp válaszidő). Üresen 100% offline Vonalkód + INCI OCR fut. A szelfik soha nem hagyják el az eszközt.</string>
+    <string name="settings_ai_vision_title">Groq Vision AI (Qwen 3.8 27B)</string>
+    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Qwen 3.8 27B Vision, ~1 mp válaszidő). Üresen 100% offline Vonalkód + INCI OCR fut. A szelfik soha nem hagyják el az eszközt.</string>
     <string name="settings_gemini_key_label">Groq API kulcs (gsk_...)</string>
     <string name="settings_gemini_key_hint">gsk_... kulcs beillesztése (opcionális)</string>
     <string name="settings_gemini_key_saved">API kulcs helyben elmentve</string>
@@ -403,5 +403,5 @@
     <string name="shelf_lens_paste_btn">Beillesztés</string>
     <string name="shelf_lens_flow_hint">Fotózd le a terméket Google Lens-szel, majd nyomj a Megosztás → SelfCare gombra (vagy másold ki a nevét és illeszd be).</string>
     <string name="shelf_scan_source_google_lens">Google Lens</string>
-    <string name="shelf_vision_ai_active_badge">Élő vonalkód + Groq Vision aktív (Llama 4 Scout) + Offline INCI OCR</string>
+    <string name="shelf_vision_ai_active_badge">Élő vonalkód + Groq Vision aktív (Qwen 3.8 27B) + Offline INCI OCR</string>
 </resources>

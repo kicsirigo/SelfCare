@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.4.2",
+            title = "Groq Vision Upgraded to Qwen 3.8 27B",
+            highlights = listOf(
+                "Migrated Groq Vision from retired Llama 4 Scout (deprecated July 2026) to Groq's current native multimodal model qwen/qwen3.8-27b (with meta-models/muse-spark-open fallback).",
+                "Updated live /openai/v1/models discovery to prioritize qwen3.8 and muse-spark vision models and added <think> block stripping for clean JSON parsing."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.4.1",
             title = "Groq Vision Dynamic Model Discovery & UI Polish",
             highlights = listOf(

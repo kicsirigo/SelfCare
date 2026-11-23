@@ -235,7 +235,11 @@ class GroqVisionProductClient(
                 ?.trim()
                 ?: return GeminiVisionResult.Error("EMPTY_TEXT")
 
-            val cleaned = rawText
+            val withoutThink = rawText
+                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
+                .trim()
+
+            val cleaned = withoutThink
                 .removePrefix("```json")
                 .removePrefix("```")
                 .removeSuffix("```")
@@ -371,7 +375,8 @@ class GroqVisionProductClient(
         const val MAX_TRANSIENT_ATTEMPTS = 3
         val RETRY_BACKOFF_MS = longArrayOf(800L, 1800L)
         val DEFAULT_VISION_MODELS = listOf(
-            "meta-llama/llama-4-scout-17b-16e-instruct"
+            "qwen/qwen3.8-27b",
+            "meta-models/muse-spark-open"
         )
 
         fun selectVisionModelsFromCatalog(modelIds: List<String>): List<String> {
@@ -381,21 +386,24 @@ class GroqVisionProductClient(
                     !lower.contains("whisper") &&
                     !lower.contains("tts") &&
                     (
-                        lower.contains("llama-4-scout") ||
-                            lower.contains("llama-4") ||
+                        lower.contains("qwen3.8") ||
+                            lower.contains("qwen3.6") ||
+                            lower.contains("muse-spark") ||
                             lower.contains("vision") ||
                             lower.contains("-vl") ||
                             lower.contains("pixtral") ||
-                            lower.contains("llava")
+                            lower.contains("llava") ||
+                            lower.contains("llama-4-scout")
                         )
             }
             return visionCandidates.sortedBy { id ->
                 val lower = id.lowercase()
                 when {
-                    lower.contains("llama-4-scout") -> 0
-                    lower.contains("llama-4") -> 1
-                    lower.contains("vision") -> 2
-                    else -> 3
+                    lower.contains("qwen3.8") -> 0
+                    lower.contains("muse-spark") -> 1
+                    lower.contains("qwen3.6") -> 2
+                    lower.contains("vision") || lower.contains("-vl") -> 3
+                    else -> 4
                 }
             }
         }

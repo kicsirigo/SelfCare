@@ -245,7 +245,7 @@ fun ShelfScreenContent(
                                 text = when (pending.source) {
                                     "GEMINI_VISION" -> stringResource(
                                         R.string.shelf_scan_ai_model_gemini,
-                                        pending.modelUsed.ifBlank { "llama-4-scout (Groq)" }
+                                        pending.modelUsed.ifBlank { "qwen3.8-27b (Groq)" }
                                     )
                                     "GOOGLE_LENS" -> stringResource(R.string.shelf_scan_source_google_lens)
                                     else -> stringResource(R.string.shelf_scan_source_ocr)

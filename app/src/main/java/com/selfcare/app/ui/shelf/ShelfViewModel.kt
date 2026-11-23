@@ -427,7 +427,7 @@ class ShelfViewModel(
                                 geminiErrorBanner = null,
                                 pendingScanConfirmation = PendingScanConfirmation(
                                     source = "GEMINI_VISION",
-                                    modelUsed = visionResult.modelUsed.ifBlank { "llama-4-scout-17b-16e (Groq)" },
+                                    modelUsed = visionResult.modelUsed.ifBlank { "qwen3.8-27b (Groq)" },
                                     name = info.name,
                                     brand = info.brand,
                                     category = info.category,
