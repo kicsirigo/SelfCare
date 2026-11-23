@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
@@ -40,7 +42,6 @@ data class CheckInUiState(
     val liveBrightnessPercent: Int? = null,
     val screenFlashEnabled: Boolean = false,
     val isFlashFiring: Boolean = false,
-    val cooldownSecondsRemaining: Int = 0,
     val noFaceError: Boolean = false,
     val isCapturing: Boolean = false,
     val autoDeletePhotos: Boolean = false,
@@ -77,7 +78,6 @@ class CheckInViewModel(
         val liveBrightnessPercent: Int? = null,
         val screenFlashEnabled: Boolean = false,
         val isFlashFiring: Boolean = false,
-        val cooldownSecondsRemaining: Int = 0,
         val noFaceError: Boolean = false,
         val isCapturing: Boolean = false,
         val lastResult: CheckInSubmissionResult? = null,
@@ -87,7 +87,6 @@ class CheckInViewModel(
 
     private val transientState = MutableStateFlow(TransientState())
     private var liveFaceCheckJob: Job? = null
-    private var cooldownJob: Job? = null
 
     private val dailyContextFlow = combine(
         routineRepository?.observeAllLogs() ?: flowOf(emptyList()),
@@ -166,7 +165,6 @@ class CheckInViewModel(
             liveBrightnessPercent = transient.liveBrightnessPercent,
             screenFlashEnabled = transient.screenFlashEnabled,
             isFlashFiring = transient.isFlashFiring,
-            cooldownSecondsRemaining = transient.cooldownSecondsRemaining,
             noFaceError = transient.noFaceError,
             isCapturing = transient.isCapturing,
             autoDeletePhotos = settings.autoDeleteCheckInPhotos,
@@ -284,17 +282,6 @@ class CheckInViewModel(
         }
     }
 
-    private fun startCooldown(seconds: Int = CAPTURE_COOLDOWN_SECONDS) {
-        cooldownJob?.cancel()
-        cooldownJob = viewModelScope.launch {
-            for (remaining in seconds downTo 1) {
-                transientState.value = transientState.value.copy(cooldownSecondsRemaining = remaining)
-                delay(1_000L)
-            }
-            transientState.value = transientState.value.copy(cooldownSecondsRemaining = 0)
-        }
-    }
-
     fun setAutoDeleteCheckInPhotos(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoDeleteCheckInPhotos(enabled)
@@ -340,7 +327,6 @@ class CheckInViewModel(
 
     companion object {
         private const val DEFAULT_INITIAL_HAIR_RATIO = 0.25f
-        const val CAPTURE_COOLDOWN_SECONDS = 5
 
         fun factory(
             faceCheckInRepository: FaceCheckInRepository,
@@ -350,10 +336,9 @@ class CheckInViewModel(
             productRepository: ProductRepository? = null,
             routineRepository: RoutineRepository? = null,
             hygieneRepository: HygieneRepository? = null
-        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return CheckInViewModel(
+        ): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                CheckInViewModel(
                     faceCheckInRepository = faceCheckInRepository,
                     haircutTracker = haircutTracker,
                     settingsRepository = settingsRepository,
@@ -361,7 +346,7 @@ class CheckInViewModel(
                     productRepository = productRepository,
                     routineRepository = routineRepository,
                     hygieneRepository = hygieneRepository
-                ) as T
+                )
             }
         }
     }

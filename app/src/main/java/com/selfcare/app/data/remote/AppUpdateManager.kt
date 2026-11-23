@@ -16,10 +16,14 @@ import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.coroutineContext
@@ -46,20 +50,29 @@ sealed interface UpdateDownloadResult {
 
 /**
  * Privacy-first, read-only in-app GitHub Releases download manager.
- * Enforces HTTPS-only downloads from GitHub hosts, bounded file sizes,
- * live streaming progress, and SHA-256 verification against SHA256SUMS.txt.
+ * Enforces HTTPS-only downloads & validated redirects strictly within allowlisted GitHub hosts,
+ * bounded response/file sizes, live streaming progress, and fail-closed SHA-256 verification.
  */
 class AppUpdateManager(
     private val context: Context,
-    private val httpClient: OkHttpClient = defaultClient(),
+    httpClient: OkHttpClient = defaultClient(),
     private val latestReleaseUrl: String = DEFAULT_LATEST_RELEASE_URL
 ) {
+
+    // Always disable automatic OkHttp redirects so every redirect hop is validated against the allowlist.
+    private val safeHttpClient: OkHttpClient = httpClient.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
 
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun checkForUpdate(currentVersionName: String): UpdateCheckResult =
         withContext(Dispatchers.IO) {
             try {
+                if (!isAllowedHttpsUrl(latestReleaseUrl)) {
+                    return@withContext UpdateCheckResult.Error("Disallowed release URL")
+                }
                 val request = Request.Builder()
                     .url(latestReleaseUrl)
                     .get()
@@ -67,11 +80,13 @@ class AppUpdateManager(
                     .header("User-Agent", "SelfCare-Android/$currentVersionName")
                     .build()
 
-                httpClient.newCall(request).execute().use { response ->
+                executeWithValidatedRedirects(request).use { response ->
                     if (!response.isSuccessful) {
                         return@withContext UpdateCheckResult.Error("HTTP ${response.code}")
                     }
-                    val body = response.body?.string().orEmpty()
+                    val responseBody = response.body
+                        ?: return@withContext UpdateCheckResult.Error("Empty response")
+                    val body = readBoundedUtf8(responseBody, MAX_METADATA_BYTES)
                     val root = json.parseToJsonElement(body).jsonObject
                     val tagName = root["tag_name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
                     val latestVersion = tagName.removePrefix("v").removePrefix("V")
@@ -111,7 +126,7 @@ class AppUpdateManager(
                     }
                 }
             } catch (e: Exception) {
-                UpdateCheckResult.Error(e::class.simpleName ?: "Network error")
+                UpdateCheckResult.Error(e.message?.takeIf { it.isNotBlank() } ?: e::class.simpleName ?: "Network error")
             }
         }
 
@@ -123,13 +138,24 @@ class AppUpdateManager(
             return@withContext UpdateDownloadResult.Error("Invalid APK download URL")
         }
 
+        // Fail-closed: refuse to download/install unless SHA256SUMS.txt URL is allowlisted and readable.
+        val sumsUrl = info.sha256SumsUrl
+        if (sumsUrl.isNullOrBlank() || !isAllowedHttpsUrl(sumsUrl)) {
+            return@withContext UpdateDownloadResult.Error("Missing or invalid SHA-256 checksums URL")
+        }
+
         val updatesDir = File(context.cacheDir, UPDATES_DIR).apply { mkdirs() }
         // Clean previous cached update APKs
         updatesDir.listFiles()?.forEach { runCatching { it.delete() } }
 
-        val expectedSha256 = info.sha256SumsUrl?.let { fetchExpectedSha256(it) }
         val safeVersion = info.versionName.replace(Regex("[^0-9A-Za-z._-]"), "_")
         val targetFile = File(updatesDir, "SelfCare-$safeVersion.apk")
+
+        val expectedSha256 = fetchExpectedSha256(sumsUrl)
+        if (expectedSha256 == null) {
+            runCatching { targetFile.delete() }
+            return@withContext UpdateDownloadResult.Error("Failed to fetch or parse expected SHA-256 checksum")
+        }
 
         try {
             var downloaded = 0L
@@ -152,15 +178,19 @@ class AppUpdateManager(
                         reqBuilder.header("Range", "bytes=$downloaded-")
                     }
 
-                    httpClient.newCall(reqBuilder.build()).execute().use { response ->
+                    executeWithValidatedRedirects(reqBuilder.build()).use { response ->
                         if (response.code == 416 && totalBytes > 0L && downloaded >= totalBytes) {
                             // Already downloaded completely
                             break
                         }
                         if (!response.isSuccessful) {
+                            runCatching { targetFile.delete() }
                             return@withContext UpdateDownloadResult.Error("HTTP ${response.code}")
                         }
-                        val body = response.body ?: return@withContext UpdateDownloadResult.Error("Empty body")
+                        val body = response.body ?: run {
+                            runCatching { targetFile.delete() }
+                            return@withContext UpdateDownloadResult.Error("Empty body")
+                        }
                         val isPartial = response.code == 206
                         if (!isPartial && downloaded > 0L) {
                             // Server ignored Range header; restart cleanly from 0
@@ -171,6 +201,7 @@ class AppUpdateManager(
                             totalBytes = if (isPartial) downloaded + contentLen else contentLen
                         }
                         if (totalBytes > MAX_APK_BYTES) {
+                            runCatching { targetFile.delete() }
                             return@withContext UpdateDownloadResult.Error("APK exceeds maximum allowed size")
                         }
 
@@ -205,6 +236,9 @@ class AppUpdateManager(
                         lastError = null
                         break
                     }
+                } catch (e: SecurityException) {
+                    runCatching { targetFile.delete() }
+                    return@withContext UpdateDownloadResult.Error(e.message ?: "Disallowed redirect")
                 } catch (e: IOException) {
                     lastError = e
                     if (attempt >= maxAttempts) break
@@ -218,14 +252,9 @@ class AppUpdateManager(
             }
 
             val actualSha256 = computeFileSha256(targetFile)
-            val verified = if (expectedSha256 != null) {
-                if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
-                    runCatching { targetFile.delete() }
-                    return@withContext UpdateDownloadResult.Error("SHA-256 verification failed")
-                }
-                true
-            } else {
-                false
+            if (!actualSha256.equals(expectedSha256, ignoreCase = true)) {
+                runCatching { targetFile.delete() }
+                return@withContext UpdateDownloadResult.Error("SHA-256 verification failed")
             }
 
             val contentUri = FileProvider.getUriForFile(
@@ -236,13 +265,72 @@ class AppUpdateManager(
             UpdateDownloadResult.ReadyToInstall(
                 apkFile = targetFile,
                 contentUri = contentUri,
-                sha256Verified = verified
+                sha256Verified = true
             )
         } catch (e: Exception) {
             runCatching { targetFile.delete() }
             if (e is kotlinx.coroutines.CancellationException) throw e
-            UpdateDownloadResult.Error(e::class.simpleName ?: "Download failed")
+            UpdateDownloadResult.Error(e.message?.takeIf { it.isNotBlank() } ?: e::class.simpleName ?: "Download failed")
         }
+    }
+
+    /**
+     * Executes an HTTP request while manually following up to [MAX_REDIRECTS] hops and verifying
+     * that every redirect target remains on an allowlisted GitHub HTTPS host.
+     */
+    private fun executeWithValidatedRedirects(initialRequest: Request): Response {
+        var currentRequest = initialRequest
+        var redirects = 0
+        while (true) {
+            val currentUrl = currentRequest.url.toString()
+            if (!isAllowedHttpsUrl(currentUrl)) {
+                throw SecurityException("Disallowed URL blocked: $currentUrl")
+            }
+            val response = safeHttpClient.newCall(currentRequest).execute()
+            if (response.code !in REDIRECT_STATUS_CODES) {
+                return response
+            }
+            val location = response.header("Location")
+            response.close()
+            if (location.isNullOrBlank()) {
+                throw IOException("Redirect response missing Location header")
+            }
+            redirects++
+            if (redirects > MAX_REDIRECTS) {
+                throw IOException("Too many redirects ($redirects)")
+            }
+            val resolved = currentRequest.url.resolve(location)
+                ?: throw SecurityException("Invalid redirect Location URL")
+            val resolvedStr = resolved.toString()
+            if (!isAllowedHttpsUrl(resolvedStr)) {
+                throw SecurityException("Redirect to disallowed host blocked")
+            }
+            currentRequest = currentRequest.newBuilder()
+                .url(resolved)
+                .build()
+        }
+    }
+
+    private fun readBoundedUtf8(body: ResponseBody, maxBytes: Long): String {
+        val declaredLength = body.contentLength()
+        if (declaredLength > maxBytes) {
+            throw IOException("Response exceeds maximum allowed size ($maxBytes bytes)")
+        }
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var totalRead = 0L
+        body.byteStream().use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read == -1) break
+                totalRead += read
+                if (totalRead > maxBytes) {
+                    throw IOException("Response exceeded maximum allowed size ($maxBytes bytes)")
+                }
+                out.write(buffer, 0, read)
+            }
+        }
+        return out.toString(StandardCharsets.UTF_8.name())
     }
 
     private fun computeFileSha256(file: File): String {
@@ -262,9 +350,10 @@ class AppUpdateManager(
         if (!isAllowedHttpsUrl(url)) return null
         return runCatching {
             val req = Request.Builder().url(url).get().build()
-            httpClient.newCall(req).execute().use { resp ->
+            executeWithValidatedRedirects(req).use { resp ->
                 if (!resp.isSuccessful) return@use null
-                val text = resp.body?.string().orEmpty()
+                val body = resp.body ?: return@use null
+                val text = readBoundedUtf8(body, MAX_SHA256_SUMS_BYTES)
                 parseSha256ForFile(text, RELEASE_APK_NAME)
             }
         }.getOrNull()
@@ -277,6 +366,10 @@ class AppUpdateManager(
         const val SHA256_SUMS_NAME = "SHA256SUMS.txt"
         const val UPDATES_DIR = "updates"
         const val MAX_APK_BYTES = 300L * 1024L * 1024L
+        const val MAX_METADATA_BYTES = 2L * 1024L * 1024L
+        const val MAX_SHA256_SUMS_BYTES = 1L * 1024L * 1024L
+        const val MAX_REDIRECTS = 5
+        private val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
 
         fun isAllowedHttpsUrl(url: String): Boolean {
             val clean = url.trim().lowercase()
@@ -313,8 +406,8 @@ class AppUpdateManager(
             .readTimeout(90, TimeUnit.SECONDS)
             .callTimeout(0, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
-            .followRedirects(true)
-            .followSslRedirects(true)
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
 }

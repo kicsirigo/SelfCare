@@ -73,10 +73,6 @@ import com.selfcare.app.domain.inci.InciMatch
 import com.selfcare.app.ui.icons.AppIcons
 import java.io.File
 
-private enum class ScanCaptureMode {
-    OCR
-}
-
 @Composable
 fun ShelfScreen(
     viewModel: ShelfViewModel,
@@ -132,7 +128,6 @@ fun ShelfScreen(
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onLookupClick = viewModel::performLookup,
         onSelectCategoryFilter = viewModel::selectCategoryFilter,
-        onSelectPresetGroup = viewModel::selectPresetGroup,
         onAddPreset = viewModel::addPresetProduct,
         onSmartScanClick = viewModel::openLiveScanner,
         onScanOcrClick = { launchFullResOcr() },
@@ -165,7 +160,6 @@ fun ShelfScreenContent(
     onSearchQueryChange: (String) -> Unit,
     onLookupClick: () -> Unit,
     onSelectCategoryFilter: (ShelfCategoryFilter) -> Unit,
-    onSelectPresetGroup: (PresetGroup) -> Unit,
     onAddPreset: (PresetProduct) -> Unit,
     onSmartScanClick: () -> Unit = {},
     onScanOcrClick: () -> Unit,
@@ -784,124 +778,6 @@ fun ShelfScreenContent(
 
             item {
                 Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickPresetsCard(
-    selectedGroup: PresetGroup,
-    presets: List<PresetProduct>,
-    addedIds: Set<String>,
-    onSelectGroup: (PresetGroup) -> Unit,
-    onAddPreset: (PresetProduct) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("shelf_presets_card"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.shelf_presets_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = stringResource(R.string.shelf_presets_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(PresetGroup.entries) { group ->
-                    val labelRes = when (group) {
-                        PresetGroup.RX -> R.string.shelf_cat_rx
-                        PresetGroup.HAIR -> R.string.shelf_cat_hair
-                        PresetGroup.FACE -> R.string.shelf_cat_face
-                        PresetGroup.VITAMIN -> R.string.shelf_cat_vitamin
-                        PresetGroup.MEDICATION -> R.string.shelf_cat_medication
-                    }
-                    FilterChip(
-                        selected = selectedGroup == group,
-                        onClick = { onSelectGroup(group) },
-                        label = { Text(stringResource(labelRes)) },
-                        modifier = Modifier.testTag("shelf_preset_group_${group.name}")
-                    )
-                }
-            }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(presets, key = { it.id }) { preset ->
-                    val added = preset.id in addedIds
-                    Card(
-                        onClick = { onAddPreset(preset) },
-                        modifier = Modifier
-                            .width(210.dp)
-                            .testTag("shelf_preset_${preset.id}"),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        border = BorderStroke(
-                            1.dp,
-                            if (added) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = preset.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = preset.brand,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = preset.shortNote,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (added) AppIcons.Check else AppIcons.Add,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = if (added) {
-                                        stringResource(R.string.shelf_preset_added)
-                                    } else {
-                                        slotLabel(preset.defaultSlot)
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }

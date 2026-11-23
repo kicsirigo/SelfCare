@@ -81,8 +81,6 @@ data class PendingScanConfirmation(
 data class ShelfUiState(
     val searchQuery: String = "",
     val categoryFilter: ShelfCategoryFilter = ShelfCategoryFilter.ALL,
-    val selectedPresetGroup: PresetGroup = PresetGroup.RX,
-    val visiblePresets: List<PresetProduct> = PresetProductCatalog.byGroup(PresetGroup.RX),
     val presetMatchesForSearch: List<PresetProduct> = emptyList(),
     val addedPresetIds: Set<String> = emptySet(),
     val products: List<ShelfProductItem> = emptyList(),
@@ -110,7 +108,6 @@ class ShelfViewModel(
 
     private val searchQueryFlow = MutableStateFlow("")
     private val categoryFilterFlow = MutableStateFlow(ShelfCategoryFilter.ALL)
-    private val presetGroupFlow = MutableStateFlow(PresetGroup.RX)
     private val lookupStateFlow = MutableStateFlow(LookupTransientState())
     private val editorFlow = MutableStateFlow<ProductEditorState?>(null)
     private var liveOcrJob: Job? = null
@@ -122,7 +119,6 @@ class ShelfViewModel(
         productRepository.observeAllProducts(),
         searchQueryFlow,
         categoryFilterFlow,
-        presetGroupFlow,
         lookupStateFlow,
         editorFlow,
         settingsFlow
@@ -131,10 +127,9 @@ class ShelfViewModel(
         val allProducts = values[0] as List<ProductEntity>
         val query = values[1] as String
         val catFilter = values[2] as ShelfCategoryFilter
-        val presetGroup = values[3] as PresetGroup
-        val lookup = values[4] as LookupTransientState
-        val editor = values[5] as ProductEditorState?
-        val userSettings = values[6] as com.selfcare.app.data.local.UserSettings
+        val lookup = values[3] as LookupTransientState
+        val editor = values[4] as ProductEditorState?
+        val userSettings = values[5] as com.selfcare.app.data.local.UserSettings
         val geminiConfigured = userSettings.geminiApiKey.isNotBlank()
 
         val trimmed = query.trim()
@@ -195,8 +190,6 @@ class ShelfViewModel(
         ShelfUiState(
             searchQuery = query,
             categoryFilter = catFilter,
-            selectedPresetGroup = presetGroup,
-            visiblePresets = PresetProductCatalog.byGroup(presetGroup),
             presetMatchesForSearch = lookup.presetMatches,
             addedPresetIds = addedPresetIds,
             products = items,
@@ -232,10 +225,6 @@ class ShelfViewModel(
         viewModelScope.launch {
             repo.setBirthDateIso(isoDate)
         }
-    }
-
-    fun selectPresetGroup(group: PresetGroup) {
-        presetGroupFlow.value = group
     }
 
     fun addPresetProduct(preset: PresetProduct, autoAssignToRoutine: Boolean = true) {
@@ -667,22 +656,6 @@ class ShelfViewModel(
 
     fun dismissPendingScan() {
         lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
-    }
-
-    fun onBarcodeBitmapCaptured(bitmap: Bitmap?) {
-        if (bitmap == null) return
-        viewModelScope.launch {
-            lookupStateFlow.update { it.copy(isLookingUp = true, offlineFallbackMessage = null) }
-            val scanned = barcodeScanner.scanBarcode(bitmap)
-            if (scanned.isNullOrBlank()) {
-                lookupStateFlow.update {
-                    it.copy(isLookingUp = false, offlineFallbackMessage = "BARCODE_NONE")
-                }
-            } else {
-                searchQueryFlow.value = scanned
-                lookupBarcode(scanned)
-            }
-        }
     }
 
     fun onOcrBitmapCaptured(bitmap: Bitmap?) {

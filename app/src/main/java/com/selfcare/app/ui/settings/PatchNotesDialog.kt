@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.0.1",
+            title = "Security Hardening, Versioned ONNX Model & Codebase Cleanup",
+            highlights = listOf(
+                "Enforced fail-closed SHA-256 verification, bounded metadata/checksum reads, and allowlisted redirect validation in the in-app Download Manager.",
+                "Versioned the extracted on-device ONNX acne model file (acne_detector_v<versionCode>.onnx) and cleaned up stale older model files on update.",
+                "Removed unused WorkManager dependency and dead UI/ViewModel code for a leaner APK."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.0.0",
             title = "On-Device Local AI Blemish Detection & Patch Notes",
             highlights = listOf(

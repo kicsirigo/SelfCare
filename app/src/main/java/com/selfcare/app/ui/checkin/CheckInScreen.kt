@@ -743,41 +743,6 @@ private fun CameraPreviewCard(
 }
 
 @Composable
-private fun LightingWarningBanner(reason: LightingWarningReason) {
-    val messageRes = when (reason) {
-        LightingWarningReason.TOO_DARK -> R.string.checkin_lighting_too_dark
-        LightingWarningReason.TOO_BRIGHT -> R.string.checkin_lighting_too_bright
-        LightingWarningReason.UNEVEN -> R.string.checkin_lighting_uneven
-        LightingWarningReason.OK -> R.string.checkin_lighting_warning
-    }
-    Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("checkin_lighting_warning")
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = AppIcons.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = stringResource(messageRes),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer
-            )
-        }
-    }
-}
-
-@Composable
 private fun AutoDeletePrivacyCard(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit

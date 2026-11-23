@@ -107,9 +107,6 @@ class OpenBeautyFactsClient(
     suspend fun searchByName(query: String): OpenBeautyFactsSearchResult =
         searchByNameOnHost(baseUrl, query)
 
-    suspend fun searchOpenFoodFactsByName(query: String): OpenBeautyFactsSearchResult =
-        searchByNameOnHost(OPEN_FOOD_FACTS_BASE_URL, query)
-
     private suspend fun searchByNameOnHost(
         hostBaseUrl: String,
         query: String

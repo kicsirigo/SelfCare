@@ -5,6 +5,7 @@ import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.Bitmap
+import com.selfcare.app.BuildConfig
 import com.selfcare.app.domain.cv.BlemishMetrics
 import com.selfcare.app.domain.cv.PixelRect
 import com.selfcare.app.domain.cv.YoloBlemishPostProcessor
@@ -33,12 +34,32 @@ class OnnxAcneDetector(private val context: Context) {
             if (initAttempted) return null
             initAttempted = true
             return runCatching {
-                val modelFile = File(context.filesDir, ASSET_NAME)
+                val versionedName = "acne_detector_v${BuildConfig.VERSION_CODE}.onnx"
+                val modelFile = File(context.filesDir, versionedName)
                 if (!modelFile.exists() || modelFile.length() == 0L) {
-                    context.assets.open(ASSET_NAME).use { input ->
-                        modelFile.outputStream().use { output ->
-                            input.copyTo(output)
+                    // Clean up any older extracted ONNX model versions so stale weights are never retained
+                    context.filesDir.listFiles { _, name ->
+                        name.startsWith("acne_detector") &&
+                            name.endsWith(".onnx") &&
+                            name != versionedName
+                    }?.forEach { oldFile ->
+                        runCatching { oldFile.delete() }
+                    }
+                    val tempFile = File(context.filesDir, "$versionedName.tmp")
+                    try {
+                        context.assets.open(ASSET_NAME).use { input ->
+                            tempFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
                         }
+                        if (!tempFile.renameTo(modelFile)) {
+                            tempFile.copyTo(modelFile, overwrite = true)
+                            tempFile.delete()
+                        }
+                    } catch (e: Throwable) {
+                        runCatching { tempFile.delete() }
+                        runCatching { modelFile.delete() }
+                        throw e
                     }
                 }
                 val env = OrtEnvironment.getEnvironment()

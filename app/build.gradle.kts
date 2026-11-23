@@ -28,8 +28,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 23
-        versionName = "3.0.0"
+        versionCode = 24
+        versionName = "3.0.1"
 
         buildConfigField(
             "String",
@@ -148,8 +148,6 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
-
-    implementation(libs.androidx.work.runtime.ktx)
 
     implementation(libs.mlkit.face.mesh)
     implementation(libs.mlkit.selfie.segmentation)
