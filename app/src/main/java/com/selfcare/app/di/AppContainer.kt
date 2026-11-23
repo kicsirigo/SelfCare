@@ -9,6 +9,7 @@ import com.selfcare.app.data.ml.MlKitOcrScanner
 import com.selfcare.app.data.ml.OnnxAcneDetector
 import com.selfcare.app.data.ml.OnnxSkinSignalsAnalyzer
 import com.selfcare.app.data.remote.AppUpdateManager
+import com.selfcare.app.data.remote.AutoRoutingVisionClient
 import com.selfcare.app.data.remote.GeminiVisionProductClient
 import com.selfcare.app.data.remote.OpenBeautyFactsClient
 import com.selfcare.app.data.remote.ProductVisionClient
@@ -102,7 +103,7 @@ open class AppContainer(
     }
 
     open val productVisionClient: ProductVisionClient by lazy {
-        GeminiVisionProductClient()
+        AutoRoutingVisionClient()
     }
 
     open val appUpdateManager: AppUpdateManager by lazy {

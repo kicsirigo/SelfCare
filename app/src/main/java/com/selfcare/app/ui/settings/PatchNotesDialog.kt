@@ -30,6 +30,16 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.4.0",
+            title = "Groq Vision (Llama 4 Scout) + Live Barcode + Offline INCI OCR",
+            highlights = listOf(
+                "Added Groq Vision support (meta-llama/llama-4-scout-17b-16e-instruct primary + llama-4-maverick fallback) with automatic key-prefix routing: paste a free gsk_... key from console.groq.com (1,000 req/day, fast ~1s responses, no Gemini 503 overload) or a Gemini key in Settings.",
+                "Restored the Yuka/INCI Beauty-style Shelf workflow combining instant Live Barcode scanning, Vision AI front-label recognition, dedicated Offline INCI OCR for back-of-bottle ingredients, and Google Lens / Share-to-SelfCare fallback.",
+                "Fixed GitHub Release asset naming (SelfCare-release.apk) so the in-app Download Manager seamlessly detects, SHA-256 verifies, and installs updates.",
+                "Updated README documentation to reflect the full v3.4.0 architecture."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.3.0",
             title = "Google Lens-First Product Shelf & Share-to-SelfCare",
             highlights = listOf(

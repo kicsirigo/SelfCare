@@ -255,10 +255,10 @@
     <string name="shelf_gemini_active_badge">AI Vision active (Gemini 3.8 Flash + ML Kit OCR)</string>
     <string name="shelf_offline_ocr_badge">Offline OCR mode (no API key)</string>
     <string name="shelf_camera_permission_needed">Camera permission is required for the live product scanner.</string>
-    <string name="settings_ai_vision_title">AI Visual Product Scan (Optional)</string>
-    <string name="settings_ai_vision_desc">Optional Google AI Studio (Gemini) API key for photo-based product recognition. Leave empty to stay 100% on-device (offline OCR). Selfies never leave your device.</string>
-    <string name="settings_gemini_key_label">Gemini API Key</string>
-    <string name="settings_gemini_key_hint">Paste API key (optional)</string>
+    <string name="settings_ai_vision_title">AI Product Vision (Groq / Gemini)</string>
+    <string name="settings_ai_vision_desc">Paste a free Groq API key (gsk_... from console.groq.com — Llama 4 Scout Vision, 1,000 req/day, fast &amp; no 503) or a Gemini key. Leave empty for 100% offline Barcode + INCI OCR. Selfies never leave your device.</string>
+    <string name="settings_gemini_key_label">Groq (gsk_...) or Gemini API Key</string>
+    <string name="settings_gemini_key_hint">Paste gsk_... or AIza... key</string>
     <string name="settings_gemini_key_saved">API key saved locally</string>
     <string name="settings_gemini_key_clear">Clear</string>
 
@@ -403,4 +403,5 @@
     <string name="shelf_lens_paste_btn">Paste</string>
     <string name="shelf_lens_flow_hint">Take a photo with Google Lens, then tap Share → SelfCare (or copy the name and tap Paste).</string>
     <string name="shelf_scan_source_google_lens">Google Lens</string>
+    <string name="shelf_vision_ai_active_badge">Live Barcode + Vision AI active (Groq / Gemini) + Offline INCI OCR</string>
 </resources>
