@@ -1,8 +1,11 @@
 package com.selfcare.app
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.setContent
@@ -87,17 +90,44 @@ enum class AppDestination(
 }
 
 class MainActivity : ComponentActivity() {
+    private val sharedProductFlow = MutableStateFlow<Pair<String?, String?>?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIncomingShareIntent(intent)
         val container = (application as SelfCareApp).container
         setContent {
-            SelfCareRoot(container = container)
+            SelfCareRoot(
+                container = container,
+                sharedProductFlow = sharedProductFlow,
+                onConsumeSharedProduct = { sharedProductFlow.value = null }
+            )
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingShareIntent(intent)
+    }
+
+    private fun handleIncomingShareIntent(incoming: Intent?) {
+        if (incoming?.action == Intent.ACTION_SEND && incoming.type == "text/plain") {
+            val subject = incoming.getStringExtra(Intent.EXTRA_SUBJECT)
+            val text = incoming.getStringExtra(Intent.EXTRA_TEXT)
+            if (!subject.isNullOrBlank() || !text.isNullOrBlank()) {
+                sharedProductFlow.value = subject to text
+            }
         }
     }
 }
 
 @Composable
-fun SelfCareRoot(container: AppContainer) {
+fun SelfCareRoot(
+    container: AppContainer,
+    sharedProductFlow: StateFlow<Pair<String?, String?>?>? = null,
+    onConsumeSharedProduct: () -> Unit = {}
+) {
     val loadedSettings by container.settingsRepository.settings
         .collectAsStateWithLifecycle(initialValue = null)
     val settings = loadedSettings ?: UserSettings()
@@ -144,7 +174,11 @@ fun SelfCareRoot(container: AppContainer) {
 
     CompositionLocalProvider(*providers) {
         SelfCareTheme(themeMode = settings.themeMode) {
-            SelfCareScaffold(container = container)
+            SelfCareScaffold(
+                container = container,
+                sharedProductFlow = sharedProductFlow,
+                onConsumeSharedProduct = onConsumeSharedProduct
+            )
             if (showAutoPatchNotes) {
                 PatchNotesDialog(
                     isNewUpdate = true,
@@ -161,7 +195,11 @@ fun SelfCareRoot(container: AppContainer) {
 }
 
 @Composable
-private fun SelfCareScaffold(container: AppContainer) {
+private fun SelfCareScaffold(
+    container: AppContainer,
+    sharedProductFlow: StateFlow<Pair<String?, String?>?>? = null,
+    onConsumeSharedProduct: () -> Unit = {}
+) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
     var previousDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
 
@@ -215,6 +253,15 @@ private fun SelfCareScaffold(container: AppContainer) {
             faceCheckInRepository = container.faceCheckInRepository
         )
     )
+
+    val incomingShare = sharedProductFlow?.collectAsStateWithLifecycle(initialValue = null)?.value
+    LaunchedEffect(incomingShare) {
+        if (incomingShare != null) {
+            currentDestination = AppDestination.SHELF
+            shelfViewModel.onSharedProductText(incomingShare.first, incomingShare.second)
+            onConsumeSharedProduct()
+        }
+    }
 
     Scaffold(
         modifier = Modifier

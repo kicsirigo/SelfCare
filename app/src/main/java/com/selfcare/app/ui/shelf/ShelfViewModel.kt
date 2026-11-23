@@ -22,6 +22,7 @@ import com.selfcare.app.domain.health.VitaminPlan
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
+import com.selfcare.app.domain.inci.SharedProductTextParser
 import com.selfcare.app.domain.ml.BarcodeScanner
 import com.selfcare.app.domain.ml.OcrScanner
 import kotlinx.coroutines.Dispatchers
@@ -112,6 +113,7 @@ class ShelfViewModel(
     private val lookupStateFlow = MutableStateFlow(LookupTransientState())
     private val editorFlow = MutableStateFlow<ProductEditorState?>(null)
     private var liveOcrJob: Job? = null
+    private var lastLensCapturedPhoto: Bitmap? = null
 
     private val settingsFlow = settingsRepository?.settings
         ?: flowOf(com.selfcare.app.data.local.UserSettings())
@@ -626,6 +628,94 @@ class ShelfViewModel(
                 photoPath = savedPhotoPath
             )
             lookupStateFlow.update { it.copy(pendingScanConfirmation = null) }
+            lastLensCapturedPhoto = null
+        }
+    }
+
+    fun onPhotoCapturedForLens(bitmap: Bitmap?) {
+        if (bitmap == null) return
+        lastLensCapturedPhoto = createPreviewThumbnail(bitmap)
+    }
+
+    fun onPasteProductFromClipboard(rawText: String?) {
+        onSharedProductText(subject = null, sharedText = rawText)
+    }
+
+    fun onSharedProductText(subject: String?, sharedText: String?) {
+        val query = SharedProductTextParser.extractProductQuery(subject, sharedText)
+        if (query.isBlank()) return
+
+        val inferredCategory = SmartScanQueryExtractor.inferCategoryFromText(query)
+        val initialSlot = if (inferredCategory == "VITAMIN") {
+            InciConflictDetector.SLOT_MORNING
+        } else {
+            InciConflictDetector.SLOT_NONE
+        }
+        val attachedPhoto = lastLensCapturedPhoto
+
+        lookupStateFlow.update {
+            it.copy(
+                isLookingUp = true,
+                isLiveScannerOpen = false,
+                offlineFallbackMessage = null,
+                geminiErrorBanner = null,
+                pendingScanConfirmation = PendingScanConfirmation(
+                    source = "GOOGLE_LENS",
+                    modelUsed = "Google Lens",
+                    name = query,
+                    brand = "",
+                    category = inferredCategory,
+                    routineSlot = initialSlot,
+                    ingredientsText = "",
+                    parsedMatches = emptyList(),
+                    capturedPhoto = attachedPhoto,
+                    referencePhotos = emptyList(),
+                    geminiErrorDetail = null
+                )
+            )
+        }
+
+        viewModelScope.launch {
+            val searchResult = productRepository.searchRemoteByName(query)
+            val bestRemote = (searchResult as? OpenBeautyFactsSearchResult.Success)?.products?.firstOrNull()
+            val resolvedName = bestRemote?.name?.takeIf { it.isNotBlank() } ?: query
+            val resolvedBrand = bestRemote?.brand.orEmpty()
+            val resolvedIngredients = bestRemote?.ingredientsText.orEmpty()
+            val resolvedMatches = if (resolvedIngredients.isNotBlank()) {
+                productRepository.parseIngredients(resolvedIngredients)
+            } else {
+                emptyList()
+            }
+            val resolvedCategory = SmartScanQueryExtractor.inferCategoryFromText("$resolvedBrand $resolvedName $resolvedIngredients")
+            val refPhotos = fetchReferenceProductPhotos(
+                brand = resolvedBrand,
+                name = resolvedName,
+                category = resolvedCategory,
+                targetCount = 3
+            )
+            lookupStateFlow.update { state ->
+                val current = state.pendingScanConfirmation
+                if (current == null || current.source != "GOOGLE_LENS") {
+                    state.copy(isLookingUp = false)
+                } else {
+                    state.copy(
+                        isLookingUp = false,
+                        pendingScanConfirmation = current.copy(
+                            name = resolvedName,
+                            brand = resolvedBrand,
+                            category = resolvedCategory,
+                            routineSlot = if (resolvedCategory == "VITAMIN") {
+                                InciConflictDetector.SLOT_MORNING
+                            } else {
+                                current.routineSlot
+                            },
+                            ingredientsText = resolvedIngredients,
+                            parsedMatches = resolvedMatches,
+                            referencePhotos = refPhotos
+                        )
+                    )
+                }
+            }
         }
     }
 

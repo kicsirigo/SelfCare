@@ -399,4 +399,8 @@
     <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
     <string name="shelf_scan_open_google_lens">Keresés Google Lens-ben</string>
     <string name="shelf_scan_google_lens_chooser">Fotó megnyitása Google Lens-ben</string>
+    <string name="shelf_lens_photo_btn">Fotózás · Google Lens</string>
+    <string name="shelf_lens_paste_btn">Beillesztés</string>
+    <string name="shelf_lens_flow_hint">Fotózd le a terméket Google Lens-szel, majd nyomj a Megosztás → SelfCare gombra (vagy másold ki a nevét és illeszd be).</string>
+    <string name="shelf_scan_source_google_lens">Google Lens</string>
 </resources>

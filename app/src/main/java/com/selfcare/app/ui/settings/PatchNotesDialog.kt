@@ -30,6 +30,16 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.3.0",
+            title = "Google Lens-First Product Shelf & Share-to-SelfCare",
+            highlights = listOf(
+                "Replaced Shelf Gemini Vision, Barcode, and OCR scanners with a streamlined Google Lens workflow — zero API keys and zero HTTP 503 errors.",
+                "Added Android Share-to-SelfCare (ACTION_SEND) support: share any product name or link from Google Lens or Chrome directly into SelfCare to auto-fill and look up ingredients.",
+                "Added a one-tap Paste button on the Shelf screen that automatically attaches your captured product photo and looks up catalog details.",
+                "On-device Check-In AI engines (YOLOv8s, EfficientNet-B0, ML Kit FaceMesh & SelfieSegmentation) remain 100% offline and unchanged."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.2.1",
             title = "Gemini 503 Retry & Google Lens Product Search",
             highlights = listOf(

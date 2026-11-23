@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -89,9 +90,11 @@ fun ShelfScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val lensChooserTitle = stringResource(R.string.shelf_scan_google_lens_chooser)
     var pendingFile by remember { mutableStateOf<File?>(null) }
 
-    val fullResOcrLauncher = rememberLauncherForActivityResult(
+    val lensPhotoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         val file = pendingFile
@@ -101,14 +104,21 @@ fun ShelfScreen(
             return@rememberLauncherForActivityResult
         }
         val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
-        viewModel.onOcrBitmapCaptured(bitmap)
+        if (bitmap != null) {
+            viewModel.onPhotoCapturedForLens(bitmap)
+            openPhotoInGoogleLens(
+                context = context,
+                bitmap = bitmap,
+                chooserTitle = lensChooserTitle
+            )
+        }
     }
 
-    fun launchFullResOcr() {
+    fun launchGoogleLensPhoto() {
         try {
             val capture = ScanPhotoHelper.createTempScanCapture(context)
             pendingFile = capture.file
-            fullResOcrLauncher.launch(capture.uri)
+            lensPhotoLauncher.launch(capture.uri)
         } catch (_: ActivityNotFoundException) {
             ScanPhotoHelper.cleanupTempFile(pendingFile)
             pendingFile = null
@@ -120,26 +130,17 @@ fun ShelfScreen(
         }
     }
 
-    if (state.isLiveScannerOpen) {
-        ProductLiveScannerView(
-            liveProductDetected = state.liveProductDetected,
-            isGeminiVisionConfigured = state.isGeminiVisionConfigured,
-            onLiveFrame = viewModel::onLiveScannerFrame,
-            onCaptureBitmap = viewModel::onSmartPhotoCaptured,
-            onClose = viewModel::closeLiveScanner,
-            modifier = modifier
-        )
-        return
-    }
-
     ShelfScreenContent(
         state = state,
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onLookupClick = viewModel::performLookup,
         onSelectCategoryFilter = viewModel::selectCategoryFilter,
         onAddPreset = viewModel::addPresetProduct,
-        onSmartScanClick = viewModel::openLiveScanner,
-        onScanOcrClick = { launchFullResOcr() },
+        onSmartScanClick = { launchGoogleLensPhoto() },
+        onPasteFromClipboard = {
+            val clipText = clipboardManager.getText()?.text.orEmpty()
+            viewModel.onPasteProductFromClipboard(clipText)
+        },
         onAddProductClick = { viewModel.openNewProductEditor() },
         onSelectRemoteProduct = viewModel::selectRemoteProduct,
         onDismissOfflineFallback = viewModel::dismissOfflineFallback,
@@ -156,7 +157,10 @@ fun ShelfScreen(
         onCloseEditor = viewModel::closeEditor,
         onConfirmScanSave = viewModel::confirmPendingScanSave,
         onConfirmScanEdit = viewModel::confirmPendingScanEdit,
-        onConfirmScanRetake = viewModel::retakePendingScan,
+        onConfirmScanRetake = {
+            viewModel.dismissPendingScan()
+            launchGoogleLensPhoto()
+        },
         onDismissScanConfirm = viewModel::dismissPendingScan,
         onSaveBirthDate = viewModel::setBirthDateIso,
         modifier = modifier
@@ -171,7 +175,7 @@ fun ShelfScreenContent(
     onSelectCategoryFilter: (ShelfCategoryFilter) -> Unit,
     onAddPreset: (PresetProduct) -> Unit,
     onSmartScanClick: () -> Unit = {},
-    onScanOcrClick: () -> Unit,
+    onPasteFromClipboard: () -> Unit = {},
     onAddProductClick: () -> Unit,
     onSelectRemoteProduct: (com.selfcare.app.data.remote.OpenBeautyFactsProduct) -> Unit,
     onDismissOfflineFallback: () -> Unit,
@@ -204,7 +208,6 @@ fun ShelfScreenContent(
             onIngredientsChange = onEditorIngredientsChange,
             onSlotChange = onEditorSlotChange,
             onDefaultChange = onEditorDefaultChange,
-            onScanOcrClick = onScanOcrClick,
             onSaveClick = onSaveEditor,
             onCancelClick = onCloseEditor,
             modifier = modifier
@@ -221,8 +224,8 @@ fun ShelfScreenContent(
             onDismissRequest = onDismissScanConfirm,
             title = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val isGemini = pending.source == "GEMINI_VISION"
-                    val pillColor = if (isGemini) Color(0xFF38BDF8) else NeonWarning
+                    val isGoogleLens = pending.source == "GOOGLE_LENS"
+                    val pillColor = if (isGoogleLens) Color(0xFF38BDF8) else NeonWarning
                     Surface(
                         color = pillColor.copy(alpha = 0.14f),
                         shape = RoundedCornerShape(12.dp),
@@ -241,14 +244,7 @@ fun ShelfScreenContent(
                                     .background(pillColor)
                             )
                             Text(
-                                text = if (isGemini) {
-                                    stringResource(
-                                        R.string.shelf_scan_ai_model_gemini,
-                                        pending.modelUsed.ifBlank { "gemini-3.8-flash" }
-                                    )
-                                } else {
-                                    stringResource(R.string.shelf_scan_source_ocr)
-                                },
+                                text = stringResource(R.string.shelf_scan_source_google_lens),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = pillColor
                             )
@@ -545,7 +541,7 @@ fun ShelfScreenContent(
             }
         }
 
-        // Sleek 1-row primary action bar: Photo Scan (primary CTA) + OCR + Manual Add
+        // Sleek 1-row primary action bar: Photo -> Google Lens + Paste + Manual Add
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -563,19 +559,19 @@ fun ShelfScreenContent(
                 )
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
-                    text = stringResource(R.string.shelf_smart_scan),
+                    text = stringResource(R.string.shelf_lens_photo_btn),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             OutlinedButton(
-                onClick = onScanOcrClick,
-                modifier = Modifier.testTag("shelf_scan_ocr_btn")
+                onClick = onPasteFromClipboard,
+                modifier = Modifier.testTag("shelf_paste_lens_btn")
             ) {
-                Icon(
-                    imageVector = AppIcons.Scan,
-                    contentDescription = stringResource(R.string.shelf_scan_label),
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = stringResource(R.string.shelf_lens_paste_btn),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             OutlinedButton(
@@ -596,19 +592,13 @@ fun ShelfScreenContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = if (state.isGeminiVisionConfigured) AppIcons.Sparkle else AppIcons.Lock,
+                imageVector = AppIcons.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(14.dp)
             )
             Text(
-                text = stringResource(
-                    if (state.isGeminiVisionConfigured) {
-                        R.string.shelf_gemini_active_badge
-                    } else {
-                        R.string.shelf_smart_scan_privacy
-                    }
-                ),
+                text = stringResource(R.string.shelf_lens_flow_hint),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -683,7 +673,6 @@ fun ShelfScreenContent(
         if (state.offlineFallbackMessage != null) {
             OfflineFallbackBanner(
                 code = state.offlineFallbackMessage,
-                onScanOcrClick = onScanOcrClick,
                 onAddManualClick = { onAddProductClick() },
                 onDismiss = onDismissOfflineFallback
             )
@@ -876,7 +865,6 @@ private fun PresetMatchRowCard(
 @Composable
 private fun OfflineFallbackBanner(
     code: String,
-    onScanOcrClick: () -> Unit,
     onAddManualClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -919,9 +907,6 @@ private fun OfflineFallbackBanner(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onScanOcrClick) {
-                    Text(text = stringResource(R.string.shelf_scan_label))
-                }
                 TextButton(onClick = onAddManualClick) {
                     Text(text = stringResource(R.string.shelf_add_manual))
                 }
@@ -1113,7 +1098,6 @@ private fun ProductEditorView(
     onIngredientsChange: (String) -> Unit,
     onSlotChange: (String) -> Unit,
     onDefaultChange: (Boolean) -> Unit,
-    onScanOcrClick: () -> Unit,
     onSaveClick: () -> Unit,
     onCancelClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1217,15 +1201,6 @@ private fun ProductEditorView(
                 text = stringResource(R.string.shelf_product_ingredients),
                 style = MaterialTheme.typography.titleSmall
             )
-            TextButton(onClick = onScanOcrClick) {
-                Icon(
-                    imageVector = AppIcons.Scan,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.size(4.dp))
-                Text(text = stringResource(R.string.shelf_scan_label))
-            }
         }
 
         OutlinedTextField(
