@@ -252,7 +252,7 @@
     <string name="shelf_live_product_detected">Termék érzékelve — fotózható</string>
     <string name="shelf_live_hold_product">Tartsd a terméket stabilan a keretbe</string>
     <string name="shelf_live_capture_btn">Termék fotózása</string>
-    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Gemini)</string>
+    <string name="shelf_gemini_active_badge">AI képfelismerés aktív (Gemini 3.8 Flash + ML Kit OCR)</string>
     <string name="shelf_offline_ocr_badge">Offline OCR mód (kulcs nélkül)</string>
     <string name="shelf_camera_permission_needed">Kameraengedély szükséges az élő termékszkennerhez.</string>
     <string name="settings_ai_vision_title">AI képalapú termékfelismerés (Opcionális)</string>
@@ -381,4 +381,18 @@
     <string name="shelf_gemini_show_details">Hiba részletei</string>
     <string name="shelf_gemini_hide_details">Részletek elrejtése</string>
     <string name="settings_patch_notes_btn">Patch Notes</string>
+
+    <!-- v3.1.0: Aktív AI motor kijelző UI/UX -->
+    <string name="checkin_live_ai_hud">Helyi AI aktív: ONNX YOLOv8s + ML Kit (100% Offline)</string>
+    <string name="checkin_ai_engines_title">Felhasznált AI motorok (koppints a részletekért)</string>
+    <string name="checkin_ai_chip_onnx_blemish">ONNX YOLOv8s · Pattanás</string>
+    <string name="checkin_ai_chip_cielab_blemish">CIELAB CV · Pattanás</string>
+    <string name="checkin_ai_chip_mlkit_face">ML Kit FaceMesh · Arc</string>
+    <string name="checkin_ai_chip_roi_face">ROI Ovális · Arc</string>
+    <string name="checkin_ai_chip_cielab_skin">CIELAB CV · Bőr &amp; Borosta</string>
+    <string name="checkin_ai_chip_mlkit_hair">ML Kit SelfieSeg · Haj</string>
+    <string name="checkin_ai_dialog_title">Eszközön futó AI motorok</string>
+    <string name="checkin_ai_dialog_body">Minden állapotfelmérés 100%%-ban offline, helyben fut:\n\n• Pattanás-detektor: %1$s (%2$s)\n• Arcpontok és zónák: %3$s\n• Bőrpír, textúra és borosta: CIELAB + Sobel CV (Determinisztikus)\n• Haj és hajvonal: %4$s%5$s</string>
+    <string name="checkin_ai_dialog_duration">\n• Elemzési idő: %d ms</string>
+    <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
 </resources>

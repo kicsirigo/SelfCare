@@ -37,6 +37,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -47,8 +49,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,6 +64,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -83,11 +88,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.selfcare.app.BuildConfig
 import com.selfcare.app.R
 import com.selfcare.app.domain.cv.CheckInDailyContext
 import com.selfcare.app.domain.cv.ImprovementTipCode
@@ -97,11 +104,14 @@ import com.selfcare.app.domain.cv.MetricInterpreter
 import com.selfcare.app.domain.cv.MetricStatusLevel
 import com.selfcare.app.domain.cv.ShelfProductSummary
 import com.selfcare.app.domain.cv.TipVariant
+import com.selfcare.app.domain.ml.FaceAnalysisResult
 import com.selfcare.app.ui.components.HairHealthAnalysisCard
 import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.components.MetricGaugeRow
 import com.selfcare.app.ui.components.statusLevelColor
 import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.theme.NeonGreen
+import com.selfcare.app.ui.theme.NeonWarning
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -357,7 +367,10 @@ fun CheckInScreen(
                 blemishScore = result.checkIn.blemishScore,
                 blemishCount = result.checkIn.blemishCount,
                 stubbleScore = result.checkIn.stubbleScore,
-                shaveDue = uiState.isShaveReminderDue
+                shaveDue = uiState.isShaveReminderDue,
+                shelfProducts = uiState.shelfProducts,
+                dailyContext = uiState.dailyContext,
+                lastAnalysis = result.analysis
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -367,7 +380,8 @@ fun CheckInScreen(
                     templeSymmetryScore = result.analysis.hairTempleSymmetryScore
                 ),
                 growthPercent = uiState.currentHairGrowthPercent,
-                thresholdPercent = uiState.haircutThresholdPercent
+                thresholdPercent = uiState.haircutThresholdPercent,
+                hairSupportProduct = MetricInterpreter.findHairSupportProduct(uiState.shelfProducts)
             )
         } ?: uiState.latestCheckIn?.let { latest ->
             CheckInResultSummaryCard(
@@ -381,7 +395,8 @@ fun CheckInScreen(
                 stubbleScore = latest.stubbleScore,
                 shaveDue = uiState.isShaveReminderDue,
                 shelfProducts = uiState.shelfProducts,
-                dailyContext = uiState.dailyContext
+                dailyContext = uiState.dailyContext,
+                lastAnalysis = null
             )
             HairHealthAnalysisCard(
                 summary = MetricInterpreter.interpretHairDetails(
@@ -724,19 +739,53 @@ private fun CameraPreviewCard(
                 }
             }
 
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(8.dp),
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(if (screenFlashEnabled) 26.dp else 12.dp)
+                    .padding(if (screenFlashEnabled) 26.dp else 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.checkin_framing_hint),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.checkin_framing_hint),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+
+                // Live Active AI Engine Pill on Camera Preview HUD
+                Surface(
+                    color = Color(0xFF0A1610).copy(alpha = 0.88f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.75f)),
+                    modifier = Modifier.testTag("checkin_live_ai_badge")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(NeonGreen)
+                        )
+                        Text(
+                            text = stringResource(R.string.checkin_live_ai_hud),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = NeonGreen,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }
@@ -775,6 +824,7 @@ private fun AutoDeletePrivacyCard(
     }
 }
 
+@kotlin.OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CheckInResultSummaryCard(
     underEyeDelta: Float,
@@ -787,7 +837,8 @@ private fun CheckInResultSummaryCard(
     stubbleScore: Float = 0f,
     shaveDue: Boolean = false,
     shelfProducts: List<ShelfProductSummary> = emptyList(),
-    dailyContext: CheckInDailyContext = CheckInDailyContext()
+    dailyContext: CheckInDailyContext = CheckInDailyContext(),
+    lastAnalysis: FaceAnalysisResult? = null
 ) {
     val underEye = MetricInterpreter.interpretUnderEye(underEyeDelta)
     val rednessEval = MetricInterpreter.interpretRedness(redness)
@@ -846,6 +897,139 @@ private fun CheckInResultSummaryCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            // Active AI Engines Breakdown Strip + Tap for Details Dialog
+            val blemishEngine = lastAnalysis?.blemishEngineUsed ?: "ONNX_YOLOV8S"
+            val isOnnxBlemish = blemishEngine == "ONNX_YOLOV8S"
+            val faceMeshUsed = lastAnalysis?.faceMeshUsed ?: true
+            val hairSegUsed = lastAnalysis?.hairSegmentationUsed ?: true
+            val durationMs = lastAnalysis?.analysisDurationMs ?: 0L
+            var showAiDetailsDialog by remember { mutableStateOf(false) }
+
+            if (showAiDetailsDialog) {
+                val blemishEngineName = if (isOnnxBlemish) {
+                    "ONNX YOLOv8s INT8"
+                } else {
+                    "CIELAB CV"
+                }
+                val blemishDetailAsset = if (isOnnxBlemish) {
+                    "acne_detector_v${BuildConfig.VERSION_CODE}.onnx · 100% Offline"
+                } else {
+                    "CIELAB a* delta fallback · 100% Offline"
+                }
+                val faceDetail = if (faceMeshUsed) {
+                    "ML Kit FaceMesh (468 landmarks · 100% Offline)"
+                } else {
+                    "Guided Oval ROI Fallback (100% Offline)"
+                }
+                val hairDetail = if (hairSegUsed) {
+                    "ML Kit SelfieSegmentation (100% Offline)"
+                } else {
+                    "Not detected in frame"
+                }
+                val durationSuffix = if (durationMs > 0L) {
+                    stringResource(R.string.checkin_ai_dialog_duration, durationMs.toInt())
+                } else {
+                    ""
+                }
+                AlertDialog(
+                    onDismissRequest = { showAiDetailsDialog = false },
+                    modifier = Modifier.testTag("checkin_ai_details_dialog"),
+                    title = {
+                        Text(text = stringResource(R.string.checkin_ai_dialog_title))
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(
+                                R.string.checkin_ai_dialog_body,
+                                blemishEngineName,
+                                blemishDetailAsset,
+                                faceDetail,
+                                hairDetail,
+                                durationSuffix
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showAiDetailsDialog = false }) {
+                            Text(text = stringResource(R.string.action_close))
+                        }
+                    }
+                )
+            }
+
+            Surface(
+                onClick = { showAiDetailsDialog = true },
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.35f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("checkin_ai_engines_card")
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.checkin_ai_engines_title),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeonGreen
+                        )
+                        if (durationMs > 0L) {
+                            Text(
+                                text = "${durationMs} ms",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        AiEngineChip(
+                            label = stringResource(
+                                if (isOnnxBlemish) {
+                                    R.string.checkin_ai_chip_onnx_blemish
+                                } else {
+                                    R.string.checkin_ai_chip_cielab_blemish
+                                }
+                            ),
+                            dotColor = if (isOnnxBlemish) NeonGreen else NeonWarning,
+                            highlighted = isOnnxBlemish
+                        )
+                        AiEngineChip(
+                            label = stringResource(
+                                if (faceMeshUsed) {
+                                    R.string.checkin_ai_chip_mlkit_face
+                                } else {
+                                    R.string.checkin_ai_chip_roi_face
+                                }
+                            ),
+                            dotColor = if (faceMeshUsed) NeonGreen else NeonWarning,
+                            highlighted = false
+                        )
+                        AiEngineChip(
+                            label = stringResource(R.string.checkin_ai_chip_cielab_skin),
+                            dotColor = Color(0xFFA3E635),
+                            highlighted = false
+                        )
+                        AiEngineChip(
+                            label = stringResource(R.string.checkin_ai_chip_mlkit_hair),
+                            dotColor = if (hairSegUsed) Color(0xFFA3E635) else NeonWarning,
+                            highlighted = false
+                        )
+                    }
                 }
             }
 
@@ -1220,6 +1404,40 @@ private fun HaircutBaselineCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = stringResource(R.string.checkin_haircut_reset))
             }
+        }
+    }
+}
+
+@Composable
+private fun AiEngineChip(
+    label: String,
+    dotColor: Color,
+    highlighted: Boolean
+) {
+    Surface(
+        color = if (highlighted) dotColor.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(
+            1.dp,
+            if (highlighted) dotColor.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (highlighted) dotColor else MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

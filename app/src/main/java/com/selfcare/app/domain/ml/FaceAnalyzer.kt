@@ -17,7 +17,11 @@ data class FaceAnalysisResult(
     val hairTempleSymmetryScore: Float = if (hairToFaceRatio > 0f) 0.88f else 0f,
     val blemishScore: Float = 0f,
     val blemishCount: Int = 0,
-    val stubbleScore: Float = 0f
+    val stubbleScore: Float = 0f,
+    val blemishEngineUsed: String = "CIELAB_CV",
+    val faceMeshUsed: Boolean = false,
+    val hairSegmentationUsed: Boolean = false,
+    val analysisDurationMs: Long = 0L
 )
 
 interface FaceAnalyzer {

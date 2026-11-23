@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.1.0",
+            title = "Active AI Engine Telemetry UI/UX",
+            highlights = listOf(
+                "Added a live Local AI indicator pill (ONNX YOLOv8s + ML Kit) on the Check-In camera viewfinder HUD.",
+                "Added a clickable 'Active AI engines' breakdown strip on the Check-In result card showing which engine analyzed blemishes, facial landmarks, skin/stubble, and hair, plus an expandable details dialog with runtime metrics.",
+                "Updated the Shelf product scan confirmation dialog to display the exact AI model used (e.g. Gemini 3.8 Flash, Gemini 3.5 Flash-Lite, or Offline ML Kit OCR)."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.0.1",
             title = "Security Hardening, Versioned ONNX Model & Codebase Cleanup",
             highlights = listOf(

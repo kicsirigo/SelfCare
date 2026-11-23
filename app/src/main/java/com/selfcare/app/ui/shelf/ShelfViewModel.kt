@@ -67,6 +67,7 @@ data class ProductEditorState(
 
 data class PendingScanConfirmation(
     val source: String,
+    val modelUsed: String = "",
     val name: String,
     val brand: String,
     val category: String,
@@ -424,6 +425,7 @@ class ShelfViewModel(
                                 geminiErrorBanner = null,
                                 pendingScanConfirmation = PendingScanConfirmation(
                                     source = "GEMINI_VISION",
+                                    modelUsed = visionResult.modelUsed.ifBlank { "gemini-3.8-flash" },
                                     name = info.name,
                                     brand = info.brand,
                                     category = info.category,
@@ -500,6 +502,7 @@ class ShelfViewModel(
                                 isLookingUp = false,
                                 pendingScanConfirmation = PendingScanConfirmation(
                                     source = "SMART_OCR",
+                                    modelUsed = "ML Kit OCR (Offline)",
                                     name = searchTerm,
                                     brand = "",
                                     category = inferredCategory,
@@ -538,6 +541,7 @@ class ShelfViewModel(
                                 isLookingUp = false,
                                 pendingScanConfirmation = PendingScanConfirmation(
                                     source = "SMART_OCR",
+                                    modelUsed = "ML Kit OCR (Offline)",
                                     name = searchTerm,
                                     brand = "",
                                     category = inferredCategory,

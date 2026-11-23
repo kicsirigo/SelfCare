@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -41,6 +42,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -71,6 +74,7 @@ import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
 import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.theme.NeonWarning
 import java.io.File
 
 @Composable
@@ -211,18 +215,40 @@ fun ShelfScreenContent(
         AlertDialog(
             onDismissRequest = onDismissScanConfirm,
             title = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = stringResource(
-                            if (pending.source == "GEMINI_VISION") {
-                                R.string.shelf_scan_source_gemini
-                            } else {
-                                R.string.shelf_scan_source_ocr
-                            }
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val isGemini = pending.source == "GEMINI_VISION"
+                    val pillColor = if (isGemini) Color(0xFF38BDF8) else NeonWarning
+                    Surface(
+                        color = pillColor.copy(alpha = 0.14f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, pillColor.copy(alpha = 0.7f)),
+                        modifier = Modifier.testTag("shelf_scan_ai_model_badge")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(pillColor)
+                            )
+                            Text(
+                                text = if (isGemini) {
+                                    stringResource(
+                                        R.string.shelf_scan_ai_model_gemini,
+                                        pending.modelUsed.ifBlank { "gemini-3.8-flash" }
+                                    )
+                                } else {
+                                    stringResource(R.string.shelf_scan_source_ocr)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = pillColor
+                            )
+                        }
+                    }
                     Text(text = stringResource(R.string.shelf_scan_confirm_title))
                 }
             },

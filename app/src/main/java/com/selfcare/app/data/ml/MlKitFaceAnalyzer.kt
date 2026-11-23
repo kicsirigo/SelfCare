@@ -87,6 +87,7 @@ class MlKitFaceAnalyzer(
     }
 
     override suspend fun analyze(bitmap: Bitmap): FaceAnalysisResult {
+        val startMs = System.currentTimeMillis()
         if (bitmap.width <= 0 || bitmap.height <= 0) {
             return FaceAnalysisResult(
                 underEyeDeltaLab = 0f,
@@ -169,13 +170,14 @@ class MlKitFaceAnalyzer(
                 height = height,
                 skinRois = skinRois
             )
-            val blemishMetrics = acneDetector?.detectOnFace(workBitmap, facePixelRect)
-                ?: FaceMetricCalculator.computeBlemishMetrics(
-                    pixels = pixels,
-                    width = width,
-                    height = height,
-                    skinRois = blemishRois
-                )
+            val onnxBlemishes = acneDetector?.detectOnFace(workBitmap, facePixelRect)
+            val blemishEngine = if (onnxBlemishes != null) "ONNX_YOLOV8S" else "CIELAB_CV"
+            val blemishMetrics = onnxBlemishes ?: FaceMetricCalculator.computeBlemishMetrics(
+                pixels = pixels,
+                width = width,
+                height = height,
+                skinRois = blemishRois
+            )
             val leftJawRoi = PixelRect(
                 left = facePixelRect.left + (facePixelRect.width * 0.14f).roundToInt(),
                 top = (rois.lip.top).coerceAtMost(facePixelRect.bottom - 2),
@@ -235,7 +237,11 @@ class MlKitFaceAnalyzer(
                 hairTempleSymmetryScore = hairDetails?.templeSymmetryScore ?: 0f,
                 blemishScore = blemishMetrics.blemishScore,
                 blemishCount = blemishMetrics.estimatedSpotCount,
-                stubbleScore = stubbleScore
+                stubbleScore = stubbleScore,
+                blemishEngineUsed = blemishEngine,
+                faceMeshUsed = (primaryFace != null && detectedRect != null),
+                hairSegmentationUsed = (hairDetails != null),
+                analysisDurationMs = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)
             )
         } finally {
             if (workBitmap !== bitmap) {
