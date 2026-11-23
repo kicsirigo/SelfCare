@@ -11,8 +11,10 @@ import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.local.entity.HygieneLogEntity
+import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
+import com.selfcare.app.data.local.entity.WaterLogEntity
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -102,6 +104,33 @@ data class BackupHaircutBaseline(
 )
 
 @Serializable
+data class BackupNutritionLog(
+    val id: Long = 0L,
+    val dateEpochDay: Long,
+    val mealType: String = NutritionLogEntity.MEAL_LUNCH,
+    val name: String,
+    val brand: String = "",
+    val barcode: String? = null,
+    val grams: Float = 100f,
+    val caloriesKcal: Int = 0,
+    val proteinGrams: Float = 0f,
+    val carbsGrams: Float = 0f,
+    val fatGrams: Float = 0f,
+    val fiberGrams: Float = 0f,
+    val sugarGrams: Float = 0f,
+    val source: String = "MANUAL",
+    val createdAtEpochMillis: Long
+)
+
+@Serializable
+data class BackupWaterLog(
+    val id: Long = 0L,
+    val dateEpochDay: Long,
+    val amountMl: Int,
+    val loggedAtEpochMillis: Long
+)
+
+@Serializable
 data class SelfCareBackupPayload(
     val schemaVersion: Int = BackupRepository.CURRENT_SCHEMA_VERSION,
     val exportedAtEpochMillis: Long,
@@ -110,7 +139,9 @@ data class SelfCareBackupPayload(
     val products: List<BackupProduct> = emptyList(),
     val faceCheckIns: List<BackupFaceCheckIn> = emptyList(),
     val hygieneLogs: List<BackupHygieneLog> = emptyList(),
-    val haircutBaselines: List<BackupHaircutBaseline> = emptyList()
+    val haircutBaselines: List<BackupHaircutBaseline> = emptyList(),
+    val nutritionLogs: List<BackupNutritionLog> = emptyList(),
+    val waterLogs: List<BackupWaterLog> = emptyList()
 )
 
 data class ImportSummary(
@@ -142,6 +173,8 @@ class BackupRepository(
         val faceCheckIns = database.faceCheckInDao().getAllOnce().map { it.toBackup() }
         val hygieneLogs = database.hygieneDao().getAllOnce().map { it.toBackup() }
         val haircutBaselines = database.haircutBaselineDao().getAllOnce().map { it.toBackup() }
+        val nutritionLogs = database.nutritionDao().getAllMeals().map { it.toBackup() }
+        val waterLogs = database.nutritionDao().getAllWater().map { it.toBackup() }
 
         val payload = SelfCareBackupPayload(
             schemaVersion = CURRENT_SCHEMA_VERSION,
@@ -151,7 +184,9 @@ class BackupRepository(
             products = products,
             faceCheckIns = faceCheckIns,
             hygieneLogs = hygieneLogs,
-            haircutBaselines = haircutBaselines
+            haircutBaselines = haircutBaselines,
+            nutritionLogs = nutritionLogs,
+            waterLogs = waterLogs
         )
         return json.encodeToString(payload)
     }
@@ -183,6 +218,8 @@ class BackupRepository(
                 database.faceCheckInDao().deleteAll()
                 database.hygieneDao().deleteAll()
                 database.haircutBaselineDao().deleteAll()
+                database.nutritionDao().clearAllMeals()
+                database.nutritionDao().clearAllWater()
 
                 payload.routineLogs.forEach { database.routineDao().upsert(it.toEntity()) }
                 payload.products.forEach { database.productDao().insert(it.toEntity()) }
@@ -192,6 +229,12 @@ class BackupRepository(
                 payload.hygieneLogs.forEach { database.hygieneDao().upsert(it.toEntity()) }
                 payload.haircutBaselines.forEach {
                     database.haircutBaselineDao().insert(it.toEntity())
+                }
+                if (payload.nutritionLogs.isNotEmpty()) {
+                    database.nutritionDao().insertAllMeals(payload.nutritionLogs.map { it.toEntity() })
+                }
+                if (payload.waterLogs.isNotEmpty()) {
+                    database.nutritionDao().insertAllWater(payload.waterLogs.map { it.toEntity() })
                 }
             }
 
@@ -419,4 +462,54 @@ private fun BackupHaircutBaseline.toEntity(): HaircutBaselineEntity = HaircutBas
     growthThresholdPercent = growthThresholdPercent,
     recordedAtEpochMillis = recordedAtEpochMillis,
     isActive = isActive
+)
+
+private fun NutritionLogEntity.toBackup(): BackupNutritionLog = BackupNutritionLog(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    mealType = mealType,
+    name = name,
+    brand = brand,
+    barcode = barcode,
+    grams = grams,
+    caloriesKcal = caloriesKcal,
+    proteinGrams = proteinGrams,
+    carbsGrams = carbsGrams,
+    fatGrams = fatGrams,
+    fiberGrams = fiberGrams,
+    sugarGrams = sugarGrams,
+    source = source,
+    createdAtEpochMillis = createdAtEpochMillis
+)
+
+private fun BackupNutritionLog.toEntity(): NutritionLogEntity = NutritionLogEntity(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    mealType = mealType,
+    name = name,
+    brand = brand,
+    barcode = barcode,
+    grams = grams,
+    caloriesKcal = caloriesKcal,
+    proteinGrams = proteinGrams,
+    carbsGrams = carbsGrams,
+    fatGrams = fatGrams,
+    fiberGrams = fiberGrams,
+    sugarGrams = sugarGrams,
+    source = source,
+    createdAtEpochMillis = createdAtEpochMillis
+)
+
+private fun WaterLogEntity.toBackup(): BackupWaterLog = BackupWaterLog(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    amountMl = amountMl,
+    loggedAtEpochMillis = loggedAtEpochMillis
+)
+
+private fun BackupWaterLog.toEntity(): WaterLogEntity = WaterLogEntity(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    amountMl = amountMl,
+    loggedAtEpochMillis = loggedAtEpochMillis
 )

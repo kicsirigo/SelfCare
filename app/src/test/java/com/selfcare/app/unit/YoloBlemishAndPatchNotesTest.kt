@@ -38,9 +38,9 @@ class YoloBlemishAndPatchNotesTest {
     }
 
     @Test
-    fun `patch notes catalog lists v3_4_2 first with non-empty highlights`() {
+    fun `patch notes catalog lists v3_5_0 first with non-empty highlights`() {
         val latest = PatchNotesCatalog.releases.first()
-        assertEquals("v3.4.2", latest.version)
+        assertEquals("v3.5.0", latest.version)
         assertTrue(latest.highlights.isNotEmpty())
     }
 }

@@ -30,6 +30,16 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.5.0",
+            title = "Calorie, Macro & Animated Water Tracker + Celebration Animations",
+            highlights = listOf(
+                "Replaced the Hygiene tab with a full Calorie, Protein, Carbs, Fat, Fiber & Sugar tracker backed by Room v5 (MIGRATION_4_5) and SAF JSON Backup/Restore.",
+                "Added 3 fast logging paths: OpenFoodFacts Barcode scanning, Groq Vision (qwen/qwen3.8-27b) Meal Photo AI estimation with 0.5x/1x/1.5x portion scaling, plus 25 offline everyday food presets and a Mifflin-St Jeor daily goal calculator.",
+                "Added an animated live-wave Water Glass tracker (+250 ml, +500 ml, and Custom ml) with rising micro-bubbles, a joyful spring bounce, and twinkling stars when your hydration target is reached.",
+                "Added a non-blocking Confetti & Twinkling Stars celebration overlay across Nutrition (water/protein/calorie targets), Daily Routine completion, and great Face Check-In scores (>= 7.5/10)."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.4.2",
             title = "Groq Vision Upgraded to Qwen 3.8 27B",
             highlights = listOf(

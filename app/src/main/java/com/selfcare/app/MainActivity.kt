@@ -60,10 +60,10 @@ import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.di.AppContainer
 import com.selfcare.app.ui.checkin.CheckInScreen
 import com.selfcare.app.ui.checkin.CheckInViewModel
-import com.selfcare.app.ui.hygiene.HygieneScreen
-import com.selfcare.app.ui.hygiene.HygieneViewModel
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.localization.LocaleHelper
+import com.selfcare.app.ui.nutrition.NutritionScreen
+import com.selfcare.app.ui.nutrition.NutritionViewModel
 import com.selfcare.app.ui.routine.RoutineScreen
 import com.selfcare.app.ui.routine.RoutineViewModel
 import com.selfcare.app.ui.settings.PatchNotesDialog
@@ -82,7 +82,7 @@ enum class AppDestination(
     val icon: ImageVector
 ) {
     ROUTINE("nav_routine", R.string.nav_routine, AppIcons.Sun),
-    HYGIENE("nav_hygiene", R.string.nav_hygiene, AppIcons.Habit),
+    NUTRITION("nav_nutrition", R.string.nav_nutrition, AppIcons.Habit),
     SHELF("nav_shelf", R.string.nav_shelf, AppIcons.Bottle),
     CHECKIN("nav_checkin", R.string.nav_checkin, AppIcons.Face),
     TRENDS("nav_trends", R.string.nav_trends, AppIcons.Chart),
@@ -206,7 +206,7 @@ private fun SelfCareScaffold(
     val bottomDestinations = remember {
         listOf(
             AppDestination.ROUTINE,
-            AppDestination.HYGIENE,
+            AppDestination.NUTRITION,
             AppDestination.CHECKIN,
             AppDestination.SHELF,
             AppDestination.TRENDS
@@ -216,8 +216,13 @@ private fun SelfCareScaffold(
     val routineViewModel: RoutineViewModel = viewModel(
         factory = RoutineViewModel.factory(container.routineRepository)
     )
-    val hygieneViewModel: HygieneViewModel = viewModel(
-        factory = HygieneViewModel.factory(container.hygieneRepository)
+    val nutritionViewModel: NutritionViewModel = viewModel(
+        factory = NutritionViewModel.factory(
+            nutritionRepository = container.nutritionRepository,
+            settingsRepository = container.settingsRepository,
+            barcodeScanner = container.barcodeScanner,
+            visionClient = container.productVisionClient
+        )
     )
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.factory(
@@ -451,7 +456,7 @@ private fun SelfCareScaffold(
             ) { targetDestination ->
                 when (targetDestination) {
                     AppDestination.ROUTINE -> RoutineScreen(viewModel = routineViewModel)
-                    AppDestination.HYGIENE -> HygieneScreen(viewModel = hygieneViewModel)
+                    AppDestination.NUTRITION -> NutritionScreen(viewModel = nutritionViewModel)
                     AppDestination.SHELF -> ShelfScreen(viewModel = shelfViewModel)
                     AppDestination.CHECKIN -> CheckInScreen(viewModel = checkInViewModel)
                     AppDestination.TRENDS -> TrendsScreen(viewModel = trendsViewModel)

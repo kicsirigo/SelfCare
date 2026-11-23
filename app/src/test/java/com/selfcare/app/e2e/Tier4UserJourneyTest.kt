@@ -102,28 +102,23 @@ class Tier4UserJourneyTest {
         composeRule.waitUntilTagExists("routine_completed_badge")
         composeRule.onNodeWithTag("routine_completed_badge").assertIsDisplayed()
 
-        // 5. Log Shower & Evening Teeth on Hygiene tab
-        composeRule.onNodeWithTag("nav_hygiene").performClick()
-        composeRule.waitUntilTagExists("hygiene_item_${HygieneRepository.HABIT_SHOWER}")
-        composeRule.onNodeWithTag("hygiene_item_${HygieneRepository.HABIT_SHOWER}")
-            .performScrollTo()
-            .performClick()
-        composeRule.onNodeWithTag("hygiene_item_${HygieneRepository.HABIT_TEETH_PM}")
-            .performScrollTo()
-            .performClick()
+        // 5. Log Water (+250 ml and +500 ml) on Nutrition & Hydration tab
+        composeRule.onNodeWithTag("nav_nutrition").performClick()
+        composeRule.waitUntilTagExists("nutrition_water_250_btn")
+        composeRule.onNodeWithTag("nutrition_water_250_btn").performClick()
+        composeRule.onNodeWithTag("nutrition_water_500_btn").performClick()
 
         val today = e2eRule.container.routineRepository.currentEpochDay()
         composeRule.waitUntil(timeoutMillis = 5_000L) {
             Shadows.shadowOf(Looper.getMainLooper()).idle()
             runBlocking {
-                val logs = e2eRule.database.hygieneDao().observeByDate(today).first()
-                logs.count { it.completed } >= 2
+                val waterLogs = e2eRule.database.nutritionDao().observeWaterForDay(today).first()
+                waterLogs.sumOf { it.amountMl } >= 750
             }
         }
         runBlocking {
-            val hygieneLogs = e2eRule.database.hygieneDao().observeByDate(today).first()
-            assertTrue(hygieneLogs.any { it.habitKey == HygieneRepository.HABIT_SHOWER && it.completed })
-            assertTrue(hygieneLogs.any { it.habitKey == HygieneRepository.HABIT_TEETH_PM && it.completed })
+            val waterLogs = e2eRule.database.nutritionDao().observeWaterForDay(today).first()
+            assertTrue(waterLogs.sumOf { it.amountMl } >= 750)
         }
 
         // 6. Record Face Check-In & verify haircut status

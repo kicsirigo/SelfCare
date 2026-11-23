@@ -9,6 +9,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -43,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.repository.RoutineRepository
+import com.selfcare.app.ui.components.CelebrationOverlay
 import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.icons.AppIcons
 
@@ -52,14 +57,21 @@ fun RoutineScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var celebrationTrigger by remember { mutableIntStateOf(0) }
 
-    RoutineScreenContent(
-        state = state,
-        onSelectPeriod = viewModel::selectPeriod,
-        onCompleteRoutine = viewModel::completeCurrentRoutine,
-        onToggleProduct = viewModel::toggleProductOverride,
-        modifier = modifier
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        RoutineScreenContent(
+            state = state,
+            onSelectPeriod = viewModel::selectPeriod,
+            onCompleteRoutine = {
+                viewModel.completeCurrentRoutine()
+                celebrationTrigger++
+            },
+            onToggleProduct = viewModel::toggleProductOverride,
+            modifier = Modifier.fillMaxSize()
+        )
+        CelebrationOverlay(triggerKey = celebrationTrigger)
+    }
 }
 
 @Composable

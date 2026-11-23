@@ -11,10 +11,12 @@ import com.selfcare.app.data.ml.OnnxSkinSignalsAnalyzer
 import com.selfcare.app.data.remote.AppUpdateManager
 import com.selfcare.app.data.remote.GroqVisionProductClient
 import com.selfcare.app.data.remote.OpenBeautyFactsClient
+import com.selfcare.app.data.remote.OpenFoodFactsNutritionClient
 import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BackupRepository
 import com.selfcare.app.data.repository.FaceCheckInRepository
 import com.selfcare.app.data.repository.HygieneRepository
+import com.selfcare.app.data.repository.NutritionRepository
 import com.selfcare.app.data.repository.ProductRepository
 import com.selfcare.app.data.repository.RoutineRepository
 import com.selfcare.app.domain.cv.HaircutTracker
@@ -103,6 +105,18 @@ open class AppContainer(
 
     open val productVisionClient: ProductVisionClient by lazy {
         GroqVisionProductClient()
+    }
+
+    open val openFoodFactsNutritionClient: OpenFoodFactsNutritionClient by lazy {
+        OpenFoodFactsNutritionClient()
+    }
+
+    open val nutritionRepository: NutritionRepository by lazy {
+        NutritionRepository(
+            nutritionDao = database.nutritionDao(),
+            openFoodFactsClient = openFoodFactsNutritionClient,
+            clock = clock
+        )
     }
 
     open val appUpdateManager: AppUpdateManager by lazy {

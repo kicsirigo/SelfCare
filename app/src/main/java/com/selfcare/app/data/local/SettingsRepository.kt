@@ -41,7 +41,12 @@ data class UserSettings(
     val lastShaveEpochDay: Long? = null,
     val birthDateIso: String? = null,
     val blockScreenshots: Boolean = false,
-    val lastSeenVersionCode: Int = 0
+    val lastSeenVersionCode: Int = 0,
+    val dailyCalorieTarget: Int = DEFAULT_CALORIE_TARGET,
+    val dailyProteinTargetGrams: Int = DEFAULT_PROTEIN_TARGET,
+    val dailyCarbsTargetGrams: Int = DEFAULT_CARBS_TARGET,
+    val dailyFatTargetGrams: Int = DEFAULT_FAT_TARGET,
+    val dailyWaterTargetMl: Int = DEFAULT_WATER_TARGET_ML
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -50,6 +55,11 @@ data class UserSettings(
         const val DEFAULT_SHAVE_INTERVAL_DAYS = 3
         const val MIN_SHAVE_INTERVAL_DAYS = 1
         const val MAX_SHAVE_INTERVAL_DAYS = 14
+        const val DEFAULT_CALORIE_TARGET = 2200
+        const val DEFAULT_PROTEIN_TARGET = 150
+        const val DEFAULT_CARBS_TARGET = 220
+        const val DEFAULT_FAT_TARGET = 70
+        const val DEFAULT_WATER_TARGET_ML = 2500
     }
 }
 
@@ -91,7 +101,12 @@ class SettingsRepository(
             lastShaveEpochDay = prefs[KEY_LAST_SHAVE_EPOCH_DAY],
             birthDateIso = prefs[KEY_BIRTH_DATE_ISO]?.takeIf { it.isNotBlank() },
             blockScreenshots = prefs[KEY_BLOCK_SCREENSHOTS] ?: false,
-            lastSeenVersionCode = prefs[KEY_LAST_SEEN_VERSION_CODE] ?: 0
+            lastSeenVersionCode = prefs[KEY_LAST_SEEN_VERSION_CODE] ?: 0,
+            dailyCalorieTarget = (prefs[KEY_DAILY_CALORIE_TARGET] ?: UserSettings.DEFAULT_CALORIE_TARGET).coerceIn(1000, 6000),
+            dailyProteinTargetGrams = (prefs[KEY_DAILY_PROTEIN_TARGET] ?: UserSettings.DEFAULT_PROTEIN_TARGET).coerceIn(40, 400),
+            dailyCarbsTargetGrams = (prefs[KEY_DAILY_CARBS_TARGET] ?: UserSettings.DEFAULT_CARBS_TARGET).coerceIn(20, 700),
+            dailyFatTargetGrams = (prefs[KEY_DAILY_FAT_TARGET] ?: UserSettings.DEFAULT_FAT_TARGET).coerceIn(20, 250),
+            dailyWaterTargetMl = (prefs[KEY_DAILY_WATER_TARGET_ML] ?: UserSettings.DEFAULT_WATER_TARGET_ML).coerceIn(1000, 6000)
         )
     }
 
@@ -196,6 +211,22 @@ class SettingsRepository(
         }
     }
 
+    suspend fun updateNutritionTargets(
+        caloriesKcal: Int,
+        proteinGrams: Int,
+        carbsGrams: Int,
+        fatGrams: Int,
+        waterMl: Int
+    ) {
+        dataStore.edit { prefs ->
+            prefs[KEY_DAILY_CALORIE_TARGET] = caloriesKcal.coerceIn(1000, 6000)
+            prefs[KEY_DAILY_PROTEIN_TARGET] = proteinGrams.coerceIn(40, 400)
+            prefs[KEY_DAILY_CARBS_TARGET] = carbsGrams.coerceIn(20, 700)
+            prefs[KEY_DAILY_FAT_TARGET] = fatGrams.coerceIn(20, 250)
+            prefs[KEY_DAILY_WATER_TARGET_ML] = waterMl.coerceIn(1000, 6000)
+        }
+    }
+
     suspend fun replaceAll(userSettings: UserSettings) {
         dataStore.edit { prefs ->
             prefs[KEY_THEME_MODE] = userSettings.themeMode.name
@@ -244,6 +275,11 @@ class SettingsRepository(
         private val KEY_BIRTH_DATE_ISO = stringPreferencesKey("birth_date_iso")
         private val KEY_BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
         private val KEY_LAST_SEEN_VERSION_CODE = intPreferencesKey("last_seen_version_code")
+        private val KEY_DAILY_CALORIE_TARGET = intPreferencesKey("daily_calorie_target")
+        private val KEY_DAILY_PROTEIN_TARGET = intPreferencesKey("daily_protein_target")
+        private val KEY_DAILY_CARBS_TARGET = intPreferencesKey("daily_carbs_target")
+        private val KEY_DAILY_FAT_TARGET = intPreferencesKey("daily_fat_target")
+        private val KEY_DAILY_WATER_TARGET_ML = intPreferencesKey("daily_water_target_ml")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

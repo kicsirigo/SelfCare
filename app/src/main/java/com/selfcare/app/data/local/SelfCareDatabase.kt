@@ -9,13 +9,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.selfcare.app.data.local.dao.FaceCheckInDao
 import com.selfcare.app.data.local.dao.HaircutBaselineDao
 import com.selfcare.app.data.local.dao.HygieneDao
+import com.selfcare.app.data.local.dao.NutritionDao
 import com.selfcare.app.data.local.dao.ProductDao
 import com.selfcare.app.data.local.dao.RoutineDao
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.local.entity.HygieneLogEntity
+import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
+import com.selfcare.app.data.local.entity.WaterLogEntity
 
 @Database(
     entities = [
@@ -23,9 +26,11 @@ import com.selfcare.app.data.local.entity.RoutineLogEntity
         ProductEntity::class,
         FaceCheckInEntity::class,
         HygieneLogEntity::class,
-        HaircutBaselineEntity::class
+        HaircutBaselineEntity::class,
+        NutritionLogEntity::class,
+        WaterLogEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class SelfCareDatabase : RoomDatabase() {
@@ -34,6 +39,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
     abstract fun faceCheckInDao(): FaceCheckInDao
     abstract fun hygieneDao(): HygieneDao
     abstract fun haircutBaselineDao(): HaircutBaselineDao
+    abstract fun nutritionDao(): NutritionDao
 
     companion object {
         private const val DATABASE_NAME = "selfcare.db"
@@ -57,6 +63,44 @@ abstract class SelfCareDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `nutrition_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `dateEpochDay` INTEGER NOT NULL,
+                        `mealType` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `brand` TEXT NOT NULL,
+                        `barcode` TEXT,
+                        `grams` REAL NOT NULL,
+                        `caloriesKcal` INTEGER NOT NULL,
+                        `proteinGrams` REAL NOT NULL,
+                        `carbsGrams` REAL NOT NULL,
+                        `fatGrams` REAL NOT NULL,
+                        `fiberGrams` REAL NOT NULL,
+                        `sugarGrams` REAL NOT NULL,
+                        `source` TEXT NOT NULL,
+                        `createdAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_nutrition_logs_dateEpochDay` ON `nutrition_logs` (`dateEpochDay`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `water_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `dateEpochDay` INTEGER NOT NULL,
+                        `amountMl` INTEGER NOT NULL,
+                        `loggedAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_water_logs_dateEpochDay` ON `water_logs` (`dateEpochDay`)")
+            }
+        }
+
         @Volatile
         private var instance: SelfCareDatabase? = null
 
@@ -66,7 +110,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
                     context.applicationContext,
                     SelfCareDatabase::class.java,
                     DATABASE_NAME
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { db ->
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { db ->
                     instance = db
                 }
             }

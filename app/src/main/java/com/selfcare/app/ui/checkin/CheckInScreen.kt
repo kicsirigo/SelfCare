@@ -105,6 +105,7 @@ import com.selfcare.app.domain.cv.MetricStatusLevel
 import com.selfcare.app.domain.cv.ShelfProductSummary
 import com.selfcare.app.domain.cv.TipVariant
 import com.selfcare.app.domain.ml.FaceAnalysisResult
+import com.selfcare.app.ui.components.CelebrationOverlay
 import com.selfcare.app.ui.components.HairHealthAnalysisCard
 import com.selfcare.app.ui.components.HeroScoreRing
 import com.selfcare.app.ui.components.MetricGaugeRow
@@ -167,7 +168,28 @@ fun CheckInScreen(
         }
     }
 
+    var celebrationTrigger by remember { mutableStateOf(0) }
+    LaunchedEffect(uiState.lastResult?.checkIn?.id) {
+        val result = uiState.lastResult ?: return@LaunchedEffect
+        val rating = MetricInterpreter.computeObjectiveRating(
+            underEyeDelta = result.checkIn.underEyeDeltaLab,
+            redness = result.checkIn.skinRednessIndex,
+            texture = result.checkIn.skinTextureVariance,
+            lipDryness = result.checkIn.lipDrynessScore,
+            blemishScore = result.checkIn.blemishScore,
+            blemishCount = result.checkIn.blemishCount,
+            stubbleScore = result.checkIn.stubbleScore,
+            shaveDue = uiState.isShaveReminderDue,
+            shelfProducts = uiState.shelfProducts,
+            dailyContext = uiState.dailyContext
+        )
+        if (rating.scoreOutOfTen >= 7.5f) {
+            celebrationTrigger++
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
+        CelebrationOverlay(triggerKey = celebrationTrigger)
         Column(
             modifier = Modifier
                 .fillMaxSize()

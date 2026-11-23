@@ -40,9 +40,27 @@ sealed interface GeminiKeyTestResult {
     data class Failure(val reason: String) : GeminiKeyTestResult
 }
 
+data class EstimatedMealInfo(
+    val name: String,
+    val estimatedGrams: Float,
+    val caloriesKcal: Int,
+    val proteinGrams: Float,
+    val carbsGrams: Float,
+    val fatGrams: Float,
+    val fiberGrams: Float = 0f,
+    val sugarGrams: Float = 0f
+)
+
+sealed interface MealVisionResult {
+    data class Success(val meal: EstimatedMealInfo, val modelUsed: String = "") : MealVisionResult
+    data class Error(val reason: String) : MealVisionResult
+}
+
 interface ProductVisionClient {
     suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
     suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
+    suspend fun estimateMealFromPhoto(bitmap: Bitmap, apiKey: String): MealVisionResult =
+        MealVisionResult.Error("Not supported")
 }
 
 /**
@@ -225,6 +243,117 @@ class GroqVisionProductClient(
             GeminiVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
+    override suspend fun estimateMealFromPhoto(bitmap: Bitmap, apiKey: String): MealVisionResult =
+        withContext(Dispatchers.IO) {
+            val cleanKey = apiKey.trim()
+            if (cleanKey.isEmpty()) {
+                return@withContext MealVisionResult.Error("API key is empty")
+            }
+
+            val base64Image = try {
+                encodeBitmapToBase64Jpeg(bitmap)
+            } catch (e: Exception) {
+                return@withContext MealVisionResult.Error("Image encode error (${e::class.simpleName})")
+            }
+
+            val modelsToTry = discoverVisionModels(cleanKey, useCache = true)
+            val errors = mutableListOf<String>()
+            val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+            for (model in modelsToTry) {
+                val payload = buildVisionPayloadWithPrompt(model, base64Image, MEAL_ESTIMATION_PROMPT)
+                val label = shortModelLabel(model)
+                for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("Authorization", "Bearer $cleanKey")
+                            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                            .build()
+
+                        var shouldRetry = false
+                        httpClient.newCall(request).execute().use { response ->
+                            val bodyStr = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                                val err = "HTTP ${response.code} ($label): $apiMsg"
+                                if (response.code == 401 || response.code == 403) {
+                                    return@withContext MealVisionResult.Error(err)
+                                }
+                                shouldRetry = isTransientRetryableStatus(response.code) &&
+                                    attempt < MAX_TRANSIENT_ATTEMPTS - 1
+                                if (!shouldRetry) errors.add(err)
+                                return@use
+                            }
+                            when (val parsed = parseGroqMealResponseJson(bodyStr)) {
+                                is MealVisionResult.Success -> {
+                                    return@withContext parsed.copy(modelUsed = "$label (Groq)")
+                                }
+                                is MealVisionResult.Error -> {
+                                    errors.add("$label: ${parsed.reason}")
+                                }
+                            }
+                        }
+                        if (shouldRetry) {
+                            delayFn(RETRY_BACKOFF_MS[attempt])
+                            continue
+                        }
+                        break
+                    } catch (e: Exception) {
+                        errors.add(sanitizeExceptionReason(label, e))
+                        break
+                    }
+                }
+            }
+            MealVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
+        }
+
+    fun parseGroqMealResponseJson(responseBody: String): MealVisionResult {
+        return try {
+            val root = json.parseToJsonElement(responseBody).jsonObject
+            val choices = root["choices"]?.jsonArray
+            val firstChoice = choices?.firstOrNull()?.jsonObject
+                ?: return MealVisionResult.Error("EMPTY_CHOICES")
+            val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
+                ?.trim()
+                ?: return MealVisionResult.Error("EMPTY_TEXT")
+
+            val withoutThink = rawText
+                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
+                .trim()
+            val cleaned = withoutThink
+                .removePrefix("```json")
+                .removePrefix("```")
+                .removeSuffix("```")
+                .trim()
+            val jsonStart = cleaned.indexOf('{')
+            val jsonEnd = cleaned.lastIndexOf('}')
+            val jsonSlice = if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                cleaned.substring(jsonStart, jsonEnd + 1)
+            } else {
+                cleaned
+            }
+            val dto = json.decodeFromString(GroqMealDto.serializer(), jsonSlice)
+            val name = dto.name.trim()
+            if (name.isBlank() || dto.caloriesKcal <= 0) {
+                return MealVisionResult.Error("NO_MEAL_IDENTIFIED")
+            }
+            MealVisionResult.Success(
+                EstimatedMealInfo(
+                    name = name,
+                    estimatedGrams = dto.estimatedGrams.coerceIn(10f, 3000f),
+                    caloriesKcal = dto.caloriesKcal.coerceIn(1, 5000),
+                    proteinGrams = dto.proteinGrams.coerceIn(0f, 350f),
+                    carbsGrams = dto.carbsGrams.coerceIn(0f, 600f),
+                    fatGrams = dto.fatGrams.coerceIn(0f, 300f),
+                    fiberGrams = dto.fiberGrams.coerceIn(0f, 150f),
+                    sugarGrams = dto.sugarGrams.coerceIn(0f, 300f)
+                )
+            )
+        } catch (e: Exception) {
+            MealVisionResult.Error("Parse error: ${e.message ?: "invalid json"}")
+        }
+    }
+
     fun parseGroqResponseJson(responseBody: String): GeminiVisionResult {
         return try {
             val root = json.parseToJsonElement(responseBody).jsonObject
@@ -290,7 +419,10 @@ class GroqVisionProductClient(
         }
     }
 
-    private fun buildVisionPayload(model: String, base64Jpeg: String): String {
+    private fun buildVisionPayload(model: String, base64Jpeg: String): String =
+        buildVisionPayloadWithPrompt(model, base64Jpeg, SYSTEM_PROMPT)
+
+    private fun buildVisionPayloadWithPrompt(model: String, base64Jpeg: String, prompt: String): String {
         return buildJsonObject {
             put("model", model)
             put("temperature", 0.1)
@@ -301,7 +433,7 @@ class GroqVisionProductClient(
                     put("content", buildJsonArray {
                         add(buildJsonObject {
                             put("type", "text")
-                            put("text", SYSTEM_PROMPT)
+                            put("text", prompt)
                         })
                         add(buildJsonObject {
                             put("type", "image_url")
@@ -370,6 +502,18 @@ class GroqVisionProductClient(
         val ingredients: String = ""
     )
 
+    @Serializable
+    private data class GroqMealDto(
+        val name: String = "",
+        val estimatedGrams: Float = 250f,
+        val caloriesKcal: Int = 0,
+        val proteinGrams: Float = 0f,
+        val carbsGrams: Float = 0f,
+        val fatGrams: Float = 0f,
+        val fiberGrams: Float = 0f,
+        val sugarGrams: Float = 0f
+    )
+
     companion object {
         const val DEFAULT_BASE_URL = "https://api.groq.com"
         const val MAX_TRANSIENT_ATTEMPTS = 3
@@ -419,6 +563,18 @@ class GroqVisionProductClient(
                 "\"category\" (one of: OTHER, RX_TREATMENT, SHAMPOO, VITAMIN, MEDICATION), " +
                 "\"routineSlot\" (one of: MORNING, EVENING, BOTH, HAIR, NONE), " +
                 "\"ingredients\" (comma-separated key active ingredients or vitamins/dosages visible or known for this exact product, e.g. 'Niacinamide, Salicylic Acid' or 'Vitamin D3 2000 IU')."
+
+        private const val MEAL_ESTIMATION_PROMPT =
+            "Identify the meal or food on this photo and estimate realistic portion nutrition for the ENTIRE visible serving. " +
+                "Return ONLY a single raw JSON object (no markdown, no explanation) with keys: " +
+                "\"name\" (short descriptive meal name, empty string if no food visible), " +
+                "\"estimatedGrams\" (number, estimated total grams of food), " +
+                "\"caloriesKcal\" (integer, total kcal), " +
+                "\"proteinGrams\" (number), " +
+                "\"carbsGrams\" (number), " +
+                "\"fatGrams\" (number), " +
+                "\"fiberGrams\" (number), " +
+                "\"sugarGrams\" (number)."
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
