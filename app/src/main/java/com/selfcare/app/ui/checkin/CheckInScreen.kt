@@ -903,6 +903,8 @@ private fun CheckInResultSummaryCard(
             // Active AI Engines Breakdown Strip + Tap for Details Dialog
             val blemishEngine = lastAnalysis?.blemishEngineUsed ?: "ONNX_YOLOV8S"
             val isOnnxBlemish = blemishEngine == "ONNX_YOLOV8S"
+            val skinSignalsEngine = lastAnalysis?.skinSignalsEngineUsed ?: "ONNX_EFFICIENTNET_B0"
+            val isOnnxSkinSignals = skinSignalsEngine == "ONNX_EFFICIENTNET_B0"
             val faceMeshUsed = lastAnalysis?.faceMeshUsed ?: true
             val hairSegUsed = lastAnalysis?.hairSegmentationUsed ?: true
             val durationMs = lastAnalysis?.analysisDurationMs ?: 0L
@@ -918,6 +920,11 @@ private fun CheckInResultSummaryCard(
                     "acne_detector_v${BuildConfig.VERSION_CODE}.onnx · 100% Offline"
                 } else {
                     "CIELAB a* delta fallback · 100% Offline"
+                }
+                val skinDetail = if (isOnnxSkinSignals) {
+                    "ONNX EfficientNet-B0 INT8 (skin_signals_v${BuildConfig.VERSION_CODE}.onnx) + 1080px CIELAB Hybrid"
+                } else {
+                    "1080px CIELAB CV fallback (100% Offline)"
                 }
                 val faceDetail = if (faceMeshUsed) {
                     "ML Kit FaceMesh (468 landmarks · 100% Offline)"
@@ -948,7 +955,8 @@ private fun CheckInResultSummaryCard(
                                 blemishDetailAsset,
                                 faceDetail,
                                 hairDetail,
-                                durationSuffix
+                                durationSuffix,
+                                skinDetail
                             ),
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -1020,7 +1028,18 @@ private fun CheckInResultSummaryCard(
                             highlighted = false
                         )
                         AiEngineChip(
-                            label = stringResource(R.string.checkin_ai_chip_cielab_skin),
+                            label = stringResource(
+                                if (isOnnxSkinSignals) {
+                                    R.string.checkin_ai_chip_onnx_skin
+                                } else {
+                                    R.string.checkin_ai_chip_cielab_skin
+                                }
+                            ),
+                            dotColor = if (isOnnxSkinSignals) NeonGreen else Color(0xFFA3E635),
+                            highlighted = isOnnxSkinSignals
+                        )
+                        AiEngineChip(
+                            label = stringResource(R.string.checkin_ai_chip_sobel_stubble),
                             dotColor = Color(0xFFA3E635),
                             highlighted = false
                         )

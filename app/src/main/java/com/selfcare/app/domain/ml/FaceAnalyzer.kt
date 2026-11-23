@@ -19,6 +19,7 @@ data class FaceAnalysisResult(
     val blemishCount: Int = 0,
     val stubbleScore: Float = 0f,
     val blemishEngineUsed: String = "CIELAB_CV",
+    val skinSignalsEngineUsed: String = "CIELAB_CV",
     val faceMeshUsed: Boolean = false,
     val hairSegmentationUsed: Boolean = false,
     val analysisDurationMs: Long = 0L

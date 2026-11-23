@@ -30,6 +30,16 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.2.0",
+            title = "Hybrid Multi-Head Skin Signals AI & Directional Stubble Detector",
+            highlights = listOf(
+                "Bundled a 100% offline 4-head EfficientNet-B0 INT8 skin signals model (skin_signals_int8.onnx) alongside the YOLOv8s INT8 blemish detector, running in parallel on-device.",
+                "Added hybrid fusion combining global 224x224 EfficientNet-B0 skin predictions (structure, hydration, erythema/UV, elasticity) with 1080px local CIELAB ROI metrics for better lighting resilience.",
+                "Upgraded jawline stubble detection with directional Sobel bristle edge-density analysis to further reduce overhead shadow false positives.",
+                "Updated the Active AI Engines strip and telemetry dialog to display both ONNX YOLOv8s and ONNX EfficientNet-B0 status."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.1.0",
             title = "Active AI Engine Telemetry UI/UX",
             highlights = listOf(

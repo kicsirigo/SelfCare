@@ -382,17 +382,19 @@
     <string name="shelf_gemini_hide_details">Hide error details</string>
     <string name="settings_patch_notes_btn">Patch Notes</string>
 
-    <!-- v3.1.0: Active AI Engine Telemetry UI/UX -->
-    <string name="checkin_live_ai_hud">Local AI active: ONNX YOLOv8s + ML Kit (100% Offline)</string>
+    <!-- v3.1.0 - v3.2.0: Active AI Engine Telemetry UI/UX -->
+    <string name="checkin_live_ai_hud">Local AI active: YOLOv8s + EfficientNet + ML Kit (Offline)</string>
     <string name="checkin_ai_engines_title">Active AI engines (tap for details)</string>
     <string name="checkin_ai_chip_onnx_blemish">ONNX YOLOv8s · Blemishes</string>
     <string name="checkin_ai_chip_cielab_blemish">CIELAB CV · Blemishes</string>
+    <string name="checkin_ai_chip_onnx_skin">ONNX EfficientNet · Skin</string>
+    <string name="checkin_ai_chip_sobel_stubble">Sobel + CIELAB · Stubble</string>
     <string name="checkin_ai_chip_mlkit_face">ML Kit FaceMesh · Face</string>
     <string name="checkin_ai_chip_roi_face">ROI Oval · Face</string>
-    <string name="checkin_ai_chip_cielab_skin">CIELAB CV · Skin &amp; Stubble</string>
+    <string name="checkin_ai_chip_cielab_skin">CIELAB CV · Skin</string>
     <string name="checkin_ai_chip_mlkit_hair">ML Kit SelfieSeg · Hair</string>
     <string name="checkin_ai_dialog_title">On-Device AI Engines</string>
-    <string name="checkin_ai_dialog_body">Every check-in runs 100%% offline on your phone:\n\n• Blemish detector: %1$s (%2$s)\n• Facial landmarks: %3$s\n• Skin tone, redness &amp; stubble: CIELAB + Sobel CV (Deterministic)\n• Hair &amp; hairline: %4$s%5$s</string>
+    <string name="checkin_ai_dialog_body">Every check-in runs 100%% offline on your phone:\n\n• Blemish detector: %1$s (%2$s)\n• Skin signals (texture, hydration, redness, under-eye): %6$s\n• Facial landmarks: %3$s\n• Stubble: Directional Sobel + CIELAB CV\n• Hair &amp; hairline: %4$s%5$s</string>
     <string name="checkin_ai_dialog_duration">\n• Analysis runtime: %d ms</string>
     <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
 </resources>

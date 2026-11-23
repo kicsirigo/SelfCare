@@ -15,6 +15,7 @@ import com.selfcare.app.domain.cv.FaceMetricCalculator
 import com.selfcare.app.domain.cv.LightingQualityChecker
 import com.selfcare.app.domain.cv.LightingWarningReason
 import com.selfcare.app.domain.cv.PixelRect
+import com.selfcare.app.domain.cv.SkinSignalsHybridFusion
 import com.selfcare.app.domain.ml.FaceAnalysisResult
 import com.selfcare.app.domain.ml.FaceAnalyzer
 import kotlinx.coroutines.async
@@ -29,7 +30,8 @@ import kotlin.math.roundToInt
  * LightingQualityChecker, and pure-Kotlin FaceMetricCalculator.
  */
 class MlKitFaceAnalyzer(
-    private val acneDetector: OnnxAcneDetector? = null
+    private val acneDetector: OnnxAcneDetector? = null,
+    private val skinSignalsAnalyzer: OnnxSkinSignalsAnalyzer? = null
 ) : FaceAnalyzer {
 
     private val faceMeshDetector: FaceMeshDetector by lazy {
@@ -170,8 +172,13 @@ class MlKitFaceAnalyzer(
                 height = height,
                 skinRois = skinRois
             )
-            val onnxBlemishes = acneDetector?.detectOnFace(workBitmap, facePixelRect)
+            val (onnxBlemishes, onnxSkinSignals) = coroutineScope {
+                val blemishDeferred = async { acneDetector?.detectOnFace(workBitmap, facePixelRect) }
+                val skinDeferred = async { skinSignalsAnalyzer?.analyzeOnFace(workBitmap, facePixelRect) }
+                blemishDeferred.await() to skinDeferred.await()
+            }
             val blemishEngine = if (onnxBlemishes != null) "ONNX_YOLOV8S" else "CIELAB_CV"
+            val skinSignalsEngine = if (onnxSkinSignals != null) "ONNX_EFFICIENTNET_B0" else "CIELAB_CV"
             val blemishMetrics = onnxBlemishes ?: FaceMetricCalculator.computeBlemishMetrics(
                 pixels = pixels,
                 width = width,
@@ -222,11 +229,19 @@ class MlKitFaceAnalyzer(
                 )
             }
 
+            val fusedSkin = SkinSignalsHybridFusion.fuseSkinMetrics(
+                cvUnderEyeDeltaLab = underEyeDeltaLab,
+                cvRednessIndex = skinRednessIndex,
+                cvTextureVariance = skinTextureVariance,
+                cvLipDrynessScore = lipDrynessScore,
+                aiSignals = onnxSkinSignals
+            )
+
             return FaceAnalysisResult(
-                underEyeDeltaLab = underEyeDeltaLab,
-                skinRednessIndex = skinRednessIndex,
-                skinTextureVariance = skinTextureVariance,
-                lipDrynessScore = lipDrynessScore,
+                underEyeDeltaLab = fusedSkin.underEyeDeltaLab,
+                skinRednessIndex = fusedSkin.skinRednessIndex,
+                skinTextureVariance = fusedSkin.skinTextureVariance,
+                lipDrynessScore = fusedSkin.lipDrynessScore,
                 hairToFaceRatio = hairDetails?.hairToFaceRatio ?: 0f,
                 lightingQualityScore = lightingAssessment.lightingQualityScore,
                 isLightingAcceptable = true,
@@ -239,6 +254,7 @@ class MlKitFaceAnalyzer(
                 blemishCount = blemishMetrics.estimatedSpotCount,
                 stubbleScore = stubbleScore,
                 blemishEngineUsed = blemishEngine,
+                skinSignalsEngineUsed = skinSignalsEngine,
                 faceMeshUsed = (primaryFace != null && detectedRect != null),
                 hairSegmentationUsed = (hairDetails != null),
                 analysisDurationMs = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)

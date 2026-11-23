@@ -685,9 +685,58 @@ object FaceMetricCalculator {
         val effectiveDarkening = (darkening - 5.0f).coerceAtLeast(0f)
         val darkComponent = (effectiveDarkening / 15f).coerceIn(0f, 1f)
         val roughComponent = (extraRoughness / 16f).coerceIn(0f, 1f)
-        val combined = (darkComponent * 0.40f + roughComponent * 0.60f).coerceIn(0f, 1f)
-        // If jawline is smooth (no extra bristle micro-texture), cap pure shadow contribution
-        return if (roughComponent < 0.12f) combined.coerceAtMost(0.24f) else combined
+
+        val jawSobel = computeDirectionalSobelEdgeDensity(pixels, width, height, jawAndChinRois)
+        val refSobel = if (referenceCheekRois.isNotEmpty()) {
+            computeDirectionalSobelEdgeDensity(pixels, width, height, referenceCheekRois)
+        } else {
+            1.5f
+        }
+        val extraBristleEdges = (jawSobel - refSobel * 1.15f).coerceAtLeast(0f)
+        val sobelComponent = (extraBristleEdges / 8.5f).coerceIn(0f, 1f)
+
+        val combined = (
+            darkComponent * 0.30f +
+                roughComponent * 0.35f +
+                sobelComponent * 0.35f
+            ).coerceIn(0f, 1f)
+        // If jawline is smooth (no extra bristle micro-texture or edges), cap pure shadow contribution
+        return if (roughComponent < 0.12f && sobelComponent < 0.12f) {
+            combined.coerceAtMost(0.24f)
+        } else {
+            combined
+        }
+    }
+
+    /**
+     * Directional Sobel-like luminance gradient magnitude (|Gx| + |Gy|) averaged over ROIs
+     * to distinguish sharp bristle edges from smooth overhead shadows.
+     */
+    fun computeDirectionalSobelEdgeDensity(
+        pixels: IntArray,
+        width: Int,
+        height: Int,
+        rois: List<PixelRect>
+    ): Float {
+        if (width <= 0 || height <= 0 || pixels.size < width * height || rois.isEmpty()) return 0f
+        var sumGrad = 0.0
+        var count = 0
+        for (rawRoi in rois) {
+            val roi = rawRoi.clampTo(width, height)
+            if (roi.isEmpty || roi.width < 3 || roi.height < 3) continue
+            for (y in roi.top until (roi.bottom - 1)) {
+                val row = y * width
+                val downRow = (y + 1) * width
+                for (x in roi.left until (roi.right - 1)) {
+                    val center = luminance100(pixels[row + x])
+                    val gx = kotlin.math.abs(luminance100(pixels[row + x + 1]) - center)
+                    val gy = kotlin.math.abs(luminance100(pixels[downRow + x]) - center)
+                    sumGrad += (gx + gy).toDouble()
+                    count++
+                }
+            }
+        }
+        return if (count == 0) 0f else (sumGrad / count).toFloat()
     }
 
     private fun singleSideUnderEyeDelta(
