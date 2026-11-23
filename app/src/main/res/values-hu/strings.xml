@@ -397,4 +397,6 @@
     <string name="checkin_ai_dialog_body">Minden állapotfelmérés 100%%-ban offline, helyben fut:\n\n• Pattanás-detektor: %1$s (%2$s)\n• Bőrszignálok (textúra, hidratáltság, bőrpír, szem alatti): %6$s\n• Arcpontok és zónák: %3$s\n• Borosta: Irányított Sobel + CIELAB CV\n• Haj és hajvonal: %4$s%5$s</string>
     <string name="checkin_ai_dialog_duration">\n• Elemzési idő: %d ms</string>
     <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
+    <string name="shelf_scan_open_google_lens">Keresés Google Lens-ben</string>
+    <string name="shelf_scan_google_lens_chooser">Fotó megnyitása Google Lens-ben</string>
 </resources>

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.util.Base64
 import com.selfcare.app.domain.inci.InciConflictDetector
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -49,13 +50,17 @@ interface ProductVisionClient {
 
 class GeminiVisionProductClient(
     private val httpClient: OkHttpClient = defaultHttpClient(),
-    private val baseUrl: String = DEFAULT_BASE_URL
+    private val baseUrl: String = DEFAULT_BASE_URL,
+    private val delayFn: suspend (Long) -> Unit = { delay(it) }
 ) : ProductVisionClient {
 
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
+
+    private fun isTransientRetryableStatus(code: Int): Boolean =
+        code == 429 || code == 500 || code == 502 || code == 503 || code == 504
 
     override suspend fun testApiKey(apiKey: String): GeminiKeyTestResult =
         withContext(Dispatchers.IO) {
@@ -66,40 +71,51 @@ class GeminiVisionProductClient(
 
             var lastError = "Unknown error"
             for (model in MODEL_FALLBACK_CHAIN) {
-                try {
-                    val payload = buildJsonObject {
-                        put("contents", buildJsonArray {
-                            add(buildJsonObject {
-                                put("parts", buildJsonArray {
-                                    add(buildJsonObject {
-                                        put("text", JsonPrimitive("Reply with OK"))
-                                    })
+                val payload = buildJsonObject {
+                    put("contents", buildJsonArray {
+                        add(buildJsonObject {
+                            put("parts", buildJsonArray {
+                                add(buildJsonObject {
+                                    put("text", JsonPrimitive("Reply with OK"))
                                 })
                             })
                         })
-                    }.toString()
+                    })
+                }.toString()
 
-                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("x-goog-api-key", cleanKey)
-                        .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
-                        .build()
+                val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
+                for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("x-goog-api-key", cleanKey)
+                            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                            .build()
 
-                    httpClient.newCall(request).execute().use { response ->
-                        val bodyStr = response.body?.string().orEmpty()
-                        if (response.isSuccessful) {
-                            return@withContext GeminiKeyTestResult.Success(model)
+                        var shouldRetry = false
+                        httpClient.newCall(request).execute().use { response ->
+                            val bodyStr = response.body?.string().orEmpty()
+                            if (response.isSuccessful) {
+                                return@withContext GeminiKeyTestResult.Success(model)
+                            }
+                            val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                            lastError = "HTTP ${response.code} ($model): $apiMsg"
+                            // Auth/key errors won't be fixed by retrying or trying another model
+                            if (response.code == 400 || response.code == 401 || response.code == 403) {
+                                return@withContext GeminiKeyTestResult.Failure(lastError)
+                            }
+                            shouldRetry = isTransientRetryableStatus(response.code) &&
+                                attempt < MAX_TRANSIENT_ATTEMPTS - 1
                         }
-                        val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
-                        lastError = "HTTP ${response.code} ($model): $apiMsg"
-                        // Auth/key errors won't be fixed by trying another model
-                        if (response.code == 400 || response.code == 401 || response.code == 403) {
-                            return@withContext GeminiKeyTestResult.Failure(lastError)
+                        if (shouldRetry) {
+                            delayFn(RETRY_BACKOFF_MS[attempt])
+                            continue
                         }
+                        break
+                    } catch (e: Exception) {
+                        lastError = sanitizeExceptionReason(model, e)
+                        break
                     }
-                } catch (e: Exception) {
-                    lastError = sanitizeExceptionReason(model, e)
                 }
             }
             GeminiKeyTestResult.Failure(lastError)
@@ -120,38 +136,51 @@ class GeminiVisionProductClient(
 
             val errors = mutableListOf<String>()
             for (model in MODEL_FALLBACK_CHAIN) {
-                try {
-                    val payload = buildRequestPayload(base64Image, disableThinking = model.startsWith("gemini-2.5"))
-                    val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("x-goog-api-key", cleanKey)
-                        .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
-                        .build()
+                val payload = buildRequestPayload(base64Image, disableThinking = model.startsWith("gemini-2.5"))
+                val url = "${baseUrl.trimEnd('/')}/v1beta/models/$model:generateContent"
+                for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("x-goog-api-key", cleanKey)
+                            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                            .build()
 
-                    httpClient.newCall(request).execute().use { response ->
-                        val bodyStr = response.body?.string().orEmpty()
-                        if (!response.isSuccessful) {
-                            val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
-                            val err = "HTTP ${response.code} ($model): $apiMsg"
-                            errors.add(err)
-                            // If 401/403 key error, stop immediately
-                            if (response.code == 401 || response.code == 403) {
-                                return@withContext GeminiVisionResult.Error(err)
+                        var shouldRetry = false
+                        httpClient.newCall(request).execute().use { response ->
+                            val bodyStr = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                                val err = "HTTP ${response.code} ($model): $apiMsg"
+                                // If 401/403 key error, stop immediately
+                                if (response.code == 401 || response.code == 403) {
+                                    return@withContext GeminiVisionResult.Error(err)
+                                }
+                                shouldRetry = isTransientRetryableStatus(response.code) &&
+                                    attempt < MAX_TRANSIENT_ATTEMPTS - 1
+                                if (!shouldRetry) {
+                                    errors.add(err)
+                                }
+                                return@use
                             }
-                            return@use
+                            when (val parsed = parseGeminiResponseJson(bodyStr)) {
+                                is GeminiVisionResult.Success -> {
+                                    return@withContext parsed.copy(modelUsed = model)
+                                }
+                                is GeminiVisionResult.Error -> {
+                                    errors.add("$model: ${parsed.reason}")
+                                }
+                            }
                         }
-                        when (val parsed = parseGeminiResponseJson(bodyStr)) {
-                            is GeminiVisionResult.Success -> {
-                                return@withContext parsed.copy(modelUsed = model)
-                            }
-                            is GeminiVisionResult.Error -> {
-                                errors.add("$model: ${parsed.reason}")
-                            }
+                        if (shouldRetry) {
+                            delayFn(RETRY_BACKOFF_MS[attempt])
+                            continue
                         }
+                        break
+                    } catch (e: Exception) {
+                        errors.add(sanitizeExceptionReason(model, e))
+                        break
                     }
-                } catch (e: Exception) {
-                    errors.add(sanitizeExceptionReason(model, e))
                 }
             }
             GeminiVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Gemini error" })
@@ -286,6 +315,8 @@ class GeminiVisionProductClient(
 
     companion object {
         const val DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
+        const val MAX_TRANSIENT_ATTEMPTS = 3
+        val RETRY_BACKOFF_MS = longArrayOf(800L, 1800L)
         val MODEL_FALLBACK_CHAIN = listOf(
             "gemini-3.8-flash",
             "gemini-3.5-flash-lite"

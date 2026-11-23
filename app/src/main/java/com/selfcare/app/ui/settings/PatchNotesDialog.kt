@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.2.1",
+            title = "Gemini 503 Retry & Google Lens Product Search",
+            highlights = listOf(
+                "Added automatic exponential backoff retries (800 ms -> 1800 ms) for transient HTTP 503 / 429 overload responses on gemini-3.8-flash and gemini-3.5-flash-lite.",
+                "Added a 'Search in Google Lens' button on the Shelf product scan confirmation dialog to open any captured product photo directly in Google Lens."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.2.0",
             title = "Hybrid Multi-Head Skin Signals AI & Directional Stubble Detector",
             highlights = listOf(

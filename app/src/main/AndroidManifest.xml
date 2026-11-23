@@ -16,6 +16,12 @@
     <!-- Used strictly when the user taps Install Update in the in-app GitHub Release download manager -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Used strictly when the user explicitly taps "Search in Google Lens" on a scanned product photo -->
+    <queries>
+        <package android:name="com.google.ar.lens" />
+        <package android:name="com.google.android.googlequicksearchbox" />
+    </queries>
+
     <application
         android:name=".SelfCareApp"
         android:allowBackup="false"

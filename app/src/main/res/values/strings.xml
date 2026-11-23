@@ -397,4 +397,6 @@
     <string name="checkin_ai_dialog_body">Every check-in runs 100%% offline on your phone:\n\n• Blemish detector: %1$s (%2$s)\n• Skin signals (texture, hydration, redness, under-eye): %6$s\n• Facial landmarks: %3$s\n• Stubble: Directional Sobel + CIELAB CV\n• Hair &amp; hairline: %4$s%5$s</string>
     <string name="checkin_ai_dialog_duration">\n• Analysis runtime: %d ms</string>
     <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
+    <string name="shelf_scan_open_google_lens">Search in Google Lens</string>
+    <string name="shelf_scan_google_lens_chooser">Open photo with Google Lens</string>
 </resources>

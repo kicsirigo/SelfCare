@@ -1,8 +1,13 @@
 package com.selfcare.app.ui.shelf
 
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
+import java.io.FileOutputStream
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
@@ -339,6 +344,27 @@ fun ShelfScreenContent(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                        val lensContext = LocalContext.current
+                                        val lensChooserTitle = stringResource(R.string.shelf_scan_google_lens_chooser)
+                                        OutlinedButton(
+                                            onClick = {
+                                                openPhotoInGoogleLens(
+                                                    context = lensContext,
+                                                    bitmap = pending.capturedPhoto,
+                                                    chooserTitle = lensChooserTitle
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .padding(top = 6.dp)
+                                                .testTag("shelf_scan_google_lens_btn")
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.shelf_scan_open_google_lens),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1586,4 +1612,40 @@ private fun nutrientLabel(code: NutrientCode): String = when (code) {
     NutrientCode.IRON -> stringResource(R.string.nutrient_iron)
     NutrientCode.CALCIUM -> stringResource(R.string.nutrient_calcium)
     NutrientCode.OMEGA_3 -> stringResource(R.string.nutrient_omega_3)
+}
+
+private fun openPhotoInGoogleLens(
+    context: Context,
+    bitmap: Bitmap,
+    chooserTitle: String
+) {
+    runCatching {
+        val dir = File(context.cacheDir, "scan_tmp").apply { mkdirs() }
+        val file = File(dir, "lens_query.jpg")
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val baseIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val candidatePackages = listOf(
+            "com.google.ar.lens",
+            "com.google.android.googlequicksearchbox"
+        )
+        for (pkg in candidatePackages) {
+            val targeted = Intent(baseIntent).setPackage(pkg)
+            if (targeted.resolveActivity(context.packageManager) != null) {
+                context.startActivity(targeted)
+                return
+            }
+        }
+        context.startActivity(Intent.createChooser(baseIntent, chooserTitle))
+    }
 }

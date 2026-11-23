@@ -124,4 +124,55 @@ class GeminiVisionProductClientTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun testApiKey_retriesTransient503WithBackoffAndRecoversOnPrimaryModel() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(503).setBody("""{"error":{"message":"High demand"}}"""))
+            server.enqueue(MockResponse().setResponseCode(503).setBody("""{"error":{"message":"High demand"}}"""))
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"candidates":[]}"""))
+
+            val delays = mutableListOf<Long>()
+            val mockClient = GeminiVisionProductClient(
+                baseUrl = server.url("/").toString(),
+                delayFn = { ms -> delays.add(ms) }
+            )
+            val result = mockClient.testApiKey("test-key-503")
+            assertTrue(result is GeminiKeyTestResult.Success)
+            assertEquals("gemini-3.8-flash", (result as GeminiKeyTestResult.Success).modelUsed)
+            assertEquals(listOf(800L, 1800L), delays)
+            assertEquals(3, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun testApiKey_fallsBackToSecondModelAfterExhausting503Retries() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            // 3 attempts on gemini-3.8-flash all return 503
+            repeat(3) {
+                server.enqueue(MockResponse().setResponseCode(503).setBody("""{"error":{"message":"Overloaded"}}"""))
+            }
+            // Fallback model gemini-3.5-flash-lite succeeds on first try
+            server.enqueue(MockResponse().setResponseCode(200).setBody("""{"candidates":[]}"""))
+
+            val delays = mutableListOf<Long>()
+            val mockClient = GeminiVisionProductClient(
+                baseUrl = server.url("/").toString(),
+                delayFn = { ms -> delays.add(ms) }
+            )
+            val result = mockClient.testApiKey("test-key-fallback")
+            assertTrue(result is GeminiKeyTestResult.Success)
+            assertEquals("gemini-3.5-flash-lite", (result as GeminiKeyTestResult.Success).modelUsed)
+            assertEquals(listOf(800L, 1800L), delays)
+            assertEquals(4, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
 }
