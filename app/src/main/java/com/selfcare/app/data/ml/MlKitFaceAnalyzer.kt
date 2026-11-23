@@ -28,7 +28,9 @@ import kotlin.math.roundToInt
  * SelfieSegmentation (SINGLE_IMAGE_MODE) for hair/foreground mask extraction,
  * LightingQualityChecker, and pure-Kotlin FaceMetricCalculator.
  */
-class MlKitFaceAnalyzer : FaceAnalyzer {
+class MlKitFaceAnalyzer(
+    private val acneDetector: OnnxAcneDetector? = null
+) : FaceAnalyzer {
 
     private val faceMeshDetector: FaceMeshDetector by lazy {
         val options = FaceMeshDetectorOptions.Builder()
@@ -167,12 +169,13 @@ class MlKitFaceAnalyzer : FaceAnalyzer {
                 height = height,
                 skinRois = skinRois
             )
-            val blemishMetrics = FaceMetricCalculator.computeBlemishMetrics(
-                pixels = pixels,
-                width = width,
-                height = height,
-                skinRois = blemishRois
-            )
+            val blemishMetrics = acneDetector?.detectOnFace(workBitmap, facePixelRect)
+                ?: FaceMetricCalculator.computeBlemishMetrics(
+                    pixels = pixels,
+                    width = width,
+                    height = height,
+                    skinRois = blemishRois
+                )
             val leftJawRoi = PixelRect(
                 left = facePixelRect.left + (facePixelRect.width * 0.14f).roundToInt(),
                 top = (rois.lip.top).coerceAtMost(facePixelRect.bottom - 2),

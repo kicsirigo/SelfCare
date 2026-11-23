@@ -380,4 +380,5 @@
     <string name="shelf_gemini_friendly_error">Product photo not recognized (offline scan ran instead).</string>
     <string name="shelf_gemini_show_details">Show error details</string>
     <string name="shelf_gemini_hide_details">Hide error details</string>
+    <string name="settings_patch_notes_btn">Patch Notes</string>
 </resources>

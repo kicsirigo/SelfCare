@@ -1,5 +1,6 @@
 package com.selfcare.app
 
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -37,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,8 +63,10 @@ import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.localization.LocaleHelper
 import com.selfcare.app.ui.routine.RoutineScreen
 import com.selfcare.app.ui.routine.RoutineViewModel
+import com.selfcare.app.ui.settings.PatchNotesDialog
 import com.selfcare.app.ui.settings.SettingsScreen
 import com.selfcare.app.ui.settings.SettingsViewModel
+import kotlinx.coroutines.launch
 import com.selfcare.app.ui.shelf.ShelfScreen
 import com.selfcare.app.ui.shelf.ShelfViewModel
 import com.selfcare.app.ui.theme.SelfCareTheme
@@ -131,9 +135,27 @@ fun SelfCareRoot(container: AppContainer) {
         }
     }.toTypedArray()
 
+    val scope = rememberCoroutineScope()
+    var patchNotesDismissedInSession by rememberSaveable { mutableStateOf(false) }
+    val showAutoPatchNotes = loadedSettings != null &&
+        !patchNotesDismissedInSession &&
+        !Build.FINGERPRINT.equals("robolectric", ignoreCase = true) &&
+        loadedSettings!!.lastSeenVersionCode < BuildConfig.VERSION_CODE
+
     CompositionLocalProvider(*providers) {
         SelfCareTheme(themeMode = settings.themeMode) {
             SelfCareScaffold(container = container)
+            if (showAutoPatchNotes) {
+                PatchNotesDialog(
+                    isNewUpdate = true,
+                    onDismiss = {
+                        patchNotesDismissedInSession = true
+                        scope.launch {
+                            container.settingsRepository.setLastSeenVersionCode(BuildConfig.VERSION_CODE)
+                        }
+                    }
+                )
+            }
         }
     }
 }

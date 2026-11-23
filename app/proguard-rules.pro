@@ -22,3 +22,7 @@
 -keep class com.google.mlkit.** { *; }
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.android.odml.** { *; }
+
+# Preserve ONNX Runtime JNI classes & native callbacks
+-dontwarn ai.onnxruntime.**
+-keep class ai.onnxruntime.** { *; }

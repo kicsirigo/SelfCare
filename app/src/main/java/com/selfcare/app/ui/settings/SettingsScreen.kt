@@ -619,8 +619,15 @@ fun SettingsScreenContent(
             }
         }
 
-        // App Updates (In-App GitHub Releases Download Manager)
+        // App Updates (In-App GitHub Releases Download Manager) & Patch Notes
         item {
+            var showPatchNotes by remember { mutableStateOf(false) }
+            if (showPatchNotes) {
+                PatchNotesDialog(
+                    isNewUpdate = false,
+                    onDismiss = { showPatchNotes = false }
+                )
+            }
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -632,19 +639,31 @@ fun SettingsScreenContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = AppIcons.Import,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_updates_title),
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Import,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_updates_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        TextButton(
+                            onClick = { showPatchNotes = true },
+                            modifier = Modifier.testTag("settings_patch_notes_btn")
+                        ) {
+                            Text(text = stringResource(R.string.settings_patch_notes_btn))
+                        }
                     }
                     Text(
                         text = stringResource(R.string.settings_updates_subtitle),

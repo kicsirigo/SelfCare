@@ -380,4 +380,5 @@
     <string name="shelf_gemini_friendly_error">Termékfotó nem található vagy nem felismerhető (offline beolvasás futott helyette).</string>
     <string name="shelf_gemini_show_details">Hiba részletei</string>
     <string name="shelf_gemini_hide_details">Részletek elrejtése</string>
+    <string name="settings_patch_notes_btn">Patch Notes</string>
 </resources>

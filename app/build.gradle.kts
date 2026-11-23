@@ -28,8 +28,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "2.4.2"
+        versionCode = 23
+        versionName = "3.0.0"
 
         buildConfigField(
             "String",
@@ -88,6 +88,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    androidResources {
+        noCompress += "onnx"
     }
 
     testOptions {
@@ -151,6 +155,7 @@ dependencies {
     implementation(libs.mlkit.selfie.segmentation)
     implementation(libs.mlkit.text.recognition)
     implementation(libs.mlkit.barcode.scanning)
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)

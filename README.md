@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v2.4.2-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v2.4.2)
+[![Version](https://img.shields.io/badge/Release-v3.0.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.0.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-72%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-75%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -49,7 +49,8 @@
 - **In-App Live CameraX Product Scanner + Optional Gemini Vision (Fallback to Offline OCR)** — Rear-camera viewfinder with live product-detection feedback. Recognizes skincare, haircare, vitamins/supplements, and medications/ointments via Gemini Vision (`gemini-3.8-flash` primary, `gemini-3.5-flash-lite` fallback), shows up to **3 multi-source reference photos** (`OpenBeautyFacts` + `OpenFoodFacts` + `Wikimedia Commons`) for visual confirmation, and **privately saves your captured product photo on-device** (`filesDir/products/` with `.nomedia`) to display on your Shelf card.
 - **Full EN/HU Localized Active Conflict Alerts & Delete Safeguards** — All 7 INCI conflict warnings, routine slots, and caution badges render in English or Hungarian, and every delete action requires confirmation.
 
-### 100% Offline CameraX (`Camera2Interop`) + Bundled ML Kit Face, Stubble & Hair Check-In *(Centered Dock Tab)*
+### 100% Offline Local AI (ONNX YOLOv8s) + CameraX (`Camera2Interop`) + ML Kit Face, Stubble & Hair Check-In *(Centered Dock Tab)*
+- **Bundled On-Device Local AI Blemish Detector (`OnnxAcneDetector` — `acne_detector_int8.onnx`, 11 MB MIT)** — Runs a 100% offline INT8-quantized YOLOv8s acne lesion detector via ONNX Runtime on the ML Kit FaceMesh crop to detect real blemishes (comedones, papules, pustules, nodules) without false positives from freckles or noise, with automatic fallback to CIELAB blemish analysis.
 - **Raw-Like Capture (`Camera2Interop`) & 1080px CV Analysis** — Uses `CAPTURE_MODE_MINIMIZE_LATENCY` with `NOISE_REDUCTION_MODE_MINIMAL`, `EDGE_MODE_OFF`, and disabled scene/effect modes to minimize OEM beauty smoothing, paired with 1080px analysis and realistic traffic-light color coding (`Neon Green` / `Lime` / `Amber` / `Red`).
 - **Objective 10-Scale Rating (`X.X / 10`) & Holistic Advice Engine** — Computes a calibrated, 100% offline 1–10 score with a weakest-link penalty and generates tailored advice factoring in your **creams, ointments, oral/systemic medications** (e.g. isotretinoin/`Medinac` — suppressing harsh acids and warning on extra Vitamin A), **vitamins/supplements**, **today's routine**, and **hygiene logs**.
 - **Offline Stubble Detection & Shave Reminder** — Measures lower-jaw stubble density on-device (`computeStubbleScore`), tracks days since your last shave with one-tap **"Just Shaved"**, and alerts you when your configurable 1–14 day shave interval or stubble threshold is reached.
@@ -80,7 +81,7 @@ SelfCare enforces strict on-device isolation with **zero analytics, crash report
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v2.4.2) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v3.0.0) page *(APK size includes the 4 bundled offline ML Kit models for zero-cloud face mesh, selfie segmentation, OCR, and barcode scanning)*:
 
 - **`SelfCare-release.apk`** (~142 MB) — Recommended. R8-minified and resource-shrunk release build.
 - **`SelfCare-debug.apk`** (~155 MB) — Unminified debug build for testing and inspection.

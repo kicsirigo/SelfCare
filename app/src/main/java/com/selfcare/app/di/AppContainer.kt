@@ -6,6 +6,7 @@ import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.ml.MlKitBarcodeScanner
 import com.selfcare.app.data.ml.MlKitFaceAnalyzer
 import com.selfcare.app.data.ml.MlKitOcrScanner
+import com.selfcare.app.data.ml.OnnxAcneDetector
 import com.selfcare.app.data.remote.AppUpdateManager
 import com.selfcare.app.data.remote.GeminiVisionProductClient
 import com.selfcare.app.data.remote.OpenBeautyFactsClient
@@ -64,7 +65,7 @@ open class AppContainer(
     }
 
     open val faceAnalyzer: FaceAnalyzer by lazy {
-        MlKitFaceAnalyzer()
+        MlKitFaceAnalyzer(acneDetector = OnnxAcneDetector(context))
     }
 
     open val haircutTracker: HaircutTracker by lazy {
