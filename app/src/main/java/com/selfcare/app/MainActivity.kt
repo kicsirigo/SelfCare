@@ -85,10 +85,6 @@ enum class AppDestination(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
         val container = (application as SelfCareApp).container
         setContent {
             SelfCareRoot(container = container)
@@ -110,6 +106,18 @@ fun SelfCareRoot(container: AppContainer) {
     LaunchedEffect(loadedSettings?.appLanguage) {
         val persistedLanguage = loadedSettings?.appLanguage ?: return@LaunchedEffect
         LocaleHelper.syncPlatformLocale(baseContext, persistedLanguage)
+    }
+
+    LaunchedEffect(settings.blockScreenshots) {
+        val activity = baseContext as? ComponentActivity ?: return@LaunchedEffect
+        if (settings.blockScreenshots) {
+            activity.window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        } else {
+            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     val registryOwner = LocalActivityResultRegistryOwner.current

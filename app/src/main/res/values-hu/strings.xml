@@ -376,4 +376,5 @@
     <string name="hair_shelf_support_note">Hajápolás a polcodon: %1$s</string>
     <string name="shelf_scan_photo_saved_offline">Helyben, privát módon elmentve a Polc kártyádhoz.</string>
     <string name="shelf_scan_matched_photos_count">Referencia-találatok (%d db)</string>
+    <string name="settings_block_screenshots">Képernyőfotók és felvétel tiltása</string>
 </resources>

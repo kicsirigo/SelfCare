@@ -376,4 +376,5 @@
     <string name="hair_shelf_support_note">Hair care on shelf: %1$s</string>
     <string name="shelf_scan_photo_saved_offline">Saved privately on-device for your Shelf card.</string>
     <string name="shelf_scan_matched_photos_count">Reference matches (%d)</string>
+    <string name="settings_block_screenshots">Block screenshots &amp; screen recording</string>
 </resources>

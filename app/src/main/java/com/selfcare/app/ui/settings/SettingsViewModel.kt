@@ -116,6 +116,12 @@ class SettingsViewModel(
         }
     }
 
+    fun setBlockScreenshots(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setBlockScreenshots(enabled)
+        }
+    }
+
     fun setHaircutThresholdPercent(percent: Int) {
         viewModelScope.launch {
             settingsRepository.setHaircutThresholdPercent(percent)

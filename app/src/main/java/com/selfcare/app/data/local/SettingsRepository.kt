@@ -39,7 +39,8 @@ data class UserSettings(
     val geminiApiKey: String = "",
     val shaveIntervalDays: Int = DEFAULT_SHAVE_INTERVAL_DAYS,
     val lastShaveEpochDay: Long? = null,
-    val birthDateIso: String? = null
+    val birthDateIso: String? = null,
+    val blockScreenshots: Boolean = false
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -87,7 +88,8 @@ class SettingsRepository(
                 ?: UserSettings.DEFAULT_SHAVE_INTERVAL_DAYS)
                 .coerceIn(UserSettings.MIN_SHAVE_INTERVAL_DAYS, UserSettings.MAX_SHAVE_INTERVAL_DAYS),
             lastShaveEpochDay = prefs[KEY_LAST_SHAVE_EPOCH_DAY],
-            birthDateIso = prefs[KEY_BIRTH_DATE_ISO]?.takeIf { it.isNotBlank() }
+            birthDateIso = prefs[KEY_BIRTH_DATE_ISO]?.takeIf { it.isNotBlank() },
+            blockScreenshots = prefs[KEY_BLOCK_SCREENSHOTS] ?: false
         )
     }
 
@@ -124,6 +126,12 @@ class SettingsRepository(
     suspend fun setAutoDeleteCheckInPhotos(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[KEY_AUTO_DELETE_CHECKIN_PHOTOS] = enabled
+        }
+    }
+
+    suspend fun setBlockScreenshots(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_BLOCK_SCREENSHOTS] = enabled
         }
     }
 
@@ -204,6 +212,7 @@ class SettingsRepository(
             } else {
                 prefs[KEY_BIRTH_DATE_ISO] = userSettings.birthDateIso.trim()
             }
+            prefs[KEY_BLOCK_SCREENSHOTS] = userSettings.blockScreenshots
         }
     }
 
@@ -225,6 +234,7 @@ class SettingsRepository(
         private val KEY_SHAVE_INTERVAL_DAYS = intPreferencesKey("shave_interval_days")
         private val KEY_LAST_SHAVE_EPOCH_DAY = longPreferencesKey("last_shave_epoch_day")
         private val KEY_BIRTH_DATE_ISO = stringPreferencesKey("birth_date_iso")
+        private val KEY_BLOCK_SCREENSHOTS = booleanPreferencesKey("block_screenshots")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

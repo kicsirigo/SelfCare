@@ -93,6 +93,7 @@ fun SettingsScreen(
         onSelectTheme = viewModel::setThemeMode,
         onSelectLanguage = viewModel::setAppLanguage,
         onToggleAutoDelete = viewModel::setAutoDeleteCheckInPhotos,
+        onToggleBlockScreenshots = viewModel::setBlockScreenshots,
         onChangeHaircutThreshold = viewModel::setHaircutThresholdPercent,
         onChangeShaveInterval = viewModel::setShaveIntervalDays,
         onSaveBirthDate = viewModel::setBirthDateIso,
@@ -157,6 +158,7 @@ fun SettingsScreenContent(
     onSelectTheme: (ThemeMode) -> Unit,
     onSelectLanguage: (AppLanguage) -> Unit,
     onToggleAutoDelete: (Boolean) -> Unit,
+    onToggleBlockScreenshots: (Boolean) -> Unit = {},
     onChangeHaircutThreshold: (Int) -> Unit,
     onChangeShaveInterval: (Int) -> Unit = {},
     onSaveBirthDate: (String?) -> Unit = {},
@@ -364,6 +366,23 @@ fun SettingsScreenContent(
                             checked = settings.autoDeleteCheckInPhotos,
                             onCheckedChange = onToggleAutoDelete,
                             modifier = Modifier.testTag("settings_auto_delete_toggle")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_block_screenshots),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = settings.blockScreenshots,
+                            onCheckedChange = onToggleBlockScreenshots,
+                            modifier = Modifier.testTag("settings_block_screenshots_toggle")
                         )
                     }
 
