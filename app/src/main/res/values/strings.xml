@@ -377,4 +377,7 @@
     <string name="shelf_scan_photo_saved_offline">Saved privately on-device for your Shelf card.</string>
     <string name="shelf_scan_matched_photos_count">Reference matches (%d)</string>
     <string name="settings_block_screenshots">Block screenshots &amp; screen recording</string>
+    <string name="shelf_gemini_friendly_error">Product photo not recognized (offline scan ran instead).</string>
+    <string name="shelf_gemini_show_details">Show error details</string>
+    <string name="shelf_gemini_hide_details">Hide error details</string>
 </resources>

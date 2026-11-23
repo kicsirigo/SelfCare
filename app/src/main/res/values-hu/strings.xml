@@ -377,4 +377,7 @@
     <string name="shelf_scan_photo_saved_offline">Helyben, privát módon elmentve a Polc kártyádhoz.</string>
     <string name="shelf_scan_matched_photos_count">Referencia-találatok (%d db)</string>
     <string name="settings_block_screenshots">Képernyőfotók és felvétel tiltása</string>
+    <string name="shelf_gemini_friendly_error">Termékfotó nem található vagy nem felismerhető (offline beolvasás futott helyette).</string>
+    <string name="shelf_gemini_show_details">Hiba részletei</string>
+    <string name="shelf_gemini_hide_details">Részletek elrejtése</string>
 </resources>

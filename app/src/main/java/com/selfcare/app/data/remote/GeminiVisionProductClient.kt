@@ -118,7 +118,7 @@ class GeminiVisionProductClient(
                 return@withContext GeminiVisionResult.Error("Image encode error (${e::class.simpleName})")
             }
 
-            var lastError = "Unknown Gemini error"
+            val errors = mutableListOf<String>()
             for (model in MODEL_FALLBACK_CHAIN) {
                 try {
                     val payload = buildRequestPayload(base64Image, disableThinking = model.startsWith("gemini-2.5"))
@@ -133,10 +133,11 @@ class GeminiVisionProductClient(
                         val bodyStr = response.body?.string().orEmpty()
                         if (!response.isSuccessful) {
                             val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
-                            lastError = "HTTP ${response.code} ($model): $apiMsg"
-                            // If 404/429/503, try next fallback model; if 401/403 key error, stop immediately
+                            val err = "HTTP ${response.code} ($model): $apiMsg"
+                            errors.add(err)
+                            // If 401/403 key error, stop immediately
                             if (response.code == 401 || response.code == 403) {
-                                return@withContext GeminiVisionResult.Error(lastError)
+                                return@withContext GeminiVisionResult.Error(err)
                             }
                             return@use
                         }
@@ -145,15 +146,15 @@ class GeminiVisionProductClient(
                                 return@withContext parsed.copy(modelUsed = model)
                             }
                             is GeminiVisionResult.Error -> {
-                                lastError = "$model: ${parsed.reason}"
+                                errors.add("$model: ${parsed.reason}")
                             }
                         }
                     }
                 } catch (e: Exception) {
-                    lastError = sanitizeExceptionReason(model, e)
+                    errors.add(sanitizeExceptionReason(model, e))
                 }
             }
-            GeminiVisionResult.Error(lastError)
+            GeminiVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Gemini error" })
         }
 
     fun parseGeminiResponseJson(responseBody: String): GeminiVisionResult {
@@ -286,8 +287,8 @@ class GeminiVisionProductClient(
     companion object {
         const val DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
         val MODEL_FALLBACK_CHAIN = listOf(
-            "gemini-3.5-flash-lite",
-            "gemini-2.5-flash"
+            "gemini-3.8-flash",
+            "gemini-3.5-flash-lite"
         )
 
         private const val SYSTEM_PROMPT =

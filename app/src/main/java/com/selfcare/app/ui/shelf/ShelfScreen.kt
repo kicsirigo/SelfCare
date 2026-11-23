@@ -235,21 +235,49 @@ fun ShelfScreenContent(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (pending.geminiErrorDetail != null) {
+                        var showTechnicalDetail by remember(pending.geminiErrorDetail) {
+                            mutableStateOf(false)
+                        }
                         Card(
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = stringResource(
-                                    R.string.shelf_gemini_fallback_error,
-                                    pending.geminiErrorDetail
-                                ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(8.dp)
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.shelf_gemini_friendly_error),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                TextButton(
+                                    onClick = { showTechnicalDetail = !showTechnicalDetail }
+                                ) {
+                                    Text(
+                                        text = stringResource(
+                                            if (showTechnicalDetail) {
+                                                R.string.shelf_gemini_hide_details
+                                            } else {
+                                                R.string.shelf_gemini_show_details
+                                            }
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                                if (showTechnicalDetail) {
+                                    Text(
+                                        text = pending.geminiErrorDetail,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -549,34 +577,57 @@ fun ShelfScreenContent(
         }
 
         if (state.geminiErrorBanner != null && state.pendingScanConfirmation == null) {
+            var showBannerDetails by remember(state.geminiErrorBanner) { mutableStateOf(false) }
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = stringResource(
-                            R.string.shelf_gemini_fallback_error,
-                            state.geminiErrorBanner
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = onDismissOfflineFallback, modifier = Modifier.size(24.dp)) {
-                        Icon(
-                            imageVector = AppIcons.Close,
-                            contentDescription = stringResource(R.string.action_close),
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.size(16.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.shelf_gemini_friendly_error),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = onDismissOfflineFallback, modifier = Modifier.size(24.dp)) {
+                            Icon(
+                                imageVector = AppIcons.Close,
+                                contentDescription = stringResource(R.string.action_close),
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    TextButton(onClick = { showBannerDetails = !showBannerDetails }) {
+                        Text(
+                            text = stringResource(
+                                if (showBannerDetails) {
+                                    R.string.shelf_gemini_hide_details
+                                } else {
+                                    R.string.shelf_gemini_show_details
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    if (showBannerDetails) {
+                        Text(
+                            text = state.geminiErrorBanner,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
                 }
