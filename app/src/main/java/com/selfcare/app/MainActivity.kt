@@ -255,7 +255,9 @@ private fun SelfCareScaffold(
     )
     val trendsViewModel: TrendsViewModel = viewModel(
         factory = TrendsViewModel.factory(
-            faceCheckInRepository = container.faceCheckInRepository
+            faceCheckInRepository = container.faceCheckInRepository,
+            nutritionRepository = container.nutritionRepository,
+            settingsRepository = container.settingsRepository
         )
     )
 

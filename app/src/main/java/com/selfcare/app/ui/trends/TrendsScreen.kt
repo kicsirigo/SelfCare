@@ -80,6 +80,12 @@ fun TrendsScreen(
             )
         }
 
+        if (uiState.weightHistory.isNotEmpty() || uiState.avgDailyCalories7d != null) {
+            item {
+                WeightAndNutritionTrendCard(uiState = uiState)
+            }
+        }
+
         if (summary.totalCheckIns == 0) {
             item {
                 TrendsEmptyStateCard()
@@ -749,6 +755,100 @@ private fun CheckInHistoryItemCard(
                         (item.lightingQualityScore * 100f).toInt()
                     ),
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightAndNutritionTrendCard(
+    uiState: TrendsUiState
+) {
+    val weights = uiState.weightHistory
+    val latest = weights.lastOrNull()?.weightKg
+    val first = weights.firstOrNull()?.weightKg
+    val delta = if (latest != null && first != null && weights.size >= 2) latest - first else null
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("trends_weight_nutrition_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.trends_weight_nutrition_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (latest != null) {
+                    Text(
+                        text = String.format(Locale.US, "%.1f kg", latest),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (weights.size >= 2) {
+                NeonSparklineChart(values = weights.map { it.weightKg })
+            } else if (weights.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.trends_weight_no_entries),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (delta != null) {
+                    val sign = if (delta >= 0f) "+" else ""
+                    Text(
+                        text = stringResource(
+                            R.string.trends_weight_delta,
+                            "$sign${String.format(Locale.US, "%.1f", delta)}"
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                uiState.targetWeightKg?.let { target ->
+                    Text(
+                        text = stringResource(
+                            R.string.trends_weight_target,
+                            String.format(Locale.US, "%.1f", target)
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (uiState.avgDailyCalories7d != null && uiState.avgDailyProtein7d != null) {
+                Text(
+                    text = stringResource(
+                        R.string.trends_nutrition_7d_avg,
+                        uiState.avgDailyCalories7d,
+                        uiState.avgDailyProtein7d,
+                        uiState.nutritionDaysLogged7d
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

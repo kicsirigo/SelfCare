@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v3.6.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.6.0)
+[![Version](https://img.shields.io/badge/Release-v3.7.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.7.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-91%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-93%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -37,13 +37,17 @@
 ## Key Features
 
 ### Calorie, Macro & Animated Water Tracker (`Nutrition` Tab) + Celebrations
-- **Daily Calorie Ring & Macro Progress Bars** — Tracks Calories (kcal), Protein, Carbs, Fat, Fiber, and Sugar against customizable targets or the built-in 100% offline **Mifflin-St Jeor** auto-calculator (`Cut`, `Maintain`, `Bulk`).
-- **3 Fast Meal Logging Paths:**
-  - **OpenFoodFacts Barcode Scanner:** Instant per-100g nutrition lookup for packaged foods with automatic gram scaling.
-  - **Meal Photo AI (`Groq Qwen 3.8 27B`):** Snap a photo of a plated meal to estimate calories and macros with quick `0.5x / 1x / 1.5x` portion adjustment.
-  - **25 Offline Everyday Food Presets + Manual Entry:** Works 100% offline in airplane mode.
-- **Animated Live-Wave Water Glass (`+250 ml`, `+500 ml`, `Custom`):** Custom Jetpack Compose Canvas glass with spring-animated fill level, dual sine-wave liquid surface, rising micro-bubbles, and a cheerful spring bounce + twinkling stars when your daily hydration goal is reached.
-- **App-Wide Celebration Animations (`CelebrationOverlay`):** Non-blocking neon confetti & twinkling stars bursts on water/protein/calorie goals, routine completions, and great Face Check-In scores (`>= 7.5/10`).
+- **Day Switcher (`< Yesterday | Today >`)** — Browse, log, and edit meals, water intake, and workouts for previous days.
+- **Daily Calorie Ring, Macro Bars & Offline Body Profile** — Tracks Calories (kcal), Protein, Carbs, Fat, Fiber, Sugar, and **Salt (g)** against customizable targets or the built-in 100% offline **Mifflin-St Jeor** auto-calculator (automatically reuses your saved birthday/age).
+- **5 Fast Meal Logging Paths:**
+  - **Meal Photo AI (`Groq Qwen 3.8 27B`):** Snap a photo of a plated meal to estimate calories, macros, and salt with `0.5x / 1x / 1.5x` portion adjustment.
+  - **Nutrition Label Photo Scanner (`Groq Qwen 3.8 27B`):** Scan back-of-package `Tápérték táblázat` (per-100g values) with live gram scaling.
+  - **Groq AI Text Meal Estimation:** Type any Hungarian or English dish (e.g., *csirkepörkölt nokedlivel*, *whopper*) for instant macro & salt estimation.
+  - **OpenFoodFacts Barcode Scanner & Hungarian Search:** Instant per-100g nutrition lookup for packaged foods.
+  - **65+ Offline Hungarian & International Presets + Custom Recipe Builder:** Combine multiple ingredients, divide by servings, and log 1 serving with 1 tap (100% offline).
+- **Exercise & Burned Calories (`MET` Calculator) + Weight Trend:** Log workouts to automatically expand your daily calorie budget, and log body weight to track your 30-day Weight & 7-day Calorie/Protein Trend chart on the `Trends` tab.
+- **Animated Live-Wave Water Glass with Salt Hydration Bonus:** Automatically adds `+150 ml` recommended water per excess gram of salt above the 5g WHO reference, with spring-animated wave physics and twinkling stars.
+- **Zero AI Training Privacy:** Images & text sent to Groq API are never used for AI model training.
 
 ### Daily Routine Tracker
 - **1-Tap Morning, Evening & Hair Care Routine Completion** — Configure your default Morning, Evening, Both, or Hair Care products and log an entire routine in a single tap, with per-product skip/override toggles and duplicate-log prevention.

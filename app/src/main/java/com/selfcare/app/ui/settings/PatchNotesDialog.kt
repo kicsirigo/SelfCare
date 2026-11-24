@@ -30,6 +30,17 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.7.0",
+            title = "Day Switcher, Custom Recipes, Exercise Tracking, Weight Trend & Nutrition Label Scanner",
+            highlights = listOf(
+                "Added a Day Switcher (< Yesterday | Today >) on the Nutrition tab so you can browse, log, or edit meals, water, and workouts for previous days.",
+                "Added a Custom Recipe Builder to combine multiple ingredients, divide by servings, save to Room v7 (MIGRATION_6_7), and log 1 serving with 1 tap.",
+                "Added Exercise & Burned Calories tracking with MET presets (Running, Walking, Cycling, Swimming, Gym, HIIT, Football, Yoga) that automatically adds burned kcal to your daily calorie budget.",
+                "Added Body Weight logging and a 30-day Weight & 7-day Calorie/Protein Trend card with sparkline graph on the Trends tab.",
+                "Added a Nutrition Label Photo Scanner ('Nutrition Label') powered by Groq Vision (qwen/qwen3.8-27b) to read per-100g nutrition tables directly off packaging with live gram scaling."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.6.0",
             title = "Hungarian Dishes, Salt-Adjusted Hydration, Offline Body Profile & Safe Trends History",
             highlights = listOf(

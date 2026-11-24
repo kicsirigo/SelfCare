@@ -67,8 +67,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
+import com.selfcare.app.data.local.entity.ActivityLogEntity
+import com.selfcare.app.data.local.entity.CustomRecipeEntity
 import com.selfcare.app.data.local.entity.NutritionLogEntity
+import com.selfcare.app.domain.health.ActivityCalorieCalculator
 import com.selfcare.app.domain.health.ActivityLevel
+import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.ui.components.AnimatedWaterGlass
@@ -78,6 +82,8 @@ import com.selfcare.app.ui.shelf.ScanPhotoHelper
 import com.selfcare.app.ui.theme.NeonGreen
 import com.selfcare.app.ui.theme.NeonWarning
 import java.io.File
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -99,6 +105,9 @@ fun NutritionScreen(
     var showCustomWaterDialog by remember { mutableStateOf(false) }
     var showManualMealDialog by remember { mutableStateOf(false) }
     var showGoalsDialog by remember { mutableStateOf(false) }
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showActivityDialog by remember { mutableStateOf(false) }
+    var showRecipeBuilderDialog by remember { mutableStateOf(false) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -110,10 +119,10 @@ fun NutritionScreen(
             return@rememberLauncherForActivityResult
         }
         val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
-        if (pendingCaptureMode == "BARCODE") {
-            viewModel.onBarcodePhotoCaptured(bitmap)
-        } else {
-            viewModel.onMealPhotoCaptured(bitmap)
+        when (pendingCaptureMode) {
+            "BARCODE" -> viewModel.onBarcodePhotoCaptured(bitmap)
+            "LABEL" -> viewModel.onNutritionLabelPhotoCaptured(bitmap)
+            else -> viewModel.onMealPhotoCaptured(bitmap)
         }
     }
 
@@ -183,6 +192,52 @@ fun NutritionScreen(
         )
     }
 
+    if (showWeightDialog) {
+        WeightLogDialog(
+            initialWeightKg = state.latestLoggedWeightKg ?: state.bodyWeightKg,
+            onDismiss = { showWeightDialog = false },
+            onSave = { kg ->
+                viewModel.logWeightEntry(kg)
+                showWeightDialog = false
+            }
+        )
+    }
+
+    if (showActivityDialog) {
+        ActivityLogDialog(
+            weightKg = state.latestLoggedWeightKg ?: state.bodyWeightKg ?: 75f,
+            isHungarian = isHungarian,
+            onDismiss = { showActivityDialog = false },
+            onSave = { name, mins, burned ->
+                viewModel.logActivity(name, mins, burned)
+                showActivityDialog = false
+            }
+        )
+    }
+
+    if (showRecipeBuilderDialog) {
+        RecipeBuilderDialog(
+            isHungarian = isHungarian,
+            onDismiss = { showRecipeBuilderDialog = false },
+            onSave = { name, servings, totalG, totalKcal, totalP, totalC, totalF, totalFib, totalSug, totalSalt, summary ->
+                viewModel.saveCustomRecipe(
+                    name = name,
+                    servingsCount = servings,
+                    totalGrams = totalG,
+                    totalKcal = totalKcal,
+                    totalProtein = totalP,
+                    totalCarbs = totalC,
+                    totalFat = totalF,
+                    totalFiber = totalFib,
+                    totalSugar = totalSug,
+                    totalSalt = totalSalt,
+                    ingredientsSummary = summary
+                )
+                showRecipeBuilderDialog = false
+            }
+        )
+    }
+
     state.pendingConfirmation?.let { pending ->
         MealConfirmationDialog(
             pending = pending,
@@ -216,11 +271,23 @@ fun NutritionScreen(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 0. Day Switcher (< Yesterday | Today >)
+            item {
+                NutritionDateSwitcherBar(
+                    selectedEpochDay = state.selectedEpochDay,
+                    isToday = state.isToday,
+                    onPreviousDay = viewModel::goToPreviousDay,
+                    onNextDay = viewModel::goToNextDay,
+                    onJumpToToday = viewModel::goToToday
+                )
+            }
+
             // 1. Calorie Ring + Protein/Carbs/Fat Dashboard Card
             item {
                 CalorieMacroSummaryCard(
                     state = state,
-                    onEditGoals = { showGoalsDialog = true }
+                    onEditGoals = { showGoalsDialog = true },
+                    onLogWeight = { showWeightDialog = true }
                 )
             }
 
@@ -238,7 +305,7 @@ fun NutritionScreen(
                 )
             }
 
-            // 3. Quick Capture Bar (Meal Photo AI + Barcode + Manual)
+            // 3. Quick Capture Bar (Meal Photo AI + Nutrition Label + Barcode + Manual)
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
@@ -248,7 +315,7 @@ fun NutritionScreen(
                         Button(
                             onClick = { launchCamera("MEAL") },
                             modifier = Modifier
-                                .weight(1.25f)
+                                .weight(1f)
                                 .testTag("nutrition_meal_photo_btn")
                         ) {
                             Icon(
@@ -264,17 +331,41 @@ fun NutritionScreen(
                             )
                         }
                         OutlinedButton(
-                            onClick = { launchCamera("BARCODE") },
+                            onClick = { launchCamera("LABEL") },
                             modifier = Modifier
                                 .weight(1f)
-                                .testTag("nutrition_barcode_btn")
+                                .testTag("nutrition_label_scan_btn")
                         ) {
                             Icon(
                                 imageVector = AppIcons.Scan,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.nutrition_label_scan_btn),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { launchCamera("BARCODE") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("nutrition_barcode_btn")
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Barcode,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = stringResource(R.string.nutrition_barcode_btn),
                                 maxLines = 1,
@@ -283,12 +374,20 @@ fun NutritionScreen(
                         }
                         OutlinedButton(
                             onClick = { showManualMealDialog = true },
-                            modifier = Modifier.testTag("nutrition_manual_add_btn")
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("nutrition_manual_add_btn")
                         ) {
                             Icon(
                                 imageVector = AppIcons.Add,
-                                contentDescription = stringResource(R.string.nutrition_add_manual),
+                                contentDescription = null,
                                 modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.nutrition_add_manual),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -500,6 +599,26 @@ fun NutritionScreen(
                 }
             }
 
+            // 4b. Custom Recipes (1-tap)
+            item {
+                CustomRecipesCard(
+                    recipes = state.customRecipes,
+                    onAddRecipe = { showRecipeBuilderDialog = true },
+                    onSelectRecipe = viewModel::openRecipeConfirmation,
+                    onDeleteRecipe = viewModel::deleteCustomRecipe
+                )
+            }
+
+            // 4c. Exercise & Burned Calories
+            item {
+                ExerciseActivityCard(
+                    activities = state.todayActivities,
+                    totalBurnedKcal = state.totalBurnedKcal,
+                    onAddActivity = { showActivityDialog = true },
+                    onDeleteActivity = viewModel::deleteActivity
+                )
+            }
+
             // 5. Today's Logged Meals
             item {
                 Text(
@@ -544,18 +663,20 @@ fun NutritionScreen(
 @Composable
 private fun CalorieMacroSummaryCard(
     state: NutritionUiState,
-    onEditGoals: () -> Unit
+    onEditGoals: () -> Unit,
+    onLogWeight: () -> Unit
 ) {
+    val targetKcal = state.effectiveCalorieTarget.coerceAtLeast(1)
     val kcalProgress by animateFloatAsState(
-        targetValue = (state.totalCalories.toFloat() / state.calorieTarget.coerceAtLeast(1)).coerceIn(0f, 1f),
+        targetValue = (state.totalCalories.toFloat() / targetKcal).coerceIn(0f, 1f),
         animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessLow),
         label = "kcal_ring"
     )
-    val remaining = (state.calorieTarget - state.totalCalories).coerceAtLeast(0)
-    val isOver = state.totalCalories > (state.calorieTarget * 1.08f)
+    val remaining = (targetKcal - state.totalCalories).coerceAtLeast(0)
+    val isOver = state.totalCalories > (targetKcal * 1.08f)
     val ringColor = when {
         isOver -> MaterialTheme.colorScheme.error
-        state.totalCalories >= (state.calorieTarget * 0.90f) -> NeonGreen
+        state.totalCalories >= (targetKcal * 0.90f) -> NeonGreen
         else -> Color(0xFF38BDF8)
     }
 
@@ -577,13 +698,32 @@ private fun CalorieMacroSummaryCard(
                 Text(
                     text = stringResource(R.string.nutrition_daily_overview),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                TextButton(
-                    onClick = onEditGoals,
-                    modifier = Modifier.testTag("nutrition_edit_goals_btn")
-                ) {
-                    Text(text = stringResource(R.string.nutrition_goals_btn))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = onLogWeight,
+                        modifier = Modifier.testTag("nutrition_log_weight_btn")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.nutrition_log_weight_btn),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    TextButton(
+                        onClick = onEditGoals,
+                        modifier = Modifier.testTag("nutrition_edit_goals_btn")
+                    ) {
+                        Text(
+                            text = stringResource(R.string.nutrition_goals_btn),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
 
@@ -621,7 +761,7 @@ private fun CalorieMacroSummaryCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "/ ${state.calorieTarget} kcal",
+                            text = "/ $targetKcal kcal",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -656,6 +796,14 @@ private fun CalorieMacroSummaryCard(
                         color = NeonWarning
                     )
                 }
+            }
+
+            if (state.totalBurnedKcal > 0) {
+                Text(
+                    text = stringResource(R.string.nutrition_burned_bonus, state.totalBurnedKcal),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonGreen
+                )
             }
 
             if (state.bodyWeightKg != null) {
@@ -1455,6 +1603,557 @@ private fun NutritionGoalsDialog(
                             goal
                         )
                     }
+                }
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun NutritionDateSwitcherBar(
+    selectedEpochDay: Long,
+    isToday: Boolean,
+    onPreviousDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onJumpToToday: () -> Unit
+) {
+    val todayEpoch = remember { LocalDate.now().toEpochDay() }
+    val selectedDate = remember(selectedEpochDay) { LocalDate.ofEpochDay(selectedEpochDay) }
+    val dateStr = remember(selectedDate) {
+        selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US))
+    }
+    val label = when {
+        isToday -> "${stringResource(R.string.nutrition_day_today)} ($dateStr)"
+        selectedEpochDay == todayEpoch - 1L -> "${stringResource(R.string.nutrition_day_yesterday)} ($dateStr)"
+        else -> dateStr
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("nutrition_date_switcher"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(
+                onClick = onPreviousDay,
+                modifier = Modifier.testTag("nutrition_prev_day_btn")
+            ) {
+                Icon(
+                    imageVector = AppIcons.Back,
+                    contentDescription = stringResource(R.string.nutrition_day_prev),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            TextButton(onClick = onJumpToToday) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isToday) MaterialTheme.colorScheme.onSurface else Color(0xFF38BDF8)
+                )
+            }
+            TextButton(
+                onClick = onNextDay,
+                enabled = !isToday,
+                modifier = Modifier.testTag("nutrition_next_day_btn")
+            ) {
+                Text(
+                    text = ">",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExerciseActivityCard(
+    activities: List<ActivityLogEntity>,
+    totalBurnedKcal: Int,
+    onAddActivity: () -> Unit,
+    onDeleteActivity: (Long) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("nutrition_activity_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.nutrition_activity_section),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (totalBurnedKcal > 0) {
+                        Text(
+                            text = stringResource(R.string.nutrition_burned_bonus, totalBurnedKcal),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonGreen
+                        )
+                    }
+                }
+                OutlinedButton(
+                    onClick = onAddActivity,
+                    modifier = Modifier.testTag("nutrition_add_activity_btn")
+                ) {
+                    Text(
+                        text = stringResource(R.string.nutrition_activity_add_btn),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+
+            if (activities.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.nutrition_activity_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                activities.forEach { act ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = act.activityName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "${act.durationMinutes} min · +${act.caloriesBurned} kcal",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeonGreen
+                            )
+                        }
+                        IconButton(onClick = { onDeleteActivity(act.id) }) {
+                            Icon(
+                                imageVector = AppIcons.Delete,
+                                contentDescription = stringResource(R.string.action_delete),
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CustomRecipesCard(
+    recipes: List<CustomRecipeEntity>,
+    onAddRecipe: () -> Unit,
+    onSelectRecipe: (CustomRecipeEntity) -> Unit,
+    onDeleteRecipe: (Long) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("nutrition_recipes_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.nutrition_recipes_section),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedButton(
+                    onClick = onAddRecipe,
+                    modifier = Modifier.testTag("nutrition_add_recipe_btn")
+                ) {
+                    Text(
+                        text = stringResource(R.string.nutrition_recipes_add_btn),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+
+            if (recipes.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.nutrition_recipes_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(recipes, key = { "recipe_${it.id}" }) { recipe ->
+                        AssistChip(
+                            onClick = { onSelectRecipe(recipe) },
+                            label = {
+                                Text(
+                                    text = "${recipe.name} (${recipe.perServingKcal} kcal)",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { onDeleteRecipe(recipe.id) },
+                                    modifier = Modifier.size(18.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.Close,
+                                        contentDescription = stringResource(R.string.action_delete),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeightLogDialog(
+    initialWeightKg: Float?,
+    onDismiss: () -> Unit,
+    onSave: (Float) -> Unit
+) {
+    var weightStr by remember {
+        mutableStateOf(
+            initialWeightKg?.let { String.format(Locale.US, "%.1f", it) } ?: "75.0"
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.nutrition_weight_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = weightStr,
+                onValueChange = { weightStr = it },
+                label = { Text(stringResource(R.string.nutrition_weight_input_label)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val kg = weightStr.replace(',', '.').toFloatOrNull()
+                    if (kg != null && kg in 30f..250f) {
+                        onSave(kg)
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ActivityLogDialog(
+    weightKg: Float,
+    isHungarian: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, Int, Int) -> Unit
+) {
+    var selectedPreset by remember { mutableStateOf(ActivityCalorieCalculator.presets.first()) }
+    var nameStr by remember { mutableStateOf(if (isHungarian) selectedPreset.nameHu else selectedPreset.nameEn) }
+    var durationStr by remember { mutableStateOf("30") }
+    var burnedStr by remember {
+        mutableStateOf(
+            ActivityCalorieCalculator.estimateBurnedKcal(selectedPreset.metValue, weightKg, 30).toString()
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.nutrition_activity_dialog_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ActivityCalorieCalculator.presets.forEach { preset ->
+                        FilterChip(
+                            selected = selectedPreset.id == preset.id,
+                            onClick = {
+                                selectedPreset = preset
+                                nameStr = if (isHungarian) preset.nameHu else preset.nameEn
+                                val mins = durationStr.toIntOrNull() ?: 30
+                                burnedStr = ActivityCalorieCalculator.estimateBurnedKcal(
+                                    preset.metValue,
+                                    weightKg,
+                                    mins
+                                ).toString()
+                            },
+                            label = { Text(if (isHungarian) preset.nameHu else preset.nameEn) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = nameStr,
+                    onValueChange = { nameStr = it },
+                    label = { Text(stringResource(R.string.nutrition_activity_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = durationStr,
+                        onValueChange = { raw ->
+                            durationStr = raw.filter { it.isDigit() }
+                            val mins = durationStr.toIntOrNull() ?: 0
+                            if (mins > 0) {
+                                burnedStr = ActivityCalorieCalculator.estimateBurnedKcal(
+                                    selectedPreset.metValue,
+                                    weightKg,
+                                    mins
+                                ).toString()
+                            }
+                        },
+                        label = { Text(stringResource(R.string.nutrition_activity_duration_label)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = burnedStr,
+                        onValueChange = { burnedStr = it.filter { ch -> ch.isDigit() } },
+                        label = { Text(stringResource(R.string.nutrition_activity_burned_label)) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val mins = durationStr.toIntOrNull()?.coerceAtLeast(1) ?: 30
+                    val kcal = burnedStr.toIntOrNull()?.coerceAtLeast(1) ?: 100
+                    if (nameStr.isNotBlank()) {
+                        onSave(nameStr.trim(), mins, kcal)
+                    }
+                }
+            ) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
+}
+
+private data class RecipeIngredientDraft(
+    val name: String,
+    val grams: Float,
+    val kcal: Int,
+    val protein: Float,
+    val carbs: Float,
+    val fat: Float,
+    val fiber: Float,
+    val sugar: Float,
+    val salt: Float
+)
+
+@Composable
+private fun RecipeBuilderDialog(
+    isHungarian: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, Int, Float, Int, Float, Float, Float, Float, Float, Float, String) -> Unit
+) {
+    var recipeName by remember { mutableStateOf("") }
+    var servingsStr by remember { mutableStateOf("4") }
+    var ingredientSearch by remember { mutableStateOf("") }
+    var ingredientGramsStr by remember { mutableStateOf("100") }
+    var ingredients by remember { mutableStateOf<List<RecipeIngredientDraft>>(emptyList()) }
+
+    val matchingPresets = remember(ingredientSearch) {
+        FoodPresetCatalog.search(ingredientSearch).take(6)
+    }
+    val servings = servingsStr.toIntOrNull()?.coerceIn(1, 50) ?: 1
+    val totalKcal = ingredients.sumOf { it.kcal }
+    val perServingKcal = (totalKcal.toFloat() / servings).roundToInt()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.nutrition_recipe_dialog_title)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = recipeName,
+                    onValueChange = { recipeName = it },
+                    label = { Text(stringResource(R.string.nutrition_recipe_name_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = servingsStr,
+                    onValueChange = { servingsStr = it.filter { ch -> ch.isDigit() } },
+                    label = { Text(stringResource(R.string.nutrition_recipe_servings_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = ingredientSearch,
+                        onValueChange = { ingredientSearch = it },
+                        label = { Text(stringResource(R.string.nutrition_recipe_add_ingredient)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1.4f)
+                    )
+                    OutlinedTextField(
+                        value = ingredientGramsStr,
+                        onValueChange = { ingredientGramsStr = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                        label = { Text("g") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.weight(0.7f)
+                    )
+                }
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(matchingPresets, key = { "ing_${it.id}" }) { preset ->
+                        val label = if (isHungarian) preset.nameHu else preset.nameEn
+                        AssistChip(
+                            onClick = {
+                                val g = ingredientGramsStr.toFloatOrNull()?.coerceAtLeast(1f) ?: preset.defaultGrams
+                                val scaled = MacroCalculator.scalePer100g(
+                                    grams = g,
+                                    per100gKcal = preset.per100gKcal,
+                                    per100gProtein = preset.per100gProtein,
+                                    per100gCarbs = preset.per100gCarbs,
+                                    per100gFat = preset.per100gFat,
+                                    per100gFiber = preset.per100gFiber,
+                                    per100gSugar = preset.per100gSugar,
+                                    per100gSalt = preset.per100gSalt
+                                )
+                                ingredients = ingredients + RecipeIngredientDraft(
+                                    name = label,
+                                    grams = g,
+                                    kcal = scaled.caloriesKcal,
+                                    protein = scaled.proteinGrams,
+                                    carbs = scaled.carbsGrams,
+                                    fat = scaled.fatGrams,
+                                    fiber = scaled.fiberGrams,
+                                    sugar = scaled.sugarGrams,
+                                    salt = scaled.saltGrams
+                                )
+                                ingredientSearch = ""
+                            },
+                            label = { Text("+ $label", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        )
+                    }
+                }
+                if (ingredients.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            R.string.nutrition_recipe_ingredients_count,
+                            ingredients.size,
+                            perServingKcal
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = NeonGreen
+                    )
+                    ingredients.forEachIndexed { idx, ing ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${ing.name} (${ing.grams.roundToInt()}g · ${ing.kcal} kcal)",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = {
+                                    ingredients = ingredients.filterIndexed { i, _ -> i != idx }
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Close,
+                                    contentDescription = stringResource(R.string.action_delete),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = recipeName.isNotBlank() && ingredients.isNotEmpty(),
+                onClick = {
+                    onSave(
+                        recipeName.trim(),
+                        servings,
+                        ingredients.sumOf { it.grams.toDouble() }.toFloat(),
+                        totalKcal,
+                        ingredients.sumOf { it.protein.toDouble() }.toFloat(),
+                        ingredients.sumOf { it.carbs.toDouble() }.toFloat(),
+                        ingredients.sumOf { it.fat.toDouble() }.toFloat(),
+                        ingredients.sumOf { it.fiber.toDouble() }.toFloat(),
+                        ingredients.sumOf { it.sugar.toDouble() }.toFloat(),
+                        ingredients.sumOf { it.salt.toDouble() }.toFloat(),
+                        ingredients.joinToString(", ") { "${it.name} ${it.grams.roundToInt()}g" }
+                    )
                 }
             ) {
                 Text(stringResource(R.string.action_save))

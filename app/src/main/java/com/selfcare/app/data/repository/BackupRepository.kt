@@ -8,6 +8,8 @@ import com.selfcare.app.data.local.AppLanguage
 import com.selfcare.app.data.local.SelfCareDatabase
 import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.data.local.entity.ActivityLogEntity
+import com.selfcare.app.data.local.entity.CustomRecipeEntity
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.local.entity.HygieneLogEntity
@@ -15,6 +17,7 @@ import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
 import com.selfcare.app.data.local.entity.WaterLogEntity
+import com.selfcare.app.data.local.entity.WeightLogEntity
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -132,6 +135,41 @@ data class BackupWaterLog(
 )
 
 @Serializable
+data class BackupCustomRecipe(
+    val id: Long = 0L,
+    val name: String,
+    val servingsCount: Int = 1,
+    val totalGrams: Float = 100f,
+    val perServingKcal: Int = 0,
+    val perServingProtein: Float = 0f,
+    val perServingCarbs: Float = 0f,
+    val perServingFat: Float = 0f,
+    val perServingFiber: Float = 0f,
+    val perServingSugar: Float = 0f,
+    val perServingSalt: Float = 0f,
+    val ingredientsSummary: String = "",
+    val createdAtEpochMillis: Long
+)
+
+@Serializable
+data class BackupActivityLog(
+    val id: Long = 0L,
+    val dateEpochDay: Long,
+    val activityName: String,
+    val durationMinutes: Int,
+    val caloriesBurned: Int,
+    val loggedAtEpochMillis: Long
+)
+
+@Serializable
+data class BackupWeightLog(
+    val id: Long = 0L,
+    val dateEpochDay: Long,
+    val weightKg: Float,
+    val loggedAtEpochMillis: Long
+)
+
+@Serializable
 data class SelfCareBackupPayload(
     val schemaVersion: Int = BackupRepository.CURRENT_SCHEMA_VERSION,
     val exportedAtEpochMillis: Long,
@@ -142,7 +180,10 @@ data class SelfCareBackupPayload(
     val hygieneLogs: List<BackupHygieneLog> = emptyList(),
     val haircutBaselines: List<BackupHaircutBaseline> = emptyList(),
     val nutritionLogs: List<BackupNutritionLog> = emptyList(),
-    val waterLogs: List<BackupWaterLog> = emptyList()
+    val waterLogs: List<BackupWaterLog> = emptyList(),
+    val customRecipes: List<BackupCustomRecipe> = emptyList(),
+    val activityLogs: List<BackupActivityLog> = emptyList(),
+    val weightLogs: List<BackupWeightLog> = emptyList()
 )
 
 data class ImportSummary(
@@ -176,6 +217,9 @@ class BackupRepository(
         val haircutBaselines = database.haircutBaselineDao().getAllOnce().map { it.toBackup() }
         val nutritionLogs = database.nutritionDao().getAllMeals().map { it.toBackup() }
         val waterLogs = database.nutritionDao().getAllWater().map { it.toBackup() }
+        val customRecipes = database.nutritionDao().getAllRecipes().map { it.toBackup() }
+        val activityLogs = database.nutritionDao().getAllActivities().map { it.toBackup() }
+        val weightLogs = database.nutritionDao().getAllWeights().map { it.toBackup() }
 
         val payload = SelfCareBackupPayload(
             schemaVersion = CURRENT_SCHEMA_VERSION,
@@ -187,7 +231,10 @@ class BackupRepository(
             hygieneLogs = hygieneLogs,
             haircutBaselines = haircutBaselines,
             nutritionLogs = nutritionLogs,
-            waterLogs = waterLogs
+            waterLogs = waterLogs,
+            customRecipes = customRecipes,
+            activityLogs = activityLogs,
+            weightLogs = weightLogs
         )
         return json.encodeToString(payload)
     }
@@ -221,6 +268,9 @@ class BackupRepository(
                 database.haircutBaselineDao().deleteAll()
                 database.nutritionDao().clearAllMeals()
                 database.nutritionDao().clearAllWater()
+                database.nutritionDao().clearAllRecipes()
+                database.nutritionDao().clearAllActivities()
+                database.nutritionDao().clearAllWeights()
 
                 payload.routineLogs.forEach { database.routineDao().upsert(it.toEntity()) }
                 payload.products.forEach { database.productDao().insert(it.toEntity()) }
@@ -236,6 +286,15 @@ class BackupRepository(
                 }
                 if (payload.waterLogs.isNotEmpty()) {
                     database.nutritionDao().insertAllWater(payload.waterLogs.map { it.toEntity() })
+                }
+                if (payload.customRecipes.isNotEmpty()) {
+                    database.nutritionDao().insertAllRecipes(payload.customRecipes.map { it.toEntity() })
+                }
+                if (payload.activityLogs.isNotEmpty()) {
+                    database.nutritionDao().insertAllActivities(payload.activityLogs.map { it.toEntity() })
+                }
+                if (payload.weightLogs.isNotEmpty()) {
+                    database.nutritionDao().insertAllWeights(payload.weightLogs.map { it.toEntity() })
                 }
             }
 
@@ -514,5 +573,69 @@ private fun BackupWaterLog.toEntity(): WaterLogEntity = WaterLogEntity(
     id = id,
     dateEpochDay = dateEpochDay,
     amountMl = amountMl,
+    loggedAtEpochMillis = loggedAtEpochMillis
+)
+
+private fun CustomRecipeEntity.toBackup(): BackupCustomRecipe = BackupCustomRecipe(
+    id = id,
+    name = name,
+    servingsCount = servingsCount,
+    totalGrams = totalGrams,
+    perServingKcal = perServingKcal,
+    perServingProtein = perServingProtein,
+    perServingCarbs = perServingCarbs,
+    perServingFat = perServingFat,
+    perServingFiber = perServingFiber,
+    perServingSugar = perServingSugar,
+    perServingSalt = perServingSalt,
+    ingredientsSummary = ingredientsSummary,
+    createdAtEpochMillis = createdAtEpochMillis
+)
+
+private fun BackupCustomRecipe.toEntity(): CustomRecipeEntity = CustomRecipeEntity(
+    id = id,
+    name = name,
+    servingsCount = servingsCount,
+    totalGrams = totalGrams,
+    perServingKcal = perServingKcal,
+    perServingProtein = perServingProtein,
+    perServingCarbs = perServingCarbs,
+    perServingFat = perServingFat,
+    perServingFiber = perServingFiber,
+    perServingSugar = perServingSugar,
+    perServingSalt = perServingSalt,
+    ingredientsSummary = ingredientsSummary,
+    createdAtEpochMillis = createdAtEpochMillis
+)
+
+private fun ActivityLogEntity.toBackup(): BackupActivityLog = BackupActivityLog(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    activityName = activityName,
+    durationMinutes = durationMinutes,
+    caloriesBurned = caloriesBurned,
+    loggedAtEpochMillis = loggedAtEpochMillis
+)
+
+private fun BackupActivityLog.toEntity(): ActivityLogEntity = ActivityLogEntity(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    activityName = activityName,
+    durationMinutes = durationMinutes,
+    caloriesBurned = caloriesBurned,
+    loggedAtEpochMillis = loggedAtEpochMillis
+)
+
+private fun WeightLogEntity.toBackup(): BackupWeightLog = BackupWeightLog(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    weightKg = weightKg,
+    loggedAtEpochMillis = loggedAtEpochMillis
+)
+
+private fun BackupWeightLog.toEntity(): WeightLogEntity = WeightLogEntity(
+    id = id,
+    dateEpochDay = dateEpochDay,
+    weightKg = weightKg,
     loggedAtEpochMillis = loggedAtEpochMillis
 )

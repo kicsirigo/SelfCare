@@ -12,6 +12,8 @@ import com.selfcare.app.data.local.dao.HygieneDao
 import com.selfcare.app.data.local.dao.NutritionDao
 import com.selfcare.app.data.local.dao.ProductDao
 import com.selfcare.app.data.local.dao.RoutineDao
+import com.selfcare.app.data.local.entity.ActivityLogEntity
+import com.selfcare.app.data.local.entity.CustomRecipeEntity
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
 import com.selfcare.app.data.local.entity.HaircutBaselineEntity
 import com.selfcare.app.data.local.entity.HygieneLogEntity
@@ -19,6 +21,7 @@ import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
 import com.selfcare.app.data.local.entity.WaterLogEntity
+import com.selfcare.app.data.local.entity.WeightLogEntity
 
 @Database(
     entities = [
@@ -28,9 +31,12 @@ import com.selfcare.app.data.local.entity.WaterLogEntity
         HygieneLogEntity::class,
         HaircutBaselineEntity::class,
         NutritionLogEntity::class,
-        WaterLogEntity::class
+        WaterLogEntity::class,
+        CustomRecipeEntity::class,
+        ActivityLogEntity::class,
+        WeightLogEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class SelfCareDatabase : RoomDatabase() {
@@ -107,6 +113,54 @@ abstract class SelfCareDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `custom_recipes` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `servingsCount` INTEGER NOT NULL,
+                        `totalGrams` REAL NOT NULL,
+                        `perServingKcal` INTEGER NOT NULL,
+                        `perServingProtein` REAL NOT NULL,
+                        `perServingCarbs` REAL NOT NULL,
+                        `perServingFat` REAL NOT NULL,
+                        `perServingFiber` REAL NOT NULL,
+                        `perServingSugar` REAL NOT NULL,
+                        `perServingSalt` REAL NOT NULL,
+                        `ingredientsSummary` TEXT NOT NULL,
+                        `createdAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `activity_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `dateEpochDay` INTEGER NOT NULL,
+                        `activityName` TEXT NOT NULL,
+                        `durationMinutes` INTEGER NOT NULL,
+                        `caloriesBurned` INTEGER NOT NULL,
+                        `loggedAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_activity_logs_dateEpochDay` ON `activity_logs` (`dateEpochDay`)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `weight_logs` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `dateEpochDay` INTEGER NOT NULL,
+                        `weightKg` REAL NOT NULL,
+                        `loggedAtEpochMillis` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_weight_logs_dateEpochDay` ON `weight_logs` (`dateEpochDay`)")
+            }
+        }
+
         @Volatile
         private var instance: SelfCareDatabase? = null
 
@@ -116,7 +170,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
                     context.applicationContext,
                     SelfCareDatabase::class.java,
                     DATABASE_NAME
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().also { db ->
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build().also { db ->
                     instance = db
                 }
             }

@@ -57,6 +57,11 @@ sealed interface MealVisionResult {
     data class Error(val reason: String) : MealVisionResult
 }
 
+sealed interface NutritionLabelVisionResult {
+    data class Success(val item: FoodNutritionItem, val modelUsed: String = "") : NutritionLabelVisionResult
+    data class Error(val reason: String) : NutritionLabelVisionResult
+}
+
 interface ProductVisionClient {
     suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
     suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
@@ -64,6 +69,8 @@ interface ProductVisionClient {
         MealVisionResult.Error("Not supported")
     suspend fun estimateMealFromText(query: String, apiKey: String): MealVisionResult =
         MealVisionResult.Error("Not supported")
+    suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
+        NutritionLabelVisionResult.Error("Not supported")
 }
 
 /**
@@ -382,6 +389,119 @@ class GroqVisionProductClient(
             MealVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
+    override suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
+        withContext(Dispatchers.IO) {
+            val cleanKey = apiKey.trim()
+            if (cleanKey.isEmpty()) {
+                return@withContext NutritionLabelVisionResult.Error("API key is empty")
+            }
+
+            val base64Image = try {
+                encodeBitmapToBase64Jpeg(bitmap)
+            } catch (e: Exception) {
+                return@withContext NutritionLabelVisionResult.Error("Image encode error (${e::class.simpleName})")
+            }
+
+            val modelsToTry = discoverVisionModels(cleanKey, useCache = true)
+            val errors = mutableListOf<String>()
+            val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+            for (model in modelsToTry) {
+                val payload = buildVisionPayloadWithPrompt(model, base64Image, NUTRITION_LABEL_PROMPT)
+                val label = shortModelLabel(model)
+                for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("Authorization", "Bearer $cleanKey")
+                            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                            .build()
+
+                        var shouldRetry = false
+                        httpClient.newCall(request).execute().use { response ->
+                            val bodyStr = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                                val err = "HTTP ${response.code} ($label): $apiMsg"
+                                if (response.code == 401 || response.code == 403) {
+                                    return@withContext NutritionLabelVisionResult.Error(err)
+                                }
+                                shouldRetry = isTransientRetryableStatus(response.code) &&
+                                    attempt < MAX_TRANSIENT_ATTEMPTS - 1
+                                if (!shouldRetry) errors.add(err)
+                                return@use
+                            }
+                            when (val parsed = parseGroqNutritionLabelJson(bodyStr)) {
+                                is NutritionLabelVisionResult.Success -> {
+                                    return@withContext parsed.copy(modelUsed = "$label (Groq)")
+                                }
+                                is NutritionLabelVisionResult.Error -> {
+                                    errors.add("$label: ${parsed.reason}")
+                                }
+                            }
+                        }
+                        if (shouldRetry) {
+                            delayFn(RETRY_BACKOFF_MS[attempt])
+                            continue
+                        }
+                        break
+                    } catch (e: Exception) {
+                        errors.add(sanitizeExceptionReason(label, e))
+                        break
+                    }
+                }
+            }
+            NutritionLabelVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
+        }
+
+    fun parseGroqNutritionLabelJson(responseBody: String): NutritionLabelVisionResult {
+        return try {
+            val root = json.parseToJsonElement(responseBody).jsonObject
+            val choices = root["choices"]?.jsonArray
+            val firstChoice = choices?.firstOrNull()?.jsonObject
+                ?: return NutritionLabelVisionResult.Error("EMPTY_CHOICES")
+            val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
+                ?.trim()
+                ?: return NutritionLabelVisionResult.Error("EMPTY_TEXT")
+
+            val withoutThink = rawText
+                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
+                .trim()
+            val cleaned = withoutThink
+                .removePrefix("```json")
+                .removePrefix("```")
+                .removeSuffix("```")
+                .trim()
+            val jsonStart = cleaned.indexOf('{')
+            val jsonEnd = cleaned.lastIndexOf('}')
+            val jsonSlice = if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                cleaned.substring(jsonStart, jsonEnd + 1)
+            } else {
+                cleaned
+            }
+            val dto = json.decodeFromString(GroqNutritionLabelDto.serializer(), jsonSlice)
+            if (dto.per100gKcal <= 0f && dto.per100gProtein <= 0f && dto.per100gCarbs <= 0f && dto.per100gFat <= 0f) {
+                return NutritionLabelVisionResult.Error("NO_LABEL_FOUND")
+            }
+            NutritionLabelVisionResult.Success(
+                FoodNutritionItem(
+                    barcode = null,
+                    name = dto.name.trim().ifBlank { "Scanned Package" },
+                    brand = dto.brand.trim(),
+                    per100gKcal = dto.per100gKcal.coerceIn(0f, 1000f),
+                    per100gProtein = dto.per100gProtein.coerceIn(0f, 100f),
+                    per100gCarbs = dto.per100gCarbs.coerceIn(0f, 100f),
+                    per100gFat = dto.per100gFat.coerceIn(0f, 100f),
+                    per100gFiber = dto.per100gFiber.coerceIn(0f, 100f),
+                    per100gSugar = dto.per100gSugar.coerceIn(0f, 100f),
+                    per100gSalt = dto.per100gSalt.coerceIn(0f, 100f),
+                    defaultGrams = dto.defaultGrams.coerceIn(10f, 1000f)
+                )
+            )
+        } catch (e: Exception) {
+            NutritionLabelVisionResult.Error("Parse error: ${e.message ?: "invalid json"}")
+        }
+    }
+
     fun parseGroqMealResponseJson(responseBody: String): MealVisionResult {
         return try {
             val root = json.parseToJsonElement(responseBody).jsonObject
@@ -591,6 +711,20 @@ class GroqVisionProductClient(
         val saltGrams: Float = 0f
     )
 
+    @Serializable
+    private data class GroqNutritionLabelDto(
+        val name: String = "",
+        val brand: String = "",
+        val per100gKcal: Float = 0f,
+        val per100gProtein: Float = 0f,
+        val per100gCarbs: Float = 0f,
+        val per100gFat: Float = 0f,
+        val per100gFiber: Float = 0f,
+        val per100gSugar: Float = 0f,
+        val per100gSalt: Float = 0f,
+        val defaultGrams: Float = 100f
+    )
+
     companion object {
         const val DEFAULT_BASE_URL = "https://api.groq.com"
         const val MAX_TRANSIENT_ATTEMPTS = 3
@@ -666,6 +800,20 @@ class GroqVisionProductClient(
                 "\"fiberGrams\" (number), " +
                 "\"sugarGrams\" (number), " +
                 "\"saltGrams\" (number, estimated total salt in grams)."
+
+        private const val NUTRITION_LABEL_PROMPT =
+            "Read the Nutrition Facts / Tápérték táblázat (values per 100g or 100ml) from this food package photo. " +
+                "Return ONLY a single raw JSON object (no markdown, no explanation) with keys: " +
+                "\"name\" (product name if visible, else 'Scanned Food'), " +
+                "\"brand\" (brand if visible, else empty string), " +
+                "\"per100gKcal\" (number, energy in kcal per 100g), " +
+                "\"per100gProtein\" (number, protein/fehérje g per 100g), " +
+                "\"per100gCarbs\" (number, carbohydrate/szénhidrát g per 100g), " +
+                "\"per100gFat\" (number, fat/zsír g per 100g), " +
+                "\"per100gFiber\" (number, fiber/rost g per 100g, 0 if not listed), " +
+                "\"per100gSugar\" (number, sugars/cukrok g per 100g, 0 if not listed), " +
+                "\"per100gSalt\" (number, salt/só g per 100g, 0 if not listed), " +
+                "\"defaultGrams\" (number, package or serving weight in g if visible, else 100)."
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

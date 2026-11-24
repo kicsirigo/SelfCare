@@ -188,4 +188,38 @@ class MacroCalculatorAndNutritionTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun `activity calorie calculator computes MET-based burned kcal`() {
+        // 80 kg running (MET 9.8) for 30 min -> 9.8 * 80 * 0.5 = 392 kcal
+        val kcal = com.selfcare.app.domain.health.ActivityCalorieCalculator.estimateBurnedKcal(
+            metValue = 9.8f,
+            weightKg = 80f,
+            durationMinutes = 30
+        )
+        assertEquals(392, kcal)
+        assertTrue(com.selfcare.app.domain.health.ActivityCalorieCalculator.presets.size >= 8)
+    }
+
+    @Test
+    fun `groq nutrition label parser extracts per-100g values and strips think tags`() {
+        val client = GroqVisionProductClient()
+        val raw = """
+            {
+              "choices": [{
+                "message": {
+                  "content": "<think>Reading Hungarian Tápérték táblázat per 100g.</think>\n```json\n{\"name\":\"Mizo Protein Shake\",\"brand\":\"Mizo\",\"per100gKcal\":64,\"per100gProtein\":6.5,\"per100gCarbs\":5.2,\"per100gFat\":1.5,\"per100gFiber\":0.3,\"per100gSugar\":4.8,\"per100gSalt\":0.14,\"defaultGrams\":330}\n```"
+                }
+              }]
+            }
+        """.trimIndent()
+        val parsed = client.parseGroqNutritionLabelJson(raw)
+        assertTrue(parsed is com.selfcare.app.data.remote.NutritionLabelVisionResult.Success)
+        val item = (parsed as com.selfcare.app.data.remote.NutritionLabelVisionResult.Success).item
+        assertEquals("Mizo Protein Shake", item.name)
+        assertEquals(64f, item.per100gKcal, 0.1f)
+        assertEquals(6.5f, item.per100gProtein, 0.1f)
+        assertEquals(0.14f, item.per100gSalt, 0.01f)
+        assertEquals(330f, item.defaultGrams, 0.1f)
+    }
 }

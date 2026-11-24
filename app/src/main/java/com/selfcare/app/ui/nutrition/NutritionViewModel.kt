@@ -6,13 +6,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.UserSettings
+import com.selfcare.app.data.local.entity.ActivityLogEntity
+import com.selfcare.app.data.local.entity.CustomRecipeEntity
 import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.data.local.entity.WaterLogEntity
+import com.selfcare.app.data.local.entity.WeightLogEntity
 import com.selfcare.app.data.remote.EstimatedMealInfo
 import com.selfcare.app.data.remote.FoodLookupResult
 import com.selfcare.app.data.remote.FoodNutritionItem
 import com.selfcare.app.data.remote.FoodSearchResult
 import com.selfcare.app.data.remote.MealVisionResult
+import com.selfcare.app.data.remote.NutritionLabelVisionResult
 import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.NutritionRepository
 import com.selfcare.app.domain.health.ActivityLevel
@@ -22,11 +26,13 @@ import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.domain.health.VitaminCalculator
 import com.selfcare.app.domain.ml.BarcodeScanner
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -57,10 +63,16 @@ data class PendingMealConfirmation(
 )
 
 data class NutritionUiState(
+    val selectedEpochDay: Long = 0L,
+    val isToday: Boolean = true,
     val todayMeals: List<NutritionLogEntity> = emptyList(),
     val recentUniqueMeals: List<NutritionLogEntity> = emptyList(),
     val todayWaterLogs: List<WaterLogEntity> = emptyList(),
+    val todayActivities: List<ActivityLogEntity> = emptyList(),
+    val customRecipes: List<CustomRecipeEntity> = emptyList(),
+    val latestLoggedWeightKg: Float? = null,
     val totalCalories: Int = 0,
+    val totalBurnedKcal: Int = 0,
     val totalProtein: Float = 0f,
     val totalCarbs: Float = 0f,
     val totalFat: Float = 0f,
@@ -69,6 +81,7 @@ data class NutritionUiState(
     val totalSaltGrams: Float = 0f,
     val totalWaterMl: Int = 0,
     val calorieTarget: Int = UserSettings.DEFAULT_CALORIE_TARGET,
+    val effectiveCalorieTarget: Int = UserSettings.DEFAULT_CALORIE_TARGET,
     val proteinTarget: Int = UserSettings.DEFAULT_PROTEIN_TARGET,
     val carbsTarget: Int = UserSettings.DEFAULT_CARBS_TARGET,
     val fatTarget: Int = UserSettings.DEFAULT_FAT_TARGET,
@@ -93,12 +106,26 @@ data class NutritionUiState(
     val celebrationTrigger: Int = 0
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class NutritionViewModel(
     private val nutritionRepository: NutritionRepository,
     private val settingsRepository: SettingsRepository,
     private val barcodeScanner: BarcodeScanner? = null,
     private val visionClient: ProductVisionClient? = null
 ) : ViewModel() {
+
+    private data class DaySnapshot(
+        val epochDay: Long,
+        val meals: List<NutritionLogEntity>,
+        val waterLogs: List<WaterLogEntity>,
+        val activities: List<ActivityLogEntity>
+    )
+
+    private data class HistorySnapshot(
+        val recentMeals: List<NutritionLogEntity>,
+        val customRecipes: List<CustomRecipeEntity>,
+        val weights: List<WeightLogEntity>
+    )
 
     private data class TransientState(
         val selectedMealType: String = NutritionLogEntity.MEAL_LUNCH,
@@ -110,34 +137,61 @@ class NutritionViewModel(
         val celebrationTrigger: Int = 0
     )
 
+    private val selectedEpochDayFlow = MutableStateFlow(nutritionRepository.todayEpochDay())
     private val transientFlow = MutableStateFlow(TransientState())
 
-    val uiState: StateFlow<NutritionUiState> = combine(
-        nutritionRepository.observeMealsForToday(),
+    private val daySnapshotFlow = selectedEpochDayFlow.flatMapLatest { day ->
+        combine(
+            nutritionRepository.observeMealsForDay(day),
+            nutritionRepository.observeWaterForDay(day),
+            nutritionRepository.observeActivitiesForDay(day)
+        ) { meals, waterLogs, activities ->
+            DaySnapshot(day, meals, waterLogs, activities)
+        }
+    }
+
+    private val historySnapshotFlow = combine(
         nutritionRepository.observeRecentMeals(40),
-        nutritionRepository.observeWaterForToday(),
+        nutritionRepository.observeAllRecipes(),
+        nutritionRepository.observeAllWeights()
+    ) { recentMeals, recipes, weights ->
+        HistorySnapshot(recentMeals, recipes, weights)
+    }
+
+    val uiState: StateFlow<NutritionUiState> = combine(
+        daySnapshotFlow,
+        historySnapshotFlow,
         settingsRepository.settings,
         transientFlow
-    ) { meals, recentMeals, waterLogs, settings, tr ->
-        val totalKcal = meals.sumOf { it.caloriesKcal }
-        val totalProtein = meals.sumOf { it.proteinGrams.toDouble() }.toFloat()
-        val totalCarbs = meals.sumOf { it.carbsGrams.toDouble() }.toFloat()
-        val totalFat = meals.sumOf { it.fatGrams.toDouble() }.toFloat()
-        val totalFiber = meals.sumOf { it.fiberGrams.toDouble() }.toFloat()
-        val totalSugar = meals.sumOf { it.sugarGrams.toDouble() }.toFloat()
-        val totalSalt = meals.sumOf { it.saltGrams.toDouble() }.toFloat()
-        val totalWater = waterLogs.sumOf { it.amountMl }
+    ) { daySnap, historySnap, settings, tr ->
+        val todayEpoch = nutritionRepository.todayEpochDay()
+        val totalKcal = daySnap.meals.sumOf { it.caloriesKcal }
+        val totalBurned = daySnap.activities.sumOf { it.caloriesBurned }
+        val totalProtein = daySnap.meals.sumOf { it.proteinGrams.toDouble() }.toFloat()
+        val totalCarbs = daySnap.meals.sumOf { it.carbsGrams.toDouble() }.toFloat()
+        val totalFat = daySnap.meals.sumOf { it.fatGrams.toDouble() }.toFloat()
+        val totalFiber = daySnap.meals.sumOf { it.fiberGrams.toDouble() }.toFloat()
+        val totalSugar = daySnap.meals.sumOf { it.sugarGrams.toDouble() }.toFloat()
+        val totalSalt = daySnap.meals.sumOf { it.saltGrams.toDouble() }.toFloat()
+        val totalWater = daySnap.waterLogs.sumOf { it.amountMl }
         val saltBonusMl = MacroCalculator.computeSaltHydrationBonusMl(totalSalt)
         val effectiveWaterTarget = settings.dailyWaterTargetMl + saltBonusMl
-        val uniqueRecent = recentMeals
+        val uniqueRecent = historySnap.recentMeals
             .distinctBy { it.name.trim().lowercase() }
             .take(8)
+        val latestWeight = historySnap.weights.maxByOrNull { it.loggedAtEpochMillis }?.weightKg
 
         NutritionUiState(
-            todayMeals = meals,
+            selectedEpochDay = daySnap.epochDay,
+            isToday = daySnap.epochDay == todayEpoch,
+            todayMeals = daySnap.meals,
             recentUniqueMeals = uniqueRecent,
-            todayWaterLogs = waterLogs,
+            todayWaterLogs = daySnap.waterLogs,
+            todayActivities = daySnap.activities,
+            customRecipes = historySnap.customRecipes,
+            latestLoggedWeightKg = latestWeight ?: settings.bodyWeightKg,
             totalCalories = totalKcal,
+            totalBurnedKcal = totalBurned,
             totalProtein = totalProtein,
             totalCarbs = totalCarbs,
             totalFat = totalFat,
@@ -146,6 +200,7 @@ class NutritionViewModel(
             totalSaltGrams = totalSalt,
             totalWaterMl = totalWater,
             calorieTarget = settings.dailyCalorieTarget,
+            effectiveCalorieTarget = settings.dailyCalorieTarget + totalBurned,
             proteinTarget = settings.dailyProteinTargetGrams,
             carbsTarget = settings.dailyCarbsTargetGrams,
             fatTarget = settings.dailyFatTargetGrams,
@@ -172,8 +227,21 @@ class NutritionViewModel(
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = NutritionUiState()
+        initialValue = NutritionUiState(selectedEpochDay = nutritionRepository.todayEpochDay())
     )
+
+    fun goToPreviousDay() {
+        selectedEpochDayFlow.update { it - 1L }
+    }
+
+    fun goToNextDay() {
+        val today = nutritionRepository.todayEpochDay()
+        selectedEpochDayFlow.update { (it + 1L).coerceAtMost(today) }
+    }
+
+    fun goToToday() {
+        selectedEpochDayFlow.value = nutritionRepository.todayEpochDay()
+    }
 
     fun selectMealType(mealType: String) {
         transientFlow.update { it.copy(selectedMealType = mealType) }
@@ -192,8 +260,9 @@ class NutritionViewModel(
         val currentState = uiState.value
         val wasBelowTarget = currentState.totalWaterMl < currentState.waterTargetMl
         val willReachTarget = (currentState.totalWaterMl + amountMl) >= currentState.waterTargetMl
+        val day = selectedEpochDayFlow.value
         viewModelScope.launch {
-            nutritionRepository.logWater(amountMl)
+            nutritionRepository.logWater(amountMl, dateEpochDay = day)
             if (wasBelowTarget && willReachTarget) {
                 triggerCelebration()
             }
@@ -428,6 +497,155 @@ class NutritionViewModel(
         }
     }
 
+    fun onNutritionLabelPhotoCaptured(bitmap: Bitmap?) {
+        if (bitmap == null || visionClient == null) return
+        viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
+            transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
+            when (val res = visionClient.extractNutritionLabelFromPhoto(bitmap, apiKey)) {
+                is NutritionLabelVisionResult.Success -> {
+                    val item = res.item
+                    val scaled = MacroCalculator.scalePer100g(
+                        grams = item.defaultGrams,
+                        per100gKcal = item.per100gKcal,
+                        per100gProtein = item.per100gProtein,
+                        per100gCarbs = item.per100gCarbs,
+                        per100gFat = item.per100gFat,
+                        per100gFiber = item.per100gFiber,
+                        per100gSugar = item.per100gSugar,
+                        per100gSalt = item.per100gSalt
+                    )
+                    transientFlow.update {
+                        it.copy(
+                            isBusy = false,
+                            pendingConfirmation = PendingMealConfirmation(
+                                name = item.name,
+                                brand = item.brand,
+                                grams = item.defaultGrams,
+                                caloriesKcal = scaled.caloriesKcal,
+                                proteinGrams = scaled.proteinGrams,
+                                carbsGrams = scaled.carbsGrams,
+                                fatGrams = scaled.fatGrams,
+                                fiberGrams = scaled.fiberGrams,
+                                sugarGrams = scaled.sugarGrams,
+                                saltGrams = scaled.saltGrams,
+                                source = "LABEL_SCAN",
+                                modelUsed = res.modelUsed,
+                                isPer100gScalable = true,
+                                per100gKcal = item.per100gKcal,
+                                per100gProtein = item.per100gProtein,
+                                per100gCarbs = item.per100gCarbs,
+                                per100gFat = item.per100gFat,
+                                per100gFiber = item.per100gFiber,
+                                per100gSugar = item.per100gSugar,
+                                per100gSalt = item.per100gSalt
+                            )
+                        )
+                    }
+                }
+                is NutritionLabelVisionResult.Error -> {
+                    transientFlow.update { it.copy(isBusy = false, statusMessage = res.reason) }
+                }
+            }
+        }
+    }
+
+    fun openRecipeConfirmation(recipe: CustomRecipeEntity) {
+        val perServingGrams = (recipe.totalGrams / recipe.servingsCount.coerceAtLeast(1)).coerceAtLeast(1f)
+        transientFlow.update {
+            it.copy(
+                pendingConfirmation = PendingMealConfirmation(
+                    name = recipe.name,
+                    brand = recipe.ingredientsSummary,
+                    grams = perServingGrams,
+                    caloriesKcal = recipe.perServingKcal,
+                    proteinGrams = recipe.perServingProtein,
+                    carbsGrams = recipe.perServingCarbs,
+                    fatGrams = recipe.perServingFat,
+                    fiberGrams = recipe.perServingFiber,
+                    sugarGrams = recipe.perServingSugar,
+                    saltGrams = recipe.perServingSalt,
+                    source = "RECIPE",
+                    isPer100gScalable = false
+                )
+            )
+        }
+    }
+
+    fun saveCustomRecipe(
+        name: String,
+        servingsCount: Int,
+        totalGrams: Float,
+        totalKcal: Int,
+        totalProtein: Float,
+        totalCarbs: Float,
+        totalFat: Float,
+        totalFiber: Float = 0f,
+        totalSugar: Float = 0f,
+        totalSalt: Float = 0f,
+        ingredientsSummary: String = ""
+    ) {
+        viewModelScope.launch {
+            nutritionRepository.saveCustomRecipe(
+                name = name,
+                servingsCount = servingsCount,
+                totalGrams = totalGrams,
+                totalKcal = totalKcal,
+                totalProtein = totalProtein,
+                totalCarbs = totalCarbs,
+                totalFat = totalFat,
+                totalFiber = totalFiber,
+                totalSugar = totalSugar,
+                totalSalt = totalSalt,
+                ingredientsSummary = ingredientsSummary
+            )
+        }
+    }
+
+    fun deleteCustomRecipe(id: Long) {
+        viewModelScope.launch {
+            nutritionRepository.deleteRecipe(id)
+        }
+    }
+
+    fun logActivity(activityName: String, durationMinutes: Int, caloriesBurned: Int) {
+        val day = selectedEpochDayFlow.value
+        viewModelScope.launch {
+            nutritionRepository.logActivity(
+                activityName = activityName,
+                durationMinutes = durationMinutes,
+                caloriesBurned = caloriesBurned,
+                dateEpochDay = day
+            )
+        }
+    }
+
+    fun deleteActivity(id: Long) {
+        viewModelScope.launch {
+            nutritionRepository.deleteActivity(id)
+        }
+    }
+
+    fun logWeightEntry(weightKg: Float) {
+        val day = selectedEpochDayFlow.value
+        viewModelScope.launch {
+            nutritionRepository.logWeight(weightKg = weightKg, dateEpochDay = day)
+            val s = settingsRepository.settings.first()
+            settingsRepository.saveBodyProfile(
+                weightKg = weightKg,
+                targetWeightKg = s.targetWeightKg,
+                heightCm = s.bodyHeightCm ?: 175,
+                isMale = s.bodyIsMale,
+                activityLevel = s.bodyActivityLevel,
+                macroGoal = s.bodyMacroGoal
+            )
+        }
+    }
+
     fun dismissPendingConfirmation() {
         transientFlow.update { it.copy(pendingConfirmation = null) }
     }
@@ -448,14 +666,17 @@ class NutritionViewModel(
         source: String
     ) {
         val currentState = uiState.value
+        val day = selectedEpochDayFlow.value
+        val target = currentState.effectiveCalorieTarget
         val wasProteinBelow = currentState.totalProtein < currentState.proteinTarget
         val willHitProtein = (currentState.totalProtein + proteinGrams) >= currentState.proteinTarget
-        val wasKcalBelow = currentState.totalCalories < (currentState.calorieTarget * 0.90f)
+        val wasKcalBelow = currentState.totalCalories < (target * 0.90f)
         val willHitKcalSweetSpot = (currentState.totalCalories + caloriesKcal) in
-            (currentState.calorieTarget * 0.90f).roundToInt()..(currentState.calorieTarget * 1.08f).roundToInt()
+            (target * 0.90f).roundToInt()..(target * 1.08f).roundToInt()
 
         viewModelScope.launch {
             nutritionRepository.logMeal(
+                dateEpochDay = day,
                 mealType = mealType,
                 name = name,
                 brand = brand,
