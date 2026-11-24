@@ -14,6 +14,7 @@ import com.selfcare.app.data.repository.MetricBaselineTrend
 import com.selfcare.app.data.repository.NutritionRepository
 import com.selfcare.app.data.repository.PersonalTrendsSummary
 import com.selfcare.app.data.repository.TrendDirection
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -22,12 +23,21 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+data class DailyCalorieBar(
+    val dateEpochDay: Long,
+    val caloriesKcal: Int,
+    val proteinGrams: Int
+)
+
 data class TrendsUiState(
     val isLoaded: Boolean = false,
     val summary: PersonalTrendsSummary = emptyTrendsSummary(),
     val recentCheckIns: List<FaceCheckInEntity> = emptyList(),
     val weightHistory: List<WeightLogEntity> = emptyList(),
     val targetWeightKg: Float? = null,
+    val dailyCalorieTarget: Int = UserSettings.DEFAULT_CALORIE_TARGET,
+    val selectedCalorieRangeDays: Int = 14,
+    val calorieChartBars: List<DailyCalorieBar> = emptyList(),
     val avgDailyCalories7d: Int? = null,
     val avgDailyProtein7d: Int? = null,
     val nutritionDaysLogged7d: Int = 0
@@ -70,21 +80,30 @@ class TrendsViewModel(
     private val settingsRepository: SettingsRepository? = null
 ) : ViewModel() {
 
+    private val selectedRangeFlow = MutableStateFlow(14)
     private val weightsFlow = nutritionRepository?.observeAllWeights() ?: flowOf(emptyList())
-    private val mealsFlow = nutritionRepository?.observeRecentMeals(200) ?: flowOf(emptyList())
+    private val yearStartDay: Long = (nutritionRepository?.todayEpochDay() ?: java.time.LocalDate.now().toEpochDay()) - 364L
+    private val mealsYearFlow = nutritionRepository?.observeMealsSince(yearStartDay) ?: flowOf(emptyList())
     private val settingsFlow = settingsRepository?.settings ?: flowOf(UserSettings())
+
+    private val nutritionMetaFlow = combine(
+        weightsFlow,
+        mealsYearFlow,
+        settingsFlow,
+        selectedRangeFlow
+    ) { weights, mealsYear, settings, rangeDays ->
+        NutritionTrendsMeta(weights, mealsYear, settings, rangeDays)
+    }
 
     val uiState: StateFlow<TrendsUiState> = combine(
         faceCheckInRepository.observePersonalTrends(),
         faceCheckInRepository.observeRecentCheckIns(limit = 30),
-        weightsFlow,
-        mealsFlow,
-        settingsFlow
-    ) { summary, recent, weights, recentMeals, settings ->
+        nutritionMetaFlow
+    ) { summary, recent, meta ->
         val todayDay = nutritionRepository?.todayEpochDay() ?: java.time.LocalDate.now().toEpochDay()
-        val cutoffDay = todayDay - 6L
-        val mealsLast7d = recentMeals.filter { it.dateEpochDay in cutoffDay..todayDay }
-        val byDay: Map<Long, List<NutritionLogEntity>> = mealsLast7d.groupBy { it.dateEpochDay }
+        val cutoffDay = todayDay - (meta.rangeDays - 1L)
+        val mealsInRange = meta.mealsYear.filter { it.dateEpochDay in cutoffDay..todayDay }
+        val byDay: Map<Long, List<NutritionLogEntity>> = mealsInRange.groupBy { it.dateEpochDay }
         val daysLogged = byDay.size
         val avgKcal = if (daysLogged > 0) {
             (byDay.values.sumOf { dayMeals -> dayMeals.sumOf { it.caloriesKcal } }.toFloat() / daysLogged).roundToInt()
@@ -93,12 +112,21 @@ class TrendsViewModel(
             (byDay.values.sumOf { dayMeals -> dayMeals.sumOf { it.proteinGrams.toDouble() } }.toFloat() / daysLogged).roundToInt()
         } else null
 
+        val chartBars = buildCalorieChartBars(
+            mealsInRange = mealsInRange,
+            todayEpochDay = todayDay,
+            rangeDays = meta.rangeDays
+        )
+
         TrendsUiState(
             isLoaded = true,
             summary = summary,
             recentCheckIns = recent,
-            weightHistory = weights.sortedBy { it.dateEpochDay }.takeLast(30),
-            targetWeightKg = settings.targetWeightKg,
+            weightHistory = meta.weights.sortedBy { it.dateEpochDay }.takeLast(30),
+            targetWeightKg = meta.settings.targetWeightKg,
+            dailyCalorieTarget = meta.settings.dailyCalorieTarget,
+            selectedCalorieRangeDays = meta.rangeDays,
+            calorieChartBars = chartBars,
             avgDailyCalories7d = avgKcal,
             avgDailyProtein7d = avgProtein,
             nutritionDaysLogged7d = daysLogged
@@ -107,6 +135,19 @@ class TrendsViewModel(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = TrendsUiState()
+    )
+
+    fun selectCalorieRangeDays(days: Int) {
+        if (days in listOf(14, 30, 90, 365)) {
+            selectedRangeFlow.value = days
+        }
+    }
+
+    private data class NutritionTrendsMeta(
+        val weights: List<WeightLogEntity>,
+        val mealsYear: List<NutritionLogEntity>,
+        val settings: UserSettings,
+        val rangeDays: Int
     )
 
     fun deleteCheckIn(id: Long) {
@@ -125,6 +166,46 @@ class TrendsViewModel(
     }
 
     companion object {
+        fun buildCalorieChartBars(
+            mealsInRange: List<NutritionLogEntity>,
+            todayEpochDay: Long,
+            rangeDays: Int
+        ): List<DailyCalorieBar> {
+            val startDay = todayEpochDay - (rangeDays - 1L)
+            val byDay = mealsInRange.groupBy { it.dateEpochDay }
+            val bucketSize = when (rangeDays) {
+                365 -> 7
+                90 -> 3
+                else -> 1
+            }
+            val result = mutableListOf<DailyCalorieBar>()
+            var bucketEnd = todayEpochDay
+            while (bucketEnd >= startDay) {
+                val bucketStart = (bucketEnd - (bucketSize - 1L)).coerceAtLeast(startDay)
+                val loggedDaysInBucket = (bucketStart..bucketEnd).mapNotNull { d ->
+                    val list = byDay[d]
+                    if (list.isNullOrEmpty()) null else list
+                }
+                val avgKcal = if (loggedDaysInBucket.isEmpty()) 0 else {
+                    (loggedDaysInBucket.sumOf { dayList -> dayList.sumOf { it.caloriesKcal } }.toFloat() /
+                        loggedDaysInBucket.size).roundToInt()
+                }
+                val avgProtein = if (loggedDaysInBucket.isEmpty()) 0 else {
+                    (loggedDaysInBucket.sumOf { dayList -> dayList.sumOf { it.proteinGrams.toDouble() } }.toFloat() /
+                        loggedDaysInBucket.size).roundToInt()
+                }
+                result.add(
+                    DailyCalorieBar(
+                        dateEpochDay = bucketEnd,
+                        caloriesKcal = avgKcal,
+                        proteinGrams = avgProtein
+                    )
+                )
+                bucketEnd = bucketStart - 1L
+            }
+            return result.asReversed()
+        }
+
         fun factory(
             faceCheckInRepository: FaceCheckInRepository,
             nutritionRepository: NutritionRepository? = null,

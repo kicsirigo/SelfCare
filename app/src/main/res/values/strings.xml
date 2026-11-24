@@ -519,4 +519,19 @@
     <string name="settings_zdr_warning_body">Your Groq API key is saved.\n\nGroq does NOT use API requests for AI model training, HOWEVER by default Groq may temporarily log requests up to 30 days for troubleshooting and abuse monitoring.\n\nFor maximum privacy, open console.groq.com → Settings → Data Controls and turn ON Zero Data Retention (ZDR) so zero prompts or photos are ever retained.</string>
     <string name="settings_zdr_open_console">Open Groq Data Controls</string>
     <string name="settings_zdr_understood">I Understand</string>
+    <string name="nutrition_camera_torch_on">Flash On</string>
+    <string name="nutrition_camera_torch_off">Flash Off</string>
+    <string name="nutrition_camera_capture">Capture</string>
+    <string name="nutrition_camera_permission_needed">Camera permission is needed to take in-app food photos.</string>
+    <string name="nutrition_camera_grant_permission">Grant Camera Permission</string>
+    <string name="nutrition_ai_detected_ingredients">AI guessed ingredients: %s</string>
+    <string name="nutrition_ai_clarify_hint">Add or correct ingredients (e.g. whole wheat bun, 2 slices cheese, no mayo)…</string>
+    <string name="nutrition_ai_recalculate_btn">Recalculate with AI</string>
+    <string name="trends_calorie_chart_title">Calorie History</string>
+    <string name="trends_calorie_chart_target">Target: %d kcal</string>
+    <string name="trends_calorie_range_14d">14d</string>
+    <string name="trends_calorie_range_30d">30d</string>
+    <string name="trends_calorie_range_90d">90d</string>
+    <string name="trends_calorie_range_365d">365d</string>
+    <string name="trends_nutrition_range_avg">%1$dd Avg: %2$d kcal/day · %3$d g protein (%4$d days)</string>
 </resources>

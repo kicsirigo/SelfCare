@@ -62,7 +62,10 @@ data class PendingMealConfirmation(
     val per100gFat: Float = 0f,
     val per100gFiber: Float = 0f,
     val per100gSugar: Float = 0f,
-    val per100gSalt: Float = 0f
+    val per100gSalt: Float = 0f,
+    val detectedIngredients: String = "",
+    val clarificationQuestion: String = "",
+    val isRefining: Boolean = false
 )
 
 data class NutritionUiState(
@@ -408,7 +411,9 @@ class NutritionViewModel(
                                 saltGrams = m.saltGrams,
                                 source = "GROQ_TEXT",
                                 modelUsed = res.modelUsed,
-                                isPer100gScalable = false
+                                isPer100gScalable = false,
+                                detectedIngredients = m.detectedIngredients,
+                                clarificationQuestion = m.clarificationQuestion
                             )
                         )
                     }
@@ -490,13 +495,76 @@ class NutritionViewModel(
                                 saltGrams = m.saltGrams,
                                 source = "GROQ_VISION",
                                 modelUsed = res.modelUsed,
-                                isPer100gScalable = false
+                                isPer100gScalable = false,
+                                detectedIngredients = m.detectedIngredients,
+                                clarificationQuestion = m.clarificationQuestion
                             )
                         )
                     }
                 }
                 is MealVisionResult.Error -> {
                     transientFlow.update { it.copy(isBusy = false, statusMessage = res.reason) }
+                }
+            }
+        }
+    }
+
+    fun refinePendingMeal(userClarification: String) {
+        val current = transientFlow.value.pendingConfirmation ?: return
+        val clean = userClarification.trim()
+        if (clean.isEmpty() || visionClient == null) return
+        viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
+            transientFlow.update {
+                it.copy(pendingConfirmation = current.copy(isRefining = true))
+            }
+            val prevInfo = EstimatedMealInfo(
+                name = current.name,
+                estimatedGrams = current.grams,
+                caloriesKcal = current.caloriesKcal,
+                proteinGrams = current.proteinGrams,
+                carbsGrams = current.carbsGrams,
+                fatGrams = current.fatGrams,
+                fiberGrams = current.fiberGrams,
+                sugarGrams = current.sugarGrams,
+                saltGrams = current.saltGrams,
+                detectedIngredients = current.detectedIngredients,
+                clarificationQuestion = current.clarificationQuestion
+            )
+            when (val res = visionClient.refineMealEstimation(prevInfo, clean, apiKey)) {
+                is MealVisionResult.Success -> {
+                    val m = res.meal
+                    transientFlow.update {
+                        it.copy(
+                            pendingConfirmation = current.copy(
+                                name = m.name,
+                                grams = m.estimatedGrams,
+                                caloriesKcal = m.caloriesKcal,
+                                proteinGrams = m.proteinGrams,
+                                carbsGrams = m.carbsGrams,
+                                fatGrams = m.fatGrams,
+                                fiberGrams = m.fiberGrams,
+                                sugarGrams = m.sugarGrams,
+                                saltGrams = m.saltGrams,
+                                modelUsed = res.modelUsed,
+                                detectedIngredients = m.detectedIngredients,
+                                clarificationQuestion = m.clarificationQuestion,
+                                isRefining = false
+                            )
+                        )
+                    }
+                }
+                is MealVisionResult.Error -> {
+                    transientFlow.update {
+                        it.copy(
+                            pendingConfirmation = current.copy(isRefining = false),
+                            statusMessage = res.reason
+                        )
+                    }
                 }
             }
         }

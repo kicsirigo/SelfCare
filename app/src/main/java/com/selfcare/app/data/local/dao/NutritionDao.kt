@@ -19,6 +19,9 @@ interface NutritionDao {
     @Query("SELECT * FROM nutrition_logs ORDER BY createdAtEpochMillis DESC LIMIT :limit")
     fun observeRecentMeals(limit: Int = 50): Flow<List<NutritionLogEntity>>
 
+    @Query("SELECT * FROM nutrition_logs WHERE dateEpochDay >= :startEpochDay ORDER BY dateEpochDay ASC, createdAtEpochMillis ASC")
+    fun observeMealsSince(startEpochDay: Long): Flow<List<NutritionLogEntity>>
+
     @Query("SELECT * FROM nutrition_logs ORDER BY createdAtEpochMillis DESC")
     suspend fun getAllMeals(): List<NutritionLogEntity>
 

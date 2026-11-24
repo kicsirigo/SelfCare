@@ -44,6 +44,9 @@ class NutritionRepository(
     fun observeRecentMeals(limit: Int = 40): Flow<List<NutritionLogEntity>> =
         nutritionDao.observeRecentMeals(limit)
 
+    fun observeMealsSince(startEpochDay: Long): Flow<List<NutritionLogEntity>> =
+        nutritionDao.observeMealsSince(startEpochDay)
+
     fun observeRecentWater(limit: Int = 200): Flow<List<WaterLogEntity>> =
         nutritionDao.observeRecentWater(limit)
 

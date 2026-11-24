@@ -103,8 +103,7 @@ fun NutritionScreen(
         config.locales.get(0)?.language?.equals("hu", ignoreCase = true) == true
     }
 
-    var pendingPhotoFile by remember { mutableStateOf<File?>(null) }
-    var pendingCaptureMode by remember { mutableStateOf("MEAL") }
+    var activeCameraMode by remember { mutableStateOf<String?>(null) }
     var showCustomWaterDialog by remember { mutableStateOf(false) }
     var showManualMealDialog by remember { mutableStateOf(false) }
     var showGoalsDialog by remember { mutableStateOf(false) }
@@ -112,38 +111,23 @@ fun NutritionScreen(
     var showActivityDialog by remember { mutableStateOf(false) }
     var showRecipeBuilderDialog by remember { mutableStateOf(false) }
 
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        val file = pendingPhotoFile
-        pendingPhotoFile = null
-        if (!success) {
-            ScanPhotoHelper.cleanupTempFile(file)
-            return@rememberLauncherForActivityResult
-        }
-        val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
-        when (pendingCaptureMode) {
-            "BARCODE" -> viewModel.onBarcodePhotoCaptured(bitmap)
-            "LABEL" -> viewModel.onNutritionLabelPhotoCaptured(bitmap)
-            else -> viewModel.onMealPhotoCaptured(bitmap)
-        }
+    fun launchCamera(mode: String) {
+        activeCameraMode = mode
     }
 
-    fun launchCamera(mode: String) {
-        pendingCaptureMode = mode
-        try {
-            val capture = ScanPhotoHelper.createTempScanCapture(context)
-            pendingPhotoFile = capture.file
-            cameraLauncher.launch(capture.uri)
-        } catch (_: ActivityNotFoundException) {
-            ScanPhotoHelper.cleanupTempFile(pendingPhotoFile)
-            pendingPhotoFile = null
-            showManualMealDialog = true
-        } catch (_: Exception) {
-            ScanPhotoHelper.cleanupTempFile(pendingPhotoFile)
-            pendingPhotoFile = null
-            showManualMealDialog = true
-        }
+    activeCameraMode?.let { mode ->
+        InAppFoodCameraDialog(
+            mode = mode,
+            onDismiss = { activeCameraMode = null },
+            onCaptured = { bitmap ->
+                activeCameraMode = null
+                when (mode) {
+                    "BARCODE" -> viewModel.onBarcodePhotoCaptured(bitmap)
+                    "LABEL" -> viewModel.onNutritionLabelPhotoCaptured(bitmap)
+                    else -> viewModel.onMealPhotoCaptured(bitmap)
+                }
+            }
+        )
     }
 
     if (showCustomWaterDialog) {
@@ -249,6 +233,7 @@ fun NutritionScreen(
             defaultMealType = state.selectedMealType,
             selectedEpochDay = state.selectedEpochDay,
             onDismiss = viewModel::dismissPendingConfirmation,
+            onRefineWithAi = viewModel::refinePendingMeal,
             onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, salt, mealType, eatenAtMillis ->
                 viewModel.saveConfirmedMeal(
                     name = name,
@@ -1228,6 +1213,7 @@ private fun MealConfirmationDialog(
     defaultMealType: String,
     selectedEpochDay: Long,
     onDismiss: () -> Unit,
+    onRefineWithAi: (String) -> Unit,
     onConfirm: (
         name: String,
         grams: Float,
@@ -1254,6 +1240,7 @@ private fun MealConfirmationDialog(
     var timeHmText by remember(pending) {
         mutableStateOf(String.format(Locale.US, "%02d:%02d", nowTime.hour, nowTime.minute))
     }
+    var clarificationInput by remember { mutableStateOf("") }
 
     fun applyMultiplier(factor: Float) {
         val g = (pending.grams * factor).coerceAtLeast(10f)
@@ -1381,6 +1368,66 @@ private fun MealConfirmationDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (pending.source == "GROQ_VISION" || pending.source == "GROQ_TEXT") {
+                    if (pending.detectedIngredients.isNotBlank()) {
+                        Text(
+                            text = stringResource(
+                                R.string.nutrition_ai_detected_ingredients,
+                                pending.detectedIngredients
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF38BDF8)
+                        )
+                    }
+                    if (pending.clarificationQuestion.isNotBlank()) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = pending.clarificationQuestion,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(10.dp)
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = clarificationInput,
+                        onValueChange = { clarificationInput = it },
+                        placeholder = { Text(stringResource(R.string.nutrition_ai_clarify_hint)) },
+                        singleLine = false,
+                        maxLines = 3,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("nutrition_ai_clarify_input")
+                    )
+                    if (pending.isRefining) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            val note = clarificationInput.trim()
+                            if (note.isNotEmpty()) {
+                                clarificationInput = ""
+                                onRefineWithAi(note)
+                            }
+                        },
+                        enabled = clarificationInput.isNotBlank() && !pending.isRefining,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("nutrition_ai_recalculate_btn")
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sparkle,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.nutrition_ai_recalculate_btn))
+                    }
+                }
             }
         },
         confirmButton = {

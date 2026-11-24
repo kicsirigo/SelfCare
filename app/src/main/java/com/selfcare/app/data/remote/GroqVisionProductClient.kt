@@ -49,7 +49,9 @@ data class EstimatedMealInfo(
     val fatGrams: Float,
     val fiberGrams: Float = 0f,
     val sugarGrams: Float = 0f,
-    val saltGrams: Float = 0f
+    val saltGrams: Float = 0f,
+    val detectedIngredients: String = "",
+    val clarificationQuestion: String = ""
 )
 
 sealed interface MealVisionResult {
@@ -79,6 +81,11 @@ interface ProductVisionClient {
         MealVisionResult.Error("Not supported")
     suspend fun estimateMealFromText(query: String, apiKey: String): MealVisionResult =
         MealVisionResult.Error("Not supported")
+    suspend fun refineMealEstimation(
+        previousMeal: EstimatedMealInfo,
+        userClarification: String,
+        apiKey: String
+    ): MealVisionResult = MealVisionResult.Error("Not supported")
     suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         NutritionLabelVisionResult.Error("Not supported")
     suspend fun chatWithCoach(
@@ -558,7 +565,9 @@ class GroqVisionProductClient(
                     fatGrams = dto.fatGrams.coerceIn(0f, 300f),
                     fiberGrams = dto.fiberGrams.coerceIn(0f, 150f),
                     sugarGrams = dto.sugarGrams.coerceIn(0f, 300f),
-                    saltGrams = dto.saltGrams.coerceIn(0f, 30f)
+                    saltGrams = dto.saltGrams.coerceIn(0f, 30f),
+                    detectedIngredients = dto.detectedIngredients.trim(),
+                    clarificationQuestion = dto.clarificationQuestion.trim()
                 )
             )
         } catch (e: Exception) {
@@ -724,7 +733,9 @@ class GroqVisionProductClient(
         val fatGrams: Float = 0f,
         val fiberGrams: Float = 0f,
         val sugarGrams: Float = 0f,
-        val saltGrams: Float = 0f
+        val saltGrams: Float = 0f,
+        val detectedIngredients: String = "",
+        val clarificationQuestion: String = ""
     )
 
     @Serializable
@@ -740,6 +751,26 @@ class GroqVisionProductClient(
         val per100gSalt: Float = 0f,
         val defaultGrams: Float = 100f
     )
+
+    override suspend fun refineMealEstimation(
+        previousMeal: EstimatedMealInfo,
+        userClarification: String,
+        apiKey: String
+    ): MealVisionResult {
+        val cleanClarification = userClarification.trim()
+        if (cleanClarification.isEmpty()) return MealVisionResult.Error("Clarification is empty")
+        val combinedQuery = buildString {
+            append("Previous meal estimate: ").append(previousMeal.name)
+            if (previousMeal.detectedIngredients.isNotBlank()) {
+                append(" (guessed ingredients: ").append(previousMeal.detectedIngredients).append(")")
+            }
+            append(", ").append(previousMeal.estimatedGrams.toInt()).append("g, ")
+            append(previousMeal.caloriesKcal).append(" kcal. ")
+            append("User clarification / exact ingredients: ").append(cleanClarification)
+            append(". Recalculate exact total grams, calories, protein, carbs, fat, fiber, sugar, salt, and updated detectedIngredients.")
+        }
+        return estimateMealFromText(combinedQuery, apiKey)
+    }
 
     override suspend fun chatWithCoach(
         systemContext: String,
@@ -911,10 +942,12 @@ class GroqVisionProductClient(
                 "\"fatGrams\" (number), " +
                 "\"fiberGrams\" (number), " +
                 "\"sugarGrams\" (number), " +
-                "\"saltGrams\" (number, estimated total salt in grams, e.g. 1.8 for a ham sandwich or 3.2 for chicken paprikash)."
+                "\"saltGrams\" (number, estimated total salt in grams, e.g. 1.8 for a ham sandwich or 3.2 for chicken paprikash), " +
+                "\"detectedIngredients\" (short comma-separated list of the ingredients you see or assume are inside, e.g. '2 slices white bread, butter, ham, cheese'), " +
+                "\"clarificationQuestion\" (if fillings/sauce/bread type are hidden or ambiguous — e.g. a closed sandwich, wrap, burger, or stew — ask ONE short friendly question asking what else is inside; otherwise empty string)."
 
         private const val TEXT_MEAL_ESTIMATION_PROMPT =
-            "Estimate realistic nutrition INCLUDING salt content for the described Hungarian or international dish/food and serving size (default to a typical single portion if no grams/count is specified). " +
+            "Estimate realistic nutrition INCLUDING salt content for the described Hungarian or international dish OR natural-language ingredient list (e.g. '1 császárzsemle, kis vaj, 2 szelet sonka, 1 szelet sajt, uborka'). Sum every mentioned ingredient realistically (default to typical single portion sizes if grams aren't given). " +
                 "Return ONLY a single raw JSON object (no markdown, no explanation) with keys: " +
                 "\"name\" (clean meal name in the same language as the user's input), " +
                 "\"estimatedGrams\" (number, total grams of the portion), " +
@@ -924,7 +957,9 @@ class GroqVisionProductClient(
                 "\"fatGrams\" (number), " +
                 "\"fiberGrams\" (number), " +
                 "\"sugarGrams\" (number), " +
-                "\"saltGrams\" (number, estimated total salt in grams)."
+                "\"saltGrams\" (number, estimated total salt in grams), " +
+                "\"detectedIngredients\" (short comma-separated list of ingredients and assumed quantities used in the calculation, in the same language as the user's input), " +
+                "\"clarificationQuestion\" (if key calorie drivers like sauce/butter/bread size or filling are unspecified, ask ONE short friendly question in the user's language; otherwise empty string)."
 
         private const val NUTRITION_LABEL_PROMPT =
             "Read the Nutrition Facts / Tápérték táblázat (values per 100g or 100ml) from this food package photo. " +

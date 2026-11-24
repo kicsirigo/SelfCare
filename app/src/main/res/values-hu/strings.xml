@@ -519,4 +519,19 @@
     <string name="settings_zdr_warning_body">A Groq API kulcsod elmentve.\n\nA Groq NEM használja fel az API kéréseket AI tanításra, VISZONT alapértelmezetten hibakeresés/visszaélés-szűrés miatt akár 30 napig naplózhatja a kéréseket.\n\nA maximális adatvédelemhez nyisd meg a console.groq.com → Settings → Data Controls menüt, és kapcsold BE a Zero Data Retention (ZDR) opciót, hogy semmilyen szöveget vagy képet ne tároljanak el!</string>
     <string name="settings_zdr_open_console">Groq Data Controls megnyitása</string>
     <string name="settings_zdr_understood">Megértettem</string>
+    <string name="nutrition_camera_torch_on">Vaku be</string>
+    <string name="nutrition_camera_torch_off">Vaku ki</string>
+    <string name="nutrition_camera_capture">Fotózás</string>
+    <string name="nutrition_camera_permission_needed">Kamera engedély szükséges az appon belüli ételfotózáshoz.</string>
+    <string name="nutrition_camera_grant_permission">Kamera engedélyezése</string>
+    <string name="nutrition_ai_detected_ingredients">AI által tippelt összetevők: %s</string>
+    <string name="nutrition_ai_clarify_hint">Pontosítás / kiegészítés (pl. teljes kiőrlésű zsemle, 2 szelet sajt, majonéz nélkül)…</string>
+    <string name="nutrition_ai_recalculate_btn">Újraszámolás AI-val</string>
+    <string name="trends_calorie_chart_title">Kalória grafikon</string>
+    <string name="trends_calorie_chart_target">Cél: %d kcal</string>
+    <string name="trends_calorie_range_14d">14n</string>
+    <string name="trends_calorie_range_30d">30n</string>
+    <string name="trends_calorie_range_90d">90n</string>
+    <string name="trends_calorie_range_365d">365n</string>
+    <string name="trends_nutrition_range_avg">%1$d napos átlag: %2$d kcal/nap · %3$d g fehérje (%4$d nap)</string>
 </resources>

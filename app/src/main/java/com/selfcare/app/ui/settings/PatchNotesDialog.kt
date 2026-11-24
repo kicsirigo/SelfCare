@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.9.0",
+            title = "In-App Custom Food Camera, 14/30/90/365d Calorie Chart & Interactive AI Ingredient Clarification",
+            highlights = listOf(
+                "Replaced the external system camera redirect with a custom in-app CameraX capture screen (clean rounded frame, flash/torch toggle, in-memory Bitmap capture) for Meal Photo AI, Nutrition Label Scan, and Barcode Scan.",
+                "Added an interactive Calorie History Bar Chart on the Trends tab with 14d / 30d / 90d / 365d range selectors, color-coded daily bars, and a dashed daily calorie target line.",
+                "Upgraded Meal Photo AI & Natural-Language Text Estimation to show AI-guessed ingredients, ask a short clarifying question for ambiguous meals (like sandwiches/wraps), and recalculate macros & salt live in the confirmation dialog from your plain-language reply."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.8.1",
             title = "Smarter Time-Aware Qwen AI Coach, Clean Chat Formatting & Right-Side Camera-Aware FAB",
             highlights = listOf(

@@ -1,6 +1,7 @@
 package com.selfcare.app.ui.trends
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +19,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,11 +35,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.selfcare.app.ui.theme.NeonGreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
 import com.selfcare.app.data.local.entity.FaceCheckInEntity
@@ -81,9 +90,12 @@ fun TrendsScreen(
             )
         }
 
-        if (uiState.weightHistory.isNotEmpty() || uiState.avgDailyCalories7d != null) {
+        if (uiState.weightHistory.isNotEmpty() || uiState.avgDailyCalories7d != null || uiState.calorieChartBars.any { it.caloriesKcal > 0 }) {
             item {
-                WeightAndNutritionTrendCard(uiState = uiState)
+                WeightAndNutritionTrendCard(
+                    uiState = uiState,
+                    onSelectCalorieRange = viewModel::selectCalorieRangeDays
+                )
             }
         }
 
@@ -765,7 +777,8 @@ private fun CheckInHistoryItemCard(
 
 @Composable
 private fun WeightAndNutritionTrendCard(
-    uiState: TrendsUiState
+    uiState: TrendsUiState,
+    onSelectCalorieRange: (Int) -> Unit
 ) {
     val weights = uiState.weightHistory
     val latest = weights.lastOrNull()?.weightKg
@@ -844,7 +857,8 @@ private fun WeightAndNutritionTrendCard(
             if (uiState.avgDailyCalories7d != null && uiState.avgDailyProtein7d != null) {
                 Text(
                     text = stringResource(
-                        R.string.trends_nutrition_7d_avg,
+                        R.string.trends_nutrition_range_avg,
+                        uiState.selectedCalorieRangeDays,
                         uiState.avgDailyCalories7d,
                         uiState.avgDailyProtein7d,
                         uiState.nutritionDaysLogged7d
@@ -853,6 +867,128 @@ private fun WeightAndNutritionTrendCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            if (uiState.calorieChartBars.any { it.caloriesKcal > 0 }) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.trends_calorie_chart_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = stringResource(R.string.trends_calorie_chart_target, uiState.dailyCalorieTarget),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF38BDF8)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        14 to R.string.trends_calorie_range_14d,
+                        30 to R.string.trends_calorie_range_30d,
+                        90 to R.string.trends_calorie_range_90d,
+                        365 to R.string.trends_calorie_range_365d
+                    ).forEach { (days, labelRes) ->
+                        FilterChip(
+                            selected = uiState.selectedCalorieRangeDays == days,
+                            onClick = { onSelectCalorieRange(days) },
+                            label = { Text(stringResource(labelRes)) },
+                            modifier = Modifier.testTag("trends_calorie_range_${days}d")
+                        )
+                    }
+                }
+                CalorieHistoryBarChart(
+                    bars = uiState.calorieChartBars,
+                    targetKcal = uiState.dailyCalorieTarget
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalorieHistoryBarChart(
+    bars: List<DailyCalorieBar>,
+    targetKcal: Int
+) {
+    if (bars.isEmpty()) return
+    val maxVal = maxOf(
+        bars.maxOf { it.caloriesKcal },
+        (targetKcal * 1.15f).toInt(),
+        500
+    ).toFloat()
+    val errorColor = MaterialTheme.colorScheme.error
+    val emptyBarColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
+    val blueColor = Color(0xFF38BDF8)
+    val dateFmt = remember { DateTimeFormatter.ofPattern("MM.dd", Locale.US) }
+    val firstDate = remember(bars) { LocalDate.ofEpochDay(bars.first().dateEpochDay).format(dateFmt) }
+    val midDate = remember(bars) { LocalDate.ofEpochDay(bars[bars.size / 2].dateEpochDay).format(dateFmt) }
+    val lastDate = remember(bars) { LocalDate.ofEpochDay(bars.last().dateEpochDay).format(dateFmt) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(126.dp)
+                .testTag("trends_calorie_bar_chart")
+        ) {
+            val count = bars.size.coerceAtLeast(1)
+            val gap = if (count <= 16) 4.dp.toPx() else if (count <= 32) 2.5.dp.toPx() else 1.5.dp.toPx()
+            val totalGap = gap * (count - 1)
+            val barWidth = ((size.width - totalGap) / count).coerceAtLeast(2f)
+            val chartHeight = size.height - 6.dp.toPx()
+
+            bars.forEachIndexed { idx, bar ->
+                val x = idx * (barWidth + gap)
+                if (bar.caloriesKcal <= 0) {
+                    val stubH = 4.dp.toPx()
+                    drawRoundRect(
+                        color = emptyBarColor,
+                        topLeft = Offset(x, size.height - stubH),
+                        size = Size(barWidth, stubH),
+                        cornerRadius = CornerRadius(3f, 3f)
+                    )
+                } else {
+                    val ratio = (bar.caloriesKcal / maxVal).coerceIn(0.04f, 1f)
+                    val h = chartHeight * ratio
+                    val barColor = when {
+                        bar.caloriesKcal > (targetKcal * 1.08f) -> errorColor
+                        bar.caloriesKcal >= (targetKcal * 0.90f) -> NeonGreen
+                        else -> blueColor
+                    }
+                    drawRoundRect(
+                        color = barColor,
+                        topLeft = Offset(x, size.height - h),
+                        size = Size(barWidth, h),
+                        cornerRadius = CornerRadius(4f, 4f)
+                    )
+                }
+            }
+
+            // Dashed daily calorie target line
+            val targetY = size.height - (chartHeight * (targetKcal / maxVal).coerceIn(0.05f, 1f))
+            drawLine(
+                color = Color.White.copy(alpha = 0.65f),
+                start = Offset(0f, targetY),
+                end = Offset(size.width, targetY),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = firstDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = midDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = lastDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

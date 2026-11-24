@@ -328,4 +328,64 @@ class MacroCalculatorAndNutritionTest {
         val reply = (parsed as com.selfcare.app.data.remote.AiCoachChatResult.Success).reply
         assertEquals("A mai fehérjebeviteled szuper, de próbáld a vacsorát 20:30 elé hozni.", reply)
     }
+
+    @Test
+    fun `groq meal parser extracts detectedIngredients and clarificationQuestion for sandwiches`() {
+        val client = GroqVisionProductClient()
+        val raw = """
+            {
+              "choices": [{
+                "message": {
+                  "content": "{\"name\":\"Sonkás-sajtos szendvics\",\"estimatedGrams\":180,\"caloriesKcal\":395,\"proteinGrams\":19.0,\"carbsGrams\":42.0,\"fatGrams\":16.0,\"fiberGrams\":2.5,\"sugarGrams\":3.1,\"saltGrams\":2.2,\"detectedIngredients\":\"1 császárzsemle, vaj, 2 szelet sonka, 1 szelet sajt\",\"clarificationQuestion\":\"Van benne majonéz vagy extra sajt, és milyen kenyérből készült?\"}"
+                }
+              }]
+            }
+        """.trimIndent()
+        val parsed = client.parseGroqMealResponseJson(raw)
+        assertTrue(parsed is MealVisionResult.Success)
+        val meal = (parsed as MealVisionResult.Success).meal
+        assertTrue(meal.detectedIngredients.contains("sonka"))
+        assertTrue(meal.clarificationQuestion.contains("majonéz"))
+    }
+
+    @Test
+    fun `calorie chart bar builder aggregates 14d daily and 365d weekly buckets accurately`() {
+        val today = 20050L
+        val meals = listOf(
+            com.selfcare.app.data.local.entity.NutritionLogEntity(
+                dateEpochDay = today,
+                mealType = "LUNCH",
+                name = "A",
+                grams = 300f,
+                caloriesKcal = 1800,
+                proteinGrams = 110f,
+                carbsGrams = 180f,
+                fatGrams = 60f,
+                createdAtEpochMillis = 1_000L
+            ),
+            com.selfcare.app.data.local.entity.NutritionLogEntity(
+                dateEpochDay = today - 1L,
+                mealType = "LUNCH",
+                name = "B",
+                grams = 300f,
+                caloriesKcal = 2200,
+                proteinGrams = 130f,
+                carbsGrams = 210f,
+                fatGrams = 70f,
+                createdAtEpochMillis = 1_000L
+            )
+        )
+        val bars14 = com.selfcare.app.ui.trends.TrendsViewModel.buildCalorieChartBars(meals, today, 14)
+        assertEquals(14, bars14.size)
+        assertEquals(1800, bars14.last().caloriesKcal)
+        assertEquals(2200, bars14[bars14.size - 2].caloriesKcal)
+
+        val bars90 = com.selfcare.app.ui.trends.TrendsViewModel.buildCalorieChartBars(meals, today, 90)
+        assertEquals(30, bars90.size)
+
+        val bars365 = com.selfcare.app.ui.trends.TrendsViewModel.buildCalorieChartBars(meals, today, 365)
+        assertTrue(bars365.size in 52..53)
+        // Latest weekly bucket averages the 2 logged days: (1800 + 2200) / 2 = 2000
+        assertEquals(2000, bars365.last().caloriesKcal)
+    }
 }
