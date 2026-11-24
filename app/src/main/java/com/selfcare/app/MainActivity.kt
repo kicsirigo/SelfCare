@@ -11,9 +11,12 @@ import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
@@ -296,9 +299,16 @@ private fun SelfCareScaffold(
         modifier = Modifier
             .fillMaxSize()
             .testTag("app_root"),
-        floatingActionButtonPosition = FabPosition.Start,
+        floatingActionButtonPosition = FabPosition.End,
         floatingActionButton = {
-            if (currentDestination != AppDestination.SETTINGS) {
+            val showFab = currentDestination != AppDestination.SETTINGS &&
+                currentDestination != AppDestination.CHECKIN &&
+                !showAiCoachSheet
+            AnimatedVisibility(
+                visible = showFab,
+                enter = fadeIn(tween(180)) + scaleIn(tween(180)),
+                exit = fadeOut(tween(150)) + scaleOut(tween(150))
+            ) {
                 SmallFloatingActionButton(
                     onClick = { showAiCoachSheet = true },
                     containerColor = MaterialTheme.colorScheme.primary,

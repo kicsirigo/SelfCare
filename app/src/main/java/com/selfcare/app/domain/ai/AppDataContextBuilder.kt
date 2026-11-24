@@ -10,7 +10,9 @@ import com.selfcare.app.data.local.entity.WeightLogEntity
 import com.selfcare.app.domain.health.MealTimingAnalyzer
 import com.selfcare.app.domain.health.VitaminCalculator
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -38,9 +40,20 @@ object AppDataContextBuilder {
         weights: List<WeightLogEntity>,
         shelfProducts: List<ProductEntity>,
         recentCheckIns: List<FaceCheckInEntity>,
-        zoneId: ZoneId = ZoneId.systemDefault()
+        zoneId: ZoneId = ZoneId.systemDefault(),
+        nowTime: LocalTime = LocalTime.now(zoneId)
     ): String {
         val sb = StringBuilder()
+        val nowHm = nowTime.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
+        val partOfDay = when (nowTime.hour) {
+            in 5..10 -> "morning"
+            in 11..14 -> "midday"
+            in 15..17 -> "afternoon"
+            in 18..21 -> "evening"
+            else -> "night"
+        }
+        sb.appendLine("CURRENT LOCAL TIME: $nowHm ($partOfDay) — judge today's progress ONLY relative to this time of day!")
+        sb.appendLine()
         sb.appendLine("USER PROFILE (anonymized):")
         val age = VitaminCalculator.computeAgeYears(settings.birthDateIso)
         if (age != null) sb.appendLine("- Age: $age years")

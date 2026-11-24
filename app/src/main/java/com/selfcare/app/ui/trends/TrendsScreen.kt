@@ -69,7 +69,8 @@ fun TrendsScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .testTag("trends_list"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {

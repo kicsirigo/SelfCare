@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.8.1",
+            title = "Smarter Time-Aware Qwen AI Coach, Clean Chat Formatting & Right-Side Camera-Aware FAB",
+            highlights = listOf(
+                "Upgraded Qwen AI Coach to be time-of-day aware (passes current local time so morning check-ins never scold low daily totals), stop regurgitating raw dashboard numbers, and give concise, actionable 2nd-person coaching.",
+                "Added clean Markdown rendering in the AI Coach chat bubbles (renders **bold**, *italic*, and bullet points cleanly without raw asterisks).",
+                "Moved the floating AI Coach button to the right side and automatically hide it during live camera Check-In, Settings, or foreground sheets so it never blocks camera views or controls."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.8.0",
             title = "Meal Timing & Slot Grouping + Floating Qwen AI Coach + Groq ZDR Privacy Alert",
             highlights = listOf(

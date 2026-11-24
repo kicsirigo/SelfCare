@@ -44,7 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
@@ -234,7 +239,11 @@ fun AiCoachChatSheet(
                                 modifier = Modifier.fillMaxWidth(0.88f)
                             ) {
                                 Text(
-                                    text = msg.content,
+                                    text = if (isUser) {
+                                        AnnotatedString(msg.content)
+                                    } else {
+                                        formatCoachMarkdown(msg.content)
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = if (isUser) {
                                         MaterialTheme.colorScheme.onPrimaryContainer
@@ -308,6 +317,40 @@ fun AiCoachChatSheet(
                     Text(stringResource(R.string.ai_coach_send))
                 }
             }
+        }
+    }
+}
+
+internal fun formatCoachMarkdown(raw: String): AnnotatedString {
+    val normalized = raw
+        .replace(Regex("(?m)^\\s*[*-]\\s+"), "• ")
+        .replace(Regex("(?m)^#{1,3}\\s+"), "")
+    return buildAnnotatedString {
+        var i = 0
+        val n = normalized.length
+        while (i < n) {
+            if (i + 1 < n && normalized[i] == '*' && normalized[i + 1] == '*') {
+                val close = normalized.indexOf("**", i + 2)
+                if (close != -1) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                        append(normalized.substring(i + 2, close))
+                    }
+                    i = close + 2
+                    continue
+                }
+            }
+            if (normalized[i] == '*') {
+                val close = normalized.indexOf('*', i + 1)
+                if (close != -1 && close > i + 1 && !normalized.substring(i + 1, close).contains('\n')) {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
+                        append(normalized.substring(i + 1, close))
+                    }
+                    i = close + 1
+                    continue
+                }
+            }
+            append(normalized[i])
+            i++
         }
     }
 }

@@ -150,13 +150,14 @@ class Tier4UserJourneyTest {
         // 7. Verify personal trend cards
         composeRule.onNodeWithTag("nav_trends").performClick()
         composeRule.waitUntilTagExists("trends_7d_baseline")
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag("trends_7d_baseline").assertIsDisplayed()
         composeRule.onNodeWithTag("trends_30d_baseline").assertIsDisplayed()
-        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag("trends_metric_card_under_eye"))
+        composeRule.onNodeWithTag("trends_list").performScrollToNode(hasTestTag("trends_metric_card_under_eye"))
         composeRule.onNodeWithTag("trends_metric_card_under_eye").assertIsDisplayed()
-        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag("trends_metric_card_redness"))
+        composeRule.onNodeWithTag("trends_list").performScrollToNode(hasTestTag("trends_metric_card_redness"))
         composeRule.onNodeWithTag("trends_metric_card_redness").assertIsDisplayed()
-        composeRule.onNode(hasScrollAction()).performScrollToNode(hasTestTag("trends_metric_card_texture"))
+        composeRule.onNodeWithTag("trends_list").performScrollToNode(hasTestTag("trends_metric_card_texture"))
         composeRule.onNodeWithTag("trends_metric_card_texture").assertIsDisplayed()
 
         runBlocking {

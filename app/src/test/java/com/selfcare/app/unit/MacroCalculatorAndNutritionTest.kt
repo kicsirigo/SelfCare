@@ -301,8 +301,10 @@ class MacroCalculatorAndNutritionTest {
             weights = emptyList(),
             shelfProducts = emptyList(),
             recentCheckIns = emptyList(),
-            zoneId = java.time.ZoneOffset.UTC
+            zoneId = java.time.ZoneOffset.UTC,
+            nowTime = java.time.LocalTime.of(9, 24)
         )
+        assertTrue(ctx.contains("CURRENT LOCAL TIME: 09:24 (morning)"))
         assertTrue(ctx.contains("TODAY'S NUTRITION"))
         assertTrue(!ctx.contains("EXERCISE & WEIGHT"))
         assertTrue(!ctx.contains("FACE CHECK-IN TRENDS"))
