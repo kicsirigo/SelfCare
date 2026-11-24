@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.13.0",
+            title = "Layer-4 AI Web Search Fallback & Zero-Knowledge Cloud Save",
+            highlights = listOf(
+                "Added Layer-4 AI Web Search Fallback (Groq browser_search on gpt-oss-20b / gpt-oss-120b): when a food isn't found in Offline HU DB, OpenFoodFacts, or USDA, SelfCare searches the web automatically and attaches clickable source URLs (can be toggled in Settings).",
+                "Added Privacy-First Zero-Knowledge Cloud Save (Settings -> Cloud Save): username + password login backed by Supabase (or self-hosted Supabase) with client-side GZIP + AES-256-GCM encryption and a one-time Recovery Key so neither the server nor admins can ever read your health data.",
+                "Added ready-to-run Supabase SQL + Row Level Security schema in docs/supabase_cloud_save.sql and in-app Server URL / Anon Key configuration."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.12.1",
             title = "Clickable Verified Database Source Links (OpenFoodFacts & USDA)",
             highlights = listOf(

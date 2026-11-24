@@ -7,12 +7,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.selfcare.app.BuildConfig
 import com.selfcare.app.data.local.AppLanguage
+import com.selfcare.app.data.local.CloudBackupCrypto
 import com.selfcare.app.data.local.SettingsRepository
 import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.data.remote.AppUpdateInfo
 import com.selfcare.app.data.remote.AppUpdateManager
+import com.selfcare.app.data.remote.CloudAuthResult
+import com.selfcare.app.data.remote.CloudVaultDownloadResult
+import com.selfcare.app.data.remote.CloudVaultUploadResult
 import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.data.remote.ProductVisionClient
+import com.selfcare.app.data.remote.SupabaseCloudSaveClient
 import com.selfcare.app.data.remote.UpdateCheckResult
 import com.selfcare.app.data.remote.UpdateDownloadResult
 import com.selfcare.app.data.repository.BackupRepository
@@ -52,13 +57,21 @@ sealed interface BackupStatus {
     data class Error(val message: String) : BackupStatus
 }
 
+sealed interface CloudSaveStatus {
+    data object Idle : CloudSaveStatus
+    data object Busy : CloudSaveStatus
+    data class Success(val message: String, val generatedRecoveryKey: String? = null) : CloudSaveStatus
+    data class Error(val message: String) : CloudSaveStatus
+}
+
 data class SettingsUiState(
     val settings: UserSettings = UserSettings(),
     val backupStatus: BackupStatus = BackupStatus.Idle,
     val isBusy: Boolean = false,
     val isTestingGeminiKey: Boolean = false,
     val geminiTestResult: GeminiKeyTestResult? = null,
-    val updateState: UpdateManagerState = UpdateManagerState.Idle
+    val updateState: UpdateManagerState = UpdateManagerState.Idle,
+    val cloudSaveStatus: CloudSaveStatus = CloudSaveStatus.Idle
 )
 
 class SettingsViewModel(
@@ -66,7 +79,8 @@ class SettingsViewModel(
     private val backupRepository: BackupRepository,
     private val reminderScheduler: ReminderScheduler,
     private val productVisionClient: ProductVisionClient? = null,
-    private val appUpdateManager: AppUpdateManager? = null
+    private val appUpdateManager: AppUpdateManager? = null,
+    private val cloudSaveClient: SupabaseCloudSaveClient = SupabaseCloudSaveClient()
 ) : ViewModel() {
 
     private val backupStatus = MutableStateFlow<BackupStatus>(BackupStatus.Idle)
@@ -74,6 +88,7 @@ class SettingsViewModel(
     private val isTestingGeminiKey = MutableStateFlow(false)
     private val geminiTestResult = MutableStateFlow<GeminiKeyTestResult?>(null)
     private val updateState = MutableStateFlow<UpdateManagerState>(UpdateManagerState.Idle)
+    private val cloudSaveStatus = MutableStateFlow<CloudSaveStatus>(CloudSaveStatus.Idle)
     private var downloadJob: Job? = null
 
     val uiState: StateFlow<SettingsUiState> = combine(
@@ -82,7 +97,8 @@ class SettingsViewModel(
         isBusy,
         isTestingGeminiKey,
         geminiTestResult,
-        updateState
+        updateState,
+        cloudSaveStatus
     ) { values ->
         SettingsUiState(
             settings = values[0] as UserSettings,
@@ -90,7 +106,8 @@ class SettingsViewModel(
             isBusy = values[2] as Boolean,
             isTestingGeminiKey = values[3] as Boolean,
             geminiTestResult = values[4] as GeminiKeyTestResult?,
-            updateState = values[5] as UpdateManagerState
+            updateState = values[5] as UpdateManagerState,
+            cloudSaveStatus = values[6] as CloudSaveStatus
         )
     }.stateIn(
         scope = viewModelScope,
@@ -119,6 +136,225 @@ class SettingsViewModel(
     fun setBlockScreenshots(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setBlockScreenshots(enabled)
+        }
+    }
+
+    fun setAiWebSearchEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAiWebSearchEnabled(enabled)
+        }
+    }
+
+    fun saveCloudServerConfig(serverUrl: String, anonKey: String) {
+        viewModelScope.launch {
+            settingsRepository.setCloudSaveServerConfig(serverUrl, anonKey)
+            cloudSaveStatus.value = CloudSaveStatus.Success("Server config saved")
+        }
+    }
+
+    fun clearCloudSaveStatus() {
+        cloudSaveStatus.value = CloudSaveStatus.Idle
+    }
+
+    fun cloudSignUp(username: String, password: String) {
+        viewModelScope.launch {
+            val s = settingsRepository.getSettingsOnce()
+            cloudSaveStatus.value = CloudSaveStatus.Busy
+            when (val res = cloudSaveClient.signUp(s.cloudSaveServerUrl, s.cloudSaveAnonKey, username, password)) {
+                is CloudAuthResult.Success -> {
+                    val sess = res.session
+                    settingsRepository.setCloudSaveSession(
+                        username = sess.username,
+                        userId = sess.userId,
+                        accessToken = sess.accessToken,
+                        refreshToken = sess.refreshToken
+                    )
+                    // Immediately upload initial encrypted snapshot and show one-time Recovery Key
+                    uploadEncryptedVaultInternal(
+                        serverUrl = s.cloudSaveServerUrl,
+                        anonKey = s.cloudSaveAnonKey,
+                        accessToken = sess.accessToken,
+                        userId = sess.userId,
+                        password = password
+                    )
+                }
+                is CloudAuthResult.Error -> {
+                    cloudSaveStatus.value = CloudSaveStatus.Error(res.message)
+                }
+            }
+        }
+    }
+
+    fun cloudSignIn(username: String, password: String) {
+        viewModelScope.launch {
+            val s = settingsRepository.getSettingsOnce()
+            cloudSaveStatus.value = CloudSaveStatus.Busy
+            when (val res = cloudSaveClient.signIn(s.cloudSaveServerUrl, s.cloudSaveAnonKey, username, password)) {
+                is CloudAuthResult.Success -> {
+                    val sess = res.session
+                    settingsRepository.setCloudSaveSession(
+                        username = sess.username,
+                        userId = sess.userId,
+                        accessToken = sess.accessToken,
+                        refreshToken = sess.refreshToken
+                    )
+                    cloudSaveStatus.value = CloudSaveStatus.Success("Signed in as ${sess.username}")
+                }
+                is CloudAuthResult.Error -> {
+                    cloudSaveStatus.value = CloudSaveStatus.Error(res.message)
+                }
+            }
+        }
+    }
+
+    fun cloudUploadNow(password: String) {
+        viewModelScope.launch {
+            if (password.length < 6) {
+                cloudSaveStatus.value = CloudSaveStatus.Error("Enter your Cloud Save password (min 6 chars) to encrypt.")
+                return@launch
+            }
+            val s = settingsRepository.getSettingsOnce()
+            if (s.cloudSaveUserId.isBlank() || s.cloudSaveAccessToken.isBlank()) {
+                cloudSaveStatus.value = CloudSaveStatus.Error("Sign in first")
+                return@launch
+            }
+            cloudSaveStatus.value = CloudSaveStatus.Busy
+            val token = ensureFreshCloudToken(s) ?: s.cloudSaveAccessToken
+            uploadEncryptedVaultInternal(
+                serverUrl = s.cloudSaveServerUrl,
+                anonKey = s.cloudSaveAnonKey,
+                accessToken = token,
+                userId = s.cloudSaveUserId,
+                password = password
+            )
+        }
+    }
+
+    fun cloudRestoreWithPassword(password: String) {
+        viewModelScope.launch {
+            if (password.isBlank()) {
+                cloudSaveStatus.value = CloudSaveStatus.Error("Enter your password to decrypt the cloud backup.")
+                return@launch
+            }
+            restoreCloudVaultInternal { envelope ->
+                CloudBackupCrypto.decryptVaultWithPassword(envelope, password)
+            }
+        }
+    }
+
+    fun cloudRestoreWithRecoveryKey(recoveryKey: String) {
+        viewModelScope.launch {
+            if (recoveryKey.isBlank()) {
+                cloudSaveStatus.value = CloudSaveStatus.Error("Enter your Recovery Key (SC-XXXX-...).")
+                return@launch
+            }
+            restoreCloudVaultInternal { envelope ->
+                CloudBackupCrypto.decryptVaultWithRecoveryKey(envelope, recoveryKey)
+            }
+        }
+    }
+
+    fun cloudSignOut() {
+        viewModelScope.launch {
+            settingsRepository.clearCloudSaveSession()
+            cloudSaveStatus.value = CloudSaveStatus.Idle
+        }
+    }
+
+    private suspend fun ensureFreshCloudToken(s: UserSettings): String? {
+        if (s.cloudSaveRefreshToken.isBlank()) return s.cloudSaveAccessToken
+        val refreshed = cloudSaveClient.refreshSession(
+            serverUrl = s.cloudSaveServerUrl,
+            anonKey = s.cloudSaveAnonKey,
+            username = s.cloudSaveUsername,
+            refreshToken = s.cloudSaveRefreshToken
+        )
+        return if (refreshed is CloudAuthResult.Success) {
+            val sess = refreshed.session
+            settingsRepository.setCloudSaveSession(
+                username = sess.username,
+                userId = sess.userId,
+                accessToken = sess.accessToken,
+                refreshToken = sess.refreshToken
+            )
+            sess.accessToken
+        } else {
+            s.cloudSaveAccessToken
+        }
+    }
+
+    private suspend fun uploadEncryptedVaultInternal(
+        serverUrl: String,
+        anonKey: String,
+        accessToken: String,
+        userId: String,
+        password: String
+    ) {
+        val rawJson = runCatching { backupRepository.exportToJson() }.getOrElse { e ->
+            cloudSaveStatus.value = CloudSaveStatus.Error("Export error: ${e.message}")
+            return
+        }
+        val bundle = runCatching {
+            CloudBackupCrypto.createEncryptedVault(rawJson, password)
+        }.getOrElse { e ->
+            cloudSaveStatus.value = CloudSaveStatus.Error("Encryption error: ${e.message}")
+            return
+        }
+        when (val up = cloudSaveClient.uploadVault(
+            serverUrl = serverUrl,
+            anonKey = anonKey,
+            accessToken = accessToken,
+            userId = userId,
+            encryptedEnvelopeJson = bundle.envelopeJson
+        )) {
+            is CloudVaultUploadResult.Success -> {
+                settingsRepository.setCloudSaveLastSynced(up.updatedAtEpochMillis)
+                cloudSaveStatus.value = CloudSaveStatus.Success(
+                    message = "Encrypted cloud backup uploaded!",
+                    generatedRecoveryKey = bundle.recoveryKey
+                )
+            }
+            is CloudVaultUploadResult.Error -> {
+                cloudSaveStatus.value = CloudSaveStatus.Error(up.message)
+            }
+        }
+    }
+
+    private suspend fun restoreCloudVaultInternal(decryptFn: (String) -> Result<String>) {
+        val s = settingsRepository.getSettingsOnce()
+        if (s.cloudSaveUserId.isBlank() || s.cloudSaveAccessToken.isBlank()) {
+            cloudSaveStatus.value = CloudSaveStatus.Error("Sign in first")
+            return
+        }
+        cloudSaveStatus.value = CloudSaveStatus.Busy
+        val token = ensureFreshCloudToken(s) ?: s.cloudSaveAccessToken
+        when (val dl = cloudSaveClient.downloadVault(s.cloudSaveServerUrl, s.cloudSaveAnonKey, token, s.cloudSaveUserId)) {
+            is CloudVaultDownloadResult.Found -> {
+                val decryptedJson = decryptFn(dl.record.payload).getOrElse {
+                    cloudSaveStatus.value = CloudSaveStatus.Error("Decryption failed: wrong password or recovery key.")
+                    return
+                }
+                val imported = backupRepository.importFromJson(decryptedJson)
+                imported.fold(
+                    onSuccess = { summary ->
+                        val updatedSettings = settingsRepository.getSettingsOnce()
+                        reminderScheduler.syncReminders(updatedSettings)
+                        settingsRepository.setCloudSaveLastSynced(dl.record.updatedAtEpochMillis)
+                        cloudSaveStatus.value = CloudSaveStatus.Success(
+                            message = "Restored (${summary.routineLogsCount} routines, ${summary.productsCount} products)!"
+                        )
+                    },
+                    onFailure = { err ->
+                        cloudSaveStatus.value = CloudSaveStatus.Error("Restore failed: ${err.message}")
+                    }
+                )
+            }
+            CloudVaultDownloadResult.NotFound -> {
+                cloudSaveStatus.value = CloudSaveStatus.Error("No cloud backup found for this account yet.")
+            }
+            is CloudVaultDownloadResult.Error -> {
+                cloudSaveStatus.value = CloudSaveStatus.Error(dl.message)
+            }
         }
     }
 

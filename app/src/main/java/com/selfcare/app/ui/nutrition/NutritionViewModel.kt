@@ -583,7 +583,22 @@ class NutritionViewModel(
             )
         }.getOrDefault(com.selfcare.app.domain.health.GroundedDatabaseResult())
         if (dbResult.factsPromptText.isBlank()) {
-            return GroundedMealOutcome(initialMeal, initialModel, false)
+            val allowWeb = runCatching { settingsRepository.settings.first().aiWebSearchEnabled }
+                .getOrDefault(true)
+            if (!allowWeb) return GroundedMealOutcome(initialMeal, initialModel, false)
+            return when (val web = client.searchMealOnWeb(initialMeal, apiKey)) {
+                is com.selfcare.app.data.remote.WebSearchMealResult.Success -> GroundedMealOutcome(
+                    meal = web.meal.copy(
+                        clarificationQuestion = web.meal.clarificationQuestion
+                            .ifBlank { initialMeal.clarificationQuestion }
+                    ),
+                    modelLabel = web.modelUsed.ifBlank { initialModel },
+                    isGrounded = true,
+                    sources = web.sources
+                )
+                is com.selfcare.app.data.remote.WebSearchMealResult.Error ->
+                    GroundedMealOutcome(initialMeal, initialModel, false)
+            }
         }
 
         return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, dbResult.factsPromptText, apiKey)) {

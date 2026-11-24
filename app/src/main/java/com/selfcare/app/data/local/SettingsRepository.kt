@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.selfcare.app.BuildConfig
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -56,7 +57,15 @@ data class UserSettings(
     val bodyHeightCm: Int? = null,
     val bodyIsMale: Boolean = true,
     val bodyActivityLevel: String = "MODERATE",
-    val bodyMacroGoal: String = "MAINTAIN"
+    val bodyMacroGoal: String = "MAINTAIN",
+    val aiWebSearchEnabled: Boolean = true,
+    val cloudSaveServerUrl: String = BuildConfig.SUPABASE_URL,
+    val cloudSaveAnonKey: String = BuildConfig.SUPABASE_ANON_KEY,
+    val cloudSaveUsername: String = "",
+    val cloudSaveUserId: String = "",
+    val cloudSaveAccessToken: String = "",
+    val cloudSaveRefreshToken: String = "",
+    val cloudSaveLastSyncedEpochMillis: Long = 0L
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -84,6 +93,12 @@ class SettingsRepository(
 
     val settings: Flow<UserSettings> = dataStore.data.map { prefs ->
         val decryptedApiKey = prefs[KEY_GEMINI_API_KEY_ENC]
+            ?.let { secretCipher.decrypt(it) }
+            .orEmpty()
+        val decryptedCloudAccess = prefs[KEY_CLOUD_ACCESS_TOKEN_ENC]
+            ?.let { secretCipher.decrypt(it) }
+            .orEmpty()
+        val decryptedCloudRefresh = prefs[KEY_CLOUD_REFRESH_TOKEN_ENC]
             ?.let { secretCipher.decrypt(it) }
             .orEmpty()
         UserSettings(
@@ -125,7 +140,17 @@ class SettingsRepository(
             bodyHeightCm = prefs[KEY_BODY_HEIGHT_CM]?.coerceIn(120, 240),
             bodyIsMale = prefs[KEY_BODY_IS_MALE] ?: true,
             bodyActivityLevel = prefs[KEY_BODY_ACTIVITY_LEVEL] ?: "MODERATE",
-            bodyMacroGoal = prefs[KEY_BODY_MACRO_GOAL] ?: "MAINTAIN"
+            bodyMacroGoal = prefs[KEY_BODY_MACRO_GOAL] ?: "MAINTAIN",
+            aiWebSearchEnabled = prefs[KEY_AI_WEB_SEARCH_ENABLED] ?: true,
+            cloudSaveServerUrl = prefs[KEY_CLOUD_SERVER_URL]?.takeIf { it.isNotBlank() }
+                ?: BuildConfig.SUPABASE_URL,
+            cloudSaveAnonKey = prefs[KEY_CLOUD_ANON_KEY]?.takeIf { it.isNotBlank() }
+                ?: BuildConfig.SUPABASE_ANON_KEY,
+            cloudSaveUsername = prefs[KEY_CLOUD_USERNAME].orEmpty(),
+            cloudSaveUserId = prefs[KEY_CLOUD_USER_ID].orEmpty(),
+            cloudSaveAccessToken = decryptedCloudAccess,
+            cloudSaveRefreshToken = decryptedCloudRefresh,
+            cloudSaveLastSyncedEpochMillis = prefs[KEY_CLOUD_LAST_SYNCED] ?: 0L
         )
     }
 
@@ -176,6 +201,53 @@ class SettingsRepository(
     suspend fun setBlockScreenshots(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[KEY_BLOCK_SCREENSHOTS] = enabled
+        }
+    }
+
+    suspend fun setAiWebSearchEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_AI_WEB_SEARCH_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setCloudSaveServerConfig(serverUrl: String, anonKey: String) {
+        val cleanUrl = serverUrl.trim().trimEnd('/')
+        val cleanKey = anonKey.trim()
+        dataStore.edit { prefs ->
+            if (cleanUrl.isEmpty()) prefs.remove(KEY_CLOUD_SERVER_URL) else prefs[KEY_CLOUD_SERVER_URL] = cleanUrl
+            if (cleanKey.isEmpty()) prefs.remove(KEY_CLOUD_ANON_KEY) else prefs[KEY_CLOUD_ANON_KEY] = cleanKey
+        }
+    }
+
+    suspend fun setCloudSaveSession(
+        username: String,
+        userId: String,
+        accessToken: String,
+        refreshToken: String
+    ) {
+        dataStore.edit { prefs ->
+            prefs[KEY_CLOUD_USERNAME] = username.trim()
+            prefs[KEY_CLOUD_USER_ID] = userId.trim()
+            val encAccess = secretCipher.encrypt(accessToken.trim())
+            if (!encAccess.isNullOrEmpty()) prefs[KEY_CLOUD_ACCESS_TOKEN_ENC] = encAccess else prefs.remove(KEY_CLOUD_ACCESS_TOKEN_ENC)
+            val encRefresh = secretCipher.encrypt(refreshToken.trim())
+            if (!encRefresh.isNullOrEmpty()) prefs[KEY_CLOUD_REFRESH_TOKEN_ENC] = encRefresh else prefs.remove(KEY_CLOUD_REFRESH_TOKEN_ENC)
+        }
+    }
+
+    suspend fun setCloudSaveLastSynced(epochMillis: Long) {
+        dataStore.edit { prefs ->
+            prefs[KEY_CLOUD_LAST_SYNCED] = epochMillis
+        }
+    }
+
+    suspend fun clearCloudSaveSession() {
+        dataStore.edit { prefs ->
+            prefs.remove(KEY_CLOUD_USERNAME)
+            prefs.remove(KEY_CLOUD_USER_ID)
+            prefs.remove(KEY_CLOUD_ACCESS_TOKEN_ENC)
+            prefs.remove(KEY_CLOUD_REFRESH_TOKEN_ENC)
+            prefs.remove(KEY_CLOUD_LAST_SYNCED)
         }
     }
 
@@ -334,6 +406,14 @@ class SettingsRepository(
         private val KEY_BODY_IS_MALE = booleanPreferencesKey("body_is_male")
         private val KEY_BODY_ACTIVITY_LEVEL = stringPreferencesKey("body_activity_level")
         private val KEY_BODY_MACRO_GOAL = stringPreferencesKey("body_macro_goal")
+        private val KEY_AI_WEB_SEARCH_ENABLED = booleanPreferencesKey("ai_web_search_enabled")
+        private val KEY_CLOUD_SERVER_URL = stringPreferencesKey("cloud_save_server_url")
+        private val KEY_CLOUD_ANON_KEY = stringPreferencesKey("cloud_save_anon_key")
+        private val KEY_CLOUD_USERNAME = stringPreferencesKey("cloud_save_username")
+        private val KEY_CLOUD_USER_ID = stringPreferencesKey("cloud_save_user_id")
+        private val KEY_CLOUD_ACCESS_TOKEN_ENC = stringPreferencesKey("cloud_save_access_token_enc")
+        private val KEY_CLOUD_REFRESH_TOKEN_ENC = stringPreferencesKey("cloud_save_refresh_token_enc")
+        private val KEY_CLOUD_LAST_SYNCED = longPreferencesKey("cloud_save_last_synced")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

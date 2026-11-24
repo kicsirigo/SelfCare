@@ -532,4 +532,23 @@
     <string name="nutrition_portion_multiplier_label">Adag / szorzó (×)</string>
     <string name="nutrition_db_ai_verified">DB + AI hitelesítve</string>
     <string name="nutrition_db_sources_label">Ellenőrzött adatbázis-források:</string>
+    <string name="settings_ai_web_search_title">AI webes keresés (fallback)</string>
+    <string name="settings_ai_web_search_desc">Ha egy étel nincs meg sem az Offline, sem az OpenFoodFacts, sem az USDA adatbázisban, az AI rákeres a neten a Groq browser_search segítségével (~3k–6k token, kattintható forráslinkekkel).</string>
+    <string name="settings_cloud_title">Cloud Save (Zero-Knowledge E2EE)</string>
+    <string name="settings_cloud_subtitle">Végponttól végpontig titkosított felhős mentés (AES-256-GCM + Recovery Kód). A jelszavad és az adataid soha nem hagyják el titkosítatlanul a telefont. Az arcfotók helyben maradnak.</string>
+    <string name="settings_cloud_username_label">Felhasználónév</string>
+    <string name="settings_cloud_password_label">Jelszó (min. 6 karakter)</string>
+    <string name="settings_cloud_vault_password_label">Jelszó a titkosításhoz / visszafejtéshez</string>
+    <string name="settings_cloud_signin_btn">Belépés</string>
+    <string name="settings_cloud_signup_btn">Regisztráció</string>
+    <string name="settings_cloud_signed_in_as">Bejelentkezve: %1$s · Utolsó szinkron: %2$s</string>
+    <string name="settings_cloud_upload_btn">Mentés felhőbe</string>
+    <string name="settings_cloud_restore_btn">Visszaállítás</string>
+    <string name="settings_cloud_restore_recovery_btn">Visszaállítás Recovery Kóddal</string>
+    <string name="settings_cloud_signout_btn">Kijelentkezés</string>
+    <string name="settings_cloud_recovery_title">Mentsd el a Recovery Kódod</string>
+    <string name="settings_cloud_recovery_desc">Tedd biztos helyre ezt a kódot. Ha új telefonon elfelejtenéd a jelszavad, kizárólag ezzel a Recovery Kóddal tudod visszafejteni a Zero-Knowledge felhős mentésed.</string>
+    <string name="settings_cloud_recovery_copy">Kód másolása</string>
+    <string name="settings_cloud_server_show">Cloud szerver beállítása (Supabase / Saját)</string>
+    <string name="settings_cloud_server_hide">Cloud szerver beállítás elrejtése</string>
 </resources>

@@ -2,6 +2,7 @@ package com.selfcare.app.data.remote
 
 import android.graphics.Bitmap
 import android.util.Base64
+import com.selfcare.app.domain.health.GroundedSourceRef
 import com.selfcare.app.domain.inci.InciConflictDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -59,6 +60,15 @@ sealed interface MealVisionResult {
     data class Error(val reason: String) : MealVisionResult
 }
 
+sealed interface WebSearchMealResult {
+    data class Success(
+        val meal: EstimatedMealInfo,
+        val modelUsed: String = "",
+        val sources: List<GroundedSourceRef> = emptyList()
+    ) : WebSearchMealResult
+    data class Error(val reason: String) : WebSearchMealResult
+}
+
 sealed interface NutritionLabelVisionResult {
     data class Success(val item: FoodNutritionItem, val modelUsed: String = "") : NutritionLabelVisionResult
     data class Error(val reason: String) : NutritionLabelVisionResult
@@ -91,6 +101,10 @@ interface ProductVisionClient {
         databaseFacts: String,
         apiKey: String
     ): MealVisionResult = MealVisionResult.Error("Not supported")
+    suspend fun searchMealOnWeb(
+        initialMeal: EstimatedMealInfo,
+        apiKey: String
+    ): WebSearchMealResult = WebSearchMealResult.Error("Not supported")
     suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         NutritionLabelVisionResult.Error("Not supported")
     suspend fun chatWithCoach(
@@ -416,6 +430,150 @@ class GroqVisionProductClient(
             }
             MealVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
+
+    override suspend fun searchMealOnWeb(
+        initialMeal: EstimatedMealInfo,
+        apiKey: String
+    ): WebSearchMealResult = withContext(Dispatchers.IO) {
+        val cleanKey = apiKey.trim()
+        if (cleanKey.isEmpty()) {
+            return@withContext WebSearchMealResult.Error("API key is empty")
+        }
+        val querySubject = buildString {
+            append(initialMeal.name)
+            if (initialMeal.detectedIngredients.isNotBlank()) {
+                append(" (")
+                append(initialMeal.detectedIngredients)
+                append(")")
+            }
+        }
+        val prompt = """
+            Use browser_search to look up verified nutritional values per 100g (calories, protein, carbs, fat, fiber, sugar, salt) for:
+            $querySubject
+            Then calculate realistic totals for a ${initialMeal.estimatedGrams.toInt()} g portion.
+            Return ONLY a single raw JSON object (no markdown, no explanation) with keys:
+            "name" (keep the same language as '${initialMeal.name}'), "estimatedGrams" (number), "caloriesKcal" (int), "proteinGrams" (number), "carbsGrams" (number), "fatGrams" (number), "fiberGrams" (number), "sugarGrams" (number), "saltGrams" (number), "detectedIngredients" (short comma-separated list), "clarificationQuestion" (short question or empty string).
+        """.trimIndent()
+
+        val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+        val errors = mutableListOf<String>()
+        for (model in DEFAULT_WEB_SEARCH_MODELS) {
+            val payload = buildJsonObject {
+                put("model", model)
+                put("temperature", 0.1)
+                put("max_tokens", 700)
+                put(
+                    "tools",
+                    buildJsonArray {
+                        add(buildJsonObject { put("type", "browser_search") })
+                    }
+                )
+                put(
+                    "messages",
+                    buildJsonArray {
+                        add(
+                            buildJsonObject {
+                                put("role", "user")
+                                put("content", prompt)
+                            }
+                        )
+                    }
+                )
+            }.toString()
+            val label = shortModelLabel(model)
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer $cleanKey")
+                    .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .build()
+
+                httpClient.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                        val err = "HTTP ${response.code} ($label): $apiMsg"
+                        if (response.code == 401 || response.code == 403) {
+                            return@withContext WebSearchMealResult.Error(err)
+                        }
+                        errors.add(err)
+                        return@use
+                    }
+                    when (val parsed = parseGroqMealResponseJson(bodyStr)) {
+                        is MealVisionResult.Success -> {
+                            val webSources = parseWebSearchSources(bodyStr)
+                            return@withContext WebSearchMealResult.Success(
+                                meal = parsed.meal,
+                                modelUsed = "$label Web (Groq)",
+                                sources = webSources
+                            )
+                        }
+                        is MealVisionResult.Error -> {
+                            errors.add("$label: ${parsed.reason}")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                errors.add(sanitizeExceptionReason(label, e))
+            }
+        }
+        WebSearchMealResult.Error(errors.joinToString(" | ").ifBlank { "Web search unavailable" })
+    }
+
+    internal fun parseWebSearchSources(responseBody: String): List<GroundedSourceRef> {
+        val out = mutableListOf<GroundedSourceRef>()
+        val seenUrls = HashSet<String>()
+
+        fun addUrl(rawUrl: String?, rawTitle: String? = null) {
+            val clean = rawUrl?.trim()?.trimEnd('.', ',', ';', ')', ']') ?: return
+            if (!clean.startsWith("https://") && !clean.startsWith("http://")) return
+            if (!seenUrls.add(clean)) return
+            val host = clean.removePrefix("https://").removePrefix("http://").substringBefore('/').removePrefix("www.")
+            val title = rawTitle?.trim()?.takeIf { it.isNotBlank() } ?: host
+            out.add(
+                GroundedSourceRef(
+                    title = title.take(72),
+                    sourceLabel = "Web Search",
+                    url = clean
+                )
+            )
+        }
+
+        runCatching {
+            val root = json.parseToJsonElement(responseBody).jsonObject
+            val msg = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject
+                ?: return@runCatching
+
+            // 1. Standard Groq executed_tools[].search_results.results[] or executed_tools[].output
+            msg["executed_tools"]?.jsonArray?.forEach { toolEl ->
+                val toolObj = toolEl.jsonObject
+                toolObj["search_results"]?.jsonObject?.get("results")?.jsonArray?.forEach { resEl ->
+                    val resObj = resEl.jsonObject
+                    addUrl(
+                        rawUrl = resObj["url"]?.jsonPrimitive?.contentOrNull,
+                        rawTitle = resObj["title"]?.jsonPrimitive?.contentOrNull
+                    )
+                }
+                val outputBlob = toolObj["output"]?.jsonPrimitive?.contentOrNull
+                    ?: toolObj["result"]?.toString()
+                if (!outputBlob.isNullOrBlank()) {
+                    URL_REGEX.findAll(outputBlob).forEach { match ->
+                        addUrl(match.value)
+                    }
+                }
+            }
+
+            // 2. OpenAI-style annotations[].url_citation
+            msg["annotations"]?.jsonArray?.forEach { annEl ->
+                val citation = annEl.jsonObject["url_citation"]?.jsonObject ?: annEl.jsonObject
+                addUrl(
+                    rawUrl = citation["url"]?.jsonPrimitive?.contentOrNull,
+                    rawTitle = citation["title"]?.jsonPrimitive?.contentOrNull
+                )
+            }
+        }
+        return out.take(5)
+    }
 
     override suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         withContext(Dispatchers.IO) {
@@ -864,6 +1022,11 @@ class GroqVisionProductClient(
             "qwen/qwen3.8-27b",
             "meta-models/muse-spark-open"
         )
+        val DEFAULT_WEB_SEARCH_MODELS = listOf(
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b"
+        )
+        private val URL_REGEX = Regex("""https?://[^\s"'<>\\]+""")
 
         fun selectVisionModelsFromCatalog(modelIds: List<String>): List<String> {
             val visionCandidates = modelIds.filter { id ->
