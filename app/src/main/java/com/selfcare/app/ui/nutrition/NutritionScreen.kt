@@ -65,7 +65,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import com.selfcare.app.ui.components.AnimatedRollingInt
 import com.selfcare.app.ui.components.AnimatedStreakFlamePill
+import com.selfcare.app.ui.components.ExpressiveThinkingDots
 import com.selfcare.app.ui.components.FloatingDeltaPopup
+import com.selfcare.app.ui.components.expressiveSpringSize
 import kotlin.math.cos
 import kotlin.math.sin
 import androidx.compose.ui.res.stringResource
@@ -394,7 +396,15 @@ fun NutritionScreen(
                     }
 
                     AnimatedVisibility(visible = state.isBusy) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .expressiveSpringSize()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            ExpressiveThinkingDots(color = NeonGreen)
+                        }
                     }
 
                     state.statusMessage?.let { rawMsg ->

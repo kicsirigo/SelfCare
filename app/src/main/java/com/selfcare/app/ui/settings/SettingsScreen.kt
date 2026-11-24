@@ -56,6 +56,9 @@ import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.data.remote.AppUpdateInfo
 import com.selfcare.app.data.remote.GeminiKeyTestResult
 import com.selfcare.app.domain.health.VitaminCalculator
+import com.selfcare.app.ui.components.ExpressiveMotion
+import com.selfcare.app.ui.components.expressiveMorphShape
+import com.selfcare.app.ui.components.expressiveSpringSize
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlin.math.roundToInt
@@ -208,7 +211,9 @@ fun SettingsScreenContent(
         // Theme
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
@@ -239,9 +244,11 @@ fun SettingsScreenContent(
                                 ThemeMode.DARK -> R.string.theme_dark
                                 ThemeMode.AMOLED -> R.string.theme_amoled
                             }
+                            val isSelected = settings.themeMode == mode
                             FilterChip(
-                                selected = settings.themeMode == mode,
+                                selected = isSelected,
                                 onClick = { onSelectTheme(mode) },
+                                shape = expressiveMorphShape(isSelected),
                                 label = { Text(stringResource(labelRes)) },
                                 modifier = Modifier.testTag("settings_theme_${mode.name}")
                             )
@@ -254,7 +261,9 @@ fun SettingsScreenContent(
         // Language
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
@@ -309,7 +318,9 @@ fun SettingsScreenContent(
         // Reminders
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
@@ -357,7 +368,9 @@ fun SettingsScreenContent(
         // Privacy & Check-in settings
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
@@ -626,7 +639,9 @@ fun SettingsScreenContent(
             }
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
@@ -803,9 +818,15 @@ fun SettingsScreenContent(
                     val estWebSearchesLeft = remainingTokensEst / 4_500
                     val estPhotoScansLeft = remainingTokensEst / 1_800
                     val tokenFraction = (usedTokens.toFloat() / dailyTokenRef.toFloat()).coerceIn(0f, 1f)
+                    val animatedTokenFraction by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = tokenFraction,
+                        animationSpec = ExpressiveMotion.spatialSpring(),
+                        label = "groq_quota_progress"
+                    )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .expressiveSpringSize()
                             .padding(top = 6.dp)
                             .testTag("settings_groq_quota_box"),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -834,7 +855,7 @@ fun SettingsScreenContent(
                             }
                         }
                         LinearProgressIndicator(
-                            progress = { tokenFraction },
+                            progress = { animatedTokenFraction },
                             modifier = Modifier.fillMaxWidth()
                         )
                         Text(
@@ -1077,7 +1098,9 @@ fun SettingsScreenContent(
         // Local JSON Backup
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(

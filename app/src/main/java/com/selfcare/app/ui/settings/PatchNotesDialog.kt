@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.17.0",
+            title = "2026 Material 3 Expressive Motion Pack & 100% In-App CameraX",
+            highlights = listOf(
+                "Migrated the final remaining system camera (Product Shelf INCI OCR) to our custom in-app CameraX viewfinder — 100% of camera features across the entire app now run natively inside SelfCare with zero system camera handoffs.",
+                "Upgraded the bottom navigation bar, theme chips, and tab transitions with 2026 Material 3 Expressive Shape Morphing (pill -> squircle spring morph) and spatial spring physics.",
+                "Added a 120Hz zero-recomposition GPU ExpressiveThinkingDots wave across AI Coach Chat, Nutrition AI search, and Product Shelf lookup, plus bouncy spring container resizing across Settings, Shelf, and Coach."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.16.1",
             title = "Accidental API Key Deletion Protection",
             highlights = listOf(

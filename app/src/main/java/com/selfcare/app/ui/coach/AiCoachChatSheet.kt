@@ -53,6 +53,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.selfcare.app.R
+import com.selfcare.app.ui.components.ExpressiveMotion
+import com.selfcare.app.ui.components.ExpressiveThinkingDots
+import com.selfcare.app.ui.components.expressiveSpringSize
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.theme.NeonGreen
 
@@ -223,7 +226,9 @@ fun AiCoachChatSheet(
                     items(state.messages) { msg ->
                         val isUser = msg.role == "user"
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateItem(placementSpec = ExpressiveMotion.spatialSpring()),
                             horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
                         ) {
                             Surface(
@@ -259,7 +264,16 @@ fun AiCoachChatSheet(
             }
 
             if (state.isBusy) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .expressiveSpringSize()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ExpressiveThinkingDots(color = NeonGreen)
+                }
             }
 
             state.errorMessage?.let { err ->

@@ -504,7 +504,11 @@ private fun SelfCareScaffold(
                                 shape = if (isCenterCheckIn) {
                                     androidx.compose.foundation.shape.CircleShape
                                 } else {
-                                    androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
+                                    com.selfcare.app.ui.components.expressiveMorphShape(
+                                        selected = selected,
+                                        selectedCorner = 12.dp,
+                                        unselectedCorner = 24.dp
+                                    )
                                 },
                                 color = pillColor,
                                 border = if (isCenterCheckIn) {
@@ -559,8 +563,8 @@ private fun SelfCareScaffold(
             AnimatedContent(
                 targetState = currentDestination,
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(160)) +
-                        scaleIn(initialScale = 0.985f, animationSpec = tween(160))) togetherWith
+                    (fadeIn(animationSpec = tween(180)) +
+                        scaleIn(initialScale = 0.965f, animationSpec = ExpressiveMotion.spatialSpring())) togetherWith
                         fadeOut(animationSpec = tween(110))
                 },
                 label = "nav_tab_transition"

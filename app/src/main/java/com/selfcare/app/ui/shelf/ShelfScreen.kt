@@ -79,7 +79,10 @@ import com.selfcare.app.domain.health.VitaminPlan
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciConflictDetector
 import com.selfcare.app.domain.inci.InciMatch
+import com.selfcare.app.ui.components.ExpressiveThinkingDots
+import com.selfcare.app.ui.components.expressiveSpringSize
 import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.nutrition.InAppFoodCameraDialog
 import com.selfcare.app.ui.theme.NeonWarning
 import java.io.File
 
@@ -89,36 +92,17 @@ fun ShelfScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    var pendingFile by remember { mutableStateOf<File?>(null) }
+    var showOcrCameraDialog by remember { mutableStateOf(false) }
 
-    val fullResOcrLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        val file = pendingFile
-        pendingFile = null
-        if (!success) {
-            ScanPhotoHelper.cleanupTempFile(file)
-            return@rememberLauncherForActivityResult
-        }
-        val bitmap = ScanPhotoHelper.decodeAndDeleteTempPhoto(file)
-        viewModel.onOcrBitmapCaptured(bitmap)
-    }
-
-    fun launchFullResOcr() {
-        try {
-            val capture = ScanPhotoHelper.createTempScanCapture(context)
-            pendingFile = capture.file
-            fullResOcrLauncher.launch(capture.uri)
-        } catch (_: ActivityNotFoundException) {
-            ScanPhotoHelper.cleanupTempFile(pendingFile)
-            pendingFile = null
-            viewModel.openNewProductEditor()
-        } catch (_: Exception) {
-            ScanPhotoHelper.cleanupTempFile(pendingFile)
-            pendingFile = null
-            viewModel.openNewProductEditor()
-        }
+    if (showOcrCameraDialog) {
+        InAppFoodCameraDialog(
+            mode = "OCR",
+            onDismiss = { showOcrCameraDialog = false },
+            onCaptured = { bitmap ->
+                showOcrCameraDialog = false
+                viewModel.onOcrBitmapCaptured(bitmap)
+            }
+        )
     }
 
     if (state.isLiveScannerOpen) {
@@ -141,7 +125,7 @@ fun ShelfScreen(
         onWebSearchClick = viewModel::searchProductOnWebManual,
         onAddPreset = viewModel::addPresetProduct,
         onSmartScanClick = viewModel::openLiveScanner,
-        onScanOcrClick = { launchFullResOcr() },
+        onScanOcrClick = { showOcrCameraDialog = true },
         onAddProductClick = { viewModel.openNewProductEditor() },
         onSelectRemoteProduct = viewModel::selectRemoteProduct,
         onDismissOfflineFallback = viewModel::dismissOfflineFallback,
@@ -637,7 +621,15 @@ fun ShelfScreenContent(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .expressiveSpringSize()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                ExpressiveThinkingDots()
+            }
         }
 
         if (state.geminiErrorBanner != null && state.pendingScanConfirmation == null) {

@@ -1,9 +1,11 @@
 package com.selfcare.app.ui.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -64,6 +66,74 @@ object ExpressiveMotion {
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = 600f
     )
+}
+
+/**
+ * Spring-driven container resize modifier (M3 Expressive spatial physics) for expanding cards & banners.
+ */
+fun Modifier.expressiveSpringSize(): Modifier = this.animateContentSize(
+    animationSpec = spring(
+        dampingRatio = 0.72f,
+        stiffness = 460f
+    )
+)
+
+/**
+ * 2026 Material 3 Expressive Shape Morphing: animates corner radius between a pill (unselected)
+ * and a crisp squircle (selected) with spring physics.
+ */
+@Composable
+fun expressiveMorphShape(
+    selected: Boolean,
+    selectedCorner: Dp = 12.dp,
+    unselectedCorner: Dp = 24.dp
+): RoundedCornerShape {
+    val radius by animateDpAsState(
+        targetValue = if (selected) selectedCorner else unselectedCorner,
+        animationSpec = ExpressiveMotion.spatialSpring(),
+        label = "expressive_shape_morph"
+    )
+    return RoundedCornerShape(radius)
+}
+
+/**
+ * 120Hz zero-recomposition GPU-drawn 3-dot wave indicator for AI Coach & AI Web Search loading states.
+ */
+@Composable
+fun ExpressiveThinkingDots(
+    color: Color = MaterialTheme.colorScheme.primary,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "expressive_thinking")
+    val phase = infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2.0 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1050, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "thinking_phase"
+    )
+    Canvas(
+        modifier = modifier.size(width = 48.dp, height = 18.dp)
+    ) {
+        val t = phase.value
+        val baseRadius = size.height * 0.20f
+        val spacing = size.width / 4f
+        val centerY = size.height * 0.54f
+        val amplitude = size.height * 0.24f
+        for (i in 0 until 3) {
+            val wave = sin((t - i * 0.85f).toDouble()).toFloat()
+            val y = centerY - wave * amplitude
+            val r = baseRadius * (0.85f + 0.28f * ((wave + 1f) * 0.5f))
+            val alpha = (0.45f + 0.55f * ((wave + 1f) * 0.5f)).coerceIn(0.35f, 1f)
+            drawCircle(
+                color = color.copy(alpha = alpha),
+                radius = r,
+                center = Offset(spacing * (i + 1), y)
+            )
+        }
+    }
 }
 
 /**

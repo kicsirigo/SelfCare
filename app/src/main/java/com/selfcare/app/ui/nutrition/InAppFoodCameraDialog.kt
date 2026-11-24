@@ -110,6 +110,7 @@ fun InAppFoodCameraDialog(
     val titleRes = when (mode) {
         "LABEL" -> R.string.nutrition_label_scan_btn
         "BARCODE" -> R.string.nutrition_barcode_btn
+        "OCR" -> R.string.shelf_scan_label
         else -> R.string.nutrition_meal_photo_ai
     }
 
