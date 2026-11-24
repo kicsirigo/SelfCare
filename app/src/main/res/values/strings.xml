@@ -32,17 +32,7 @@
     <string name="routine_no_products_hint">Add products in Shelf to assign morning and evening defaults.</string>
 
     <!-- Hygiene -->
-    <string name="hygiene_title">Daily Hygiene</string>
-    <string name="hygiene_shower">Shower or Bath</string>
-    <string name="hygiene_teeth_am">Morning Teeth Brushing</string>
-    <string name="hygiene_teeth_pm">Evening Teeth Brushing</string>
-    <string name="hygiene_lip_balm">Lip Balm</string>
-    <string name="hygiene_custom_habits">Custom Habits</string>
-    <string name="hygiene_add_habit">Add Habit</string>
     <string name="hygiene_completed_label">Done</string>
-    <string name="hygiene_pending_label">Tap to log</string>
-    <string name="hygiene_habit_name_hint">Habit name</string>
-    <string name="hygiene_no_custom_habits">No custom habits yet</string>
 
     <!-- Shelf -->
     <string name="shelf_title">Product Shelf</string>

@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestHighestRefreshRate()
         handleIncomingShareIntent(intent)
         val container = (application as SelfCareApp).container
         setContent {
@@ -118,6 +119,30 @@ class MainActivity : ComponentActivity() {
                 sharedProductFlow = sharedProductFlow,
                 onConsumeSharedProduct = { sharedProductFlow.value = null }
             )
+        }
+    }
+
+    private fun requestHighestRefreshRate() {
+        runCatching {
+            val activeDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display
+            } else {
+                @Suppress("DEPRECATION")
+                windowManager.defaultDisplay
+            } ?: return
+            val currentMode = activeDisplay.mode ?: return
+            val bestMode = activeDisplay.supportedModes
+                .filter {
+                    it.physicalWidth == currentMode.physicalWidth &&
+                        it.physicalHeight == currentMode.physicalHeight
+                }
+                .maxByOrNull { it.refreshRate }
+                ?: activeDisplay.supportedModes.maxByOrNull { it.refreshRate }
+                ?: return
+            val params = window.attributes
+            params.preferredDisplayModeId = bestMode.modeId
+            params.preferredRefreshRate = bestMode.refreshRate
+            window.attributes = params
         }
     }
 
@@ -534,17 +559,9 @@ private fun SelfCareScaffold(
             AnimatedContent(
                 targetState = currentDestination,
                 transitionSpec = {
-                    val fromIdx = bottomDestinations.indexOf(initialState)
-                    val toIdx = bottomDestinations.indexOf(targetState)
-                    val forward = toIdx >= fromIdx
-                    (fadeIn(animationSpec = tween(220)) +
-                        slideInHorizontally(animationSpec = ExpressiveMotion.spatialSpring()) { w ->
-                            if (forward) w / 10 else -w / 10
-                        }) togetherWith
-                        (fadeOut(animationSpec = tween(150)) +
-                            slideOutHorizontally(animationSpec = tween(150)) { w ->
-                                if (forward) -w / 14 else w / 14
-                            })
+                    (fadeIn(animationSpec = tween(160)) +
+                        scaleIn(initialScale = 0.985f, animationSpec = tween(160))) togetherWith
+                        fadeOut(animationSpec = tween(110))
                 },
                 label = "nav_tab_transition"
             ) { targetDestination ->

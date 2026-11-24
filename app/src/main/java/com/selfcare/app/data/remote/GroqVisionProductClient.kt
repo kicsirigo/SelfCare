@@ -476,31 +476,37 @@ class GroqVisionProductClient(
             NutritionLabelVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
+    private fun extractAssistantText(responseBody: String): Pair<String?, String?> {
+        val root = json.parseToJsonElement(responseBody).jsonObject
+        val firstChoice = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject
+            ?: return null to "EMPTY_CHOICES"
+        val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
+            ?.trim()
+            ?: return null to "EMPTY_TEXT"
+        val withoutThink = rawText
+            .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
+            .trim()
+        return withoutThink to null
+    }
+
+    private fun extractJsonObjectSlice(responseBody: String): Pair<String?, String?> {
+        val (text, err) = extractAssistantText(responseBody)
+        if (err != null || text == null) return null to (err ?: "EMPTY_TEXT")
+        val cleaned = text
+            .removePrefix("```json")
+            .removePrefix("```")
+            .removeSuffix("```")
+            .trim()
+        val start = cleaned.indexOf('{')
+        val end = cleaned.lastIndexOf('}')
+        val slice = if (start >= 0 && end > start) cleaned.substring(start, end + 1) else cleaned
+        return slice to null
+    }
+
     fun parseGroqNutritionLabelJson(responseBody: String): NutritionLabelVisionResult {
         return try {
-            val root = json.parseToJsonElement(responseBody).jsonObject
-            val choices = root["choices"]?.jsonArray
-            val firstChoice = choices?.firstOrNull()?.jsonObject
-                ?: return NutritionLabelVisionResult.Error("EMPTY_CHOICES")
-            val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
-                ?.trim()
-                ?: return NutritionLabelVisionResult.Error("EMPTY_TEXT")
-
-            val withoutThink = rawText
-                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
-                .trim()
-            val cleaned = withoutThink
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-            val jsonStart = cleaned.indexOf('{')
-            val jsonEnd = cleaned.lastIndexOf('}')
-            val jsonSlice = if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                cleaned.substring(jsonStart, jsonEnd + 1)
-            } else {
-                cleaned
-            }
+            val (jsonSlice, err) = extractJsonObjectSlice(responseBody)
+            if (err != null || jsonSlice == null) return NutritionLabelVisionResult.Error(err ?: "EMPTY_TEXT")
             val dto = json.decodeFromString(GroqNutritionLabelDto.serializer(), jsonSlice)
             if (dto.per100gKcal <= 0f && dto.per100gProtein <= 0f && dto.per100gCarbs <= 0f && dto.per100gFat <= 0f) {
                 return NutritionLabelVisionResult.Error("NO_LABEL_FOUND")
@@ -527,29 +533,8 @@ class GroqVisionProductClient(
 
     fun parseGroqMealResponseJson(responseBody: String): MealVisionResult {
         return try {
-            val root = json.parseToJsonElement(responseBody).jsonObject
-            val choices = root["choices"]?.jsonArray
-            val firstChoice = choices?.firstOrNull()?.jsonObject
-                ?: return MealVisionResult.Error("EMPTY_CHOICES")
-            val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
-                ?.trim()
-                ?: return MealVisionResult.Error("EMPTY_TEXT")
-
-            val withoutThink = rawText
-                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
-                .trim()
-            val cleaned = withoutThink
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-            val jsonStart = cleaned.indexOf('{')
-            val jsonEnd = cleaned.lastIndexOf('}')
-            val jsonSlice = if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                cleaned.substring(jsonStart, jsonEnd + 1)
-            } else {
-                cleaned
-            }
+            val (jsonSlice, err) = extractJsonObjectSlice(responseBody)
+            if (err != null || jsonSlice == null) return MealVisionResult.Error(err ?: "EMPTY_TEXT")
             val dto = json.decodeFromString(GroqMealDto.serializer(), jsonSlice)
             val name = dto.name.trim()
             if (name.isBlank() || dto.caloriesKcal <= 0) {
@@ -577,32 +562,8 @@ class GroqVisionProductClient(
 
     fun parseGroqResponseJson(responseBody: String): GeminiVisionResult {
         return try {
-            val root = json.parseToJsonElement(responseBody).jsonObject
-            val choices = root["choices"]?.jsonArray
-            val firstChoice = choices?.firstOrNull()?.jsonObject
-                ?: return GeminiVisionResult.Error("EMPTY_CHOICES")
-            val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
-                ?.trim()
-                ?: return GeminiVisionResult.Error("EMPTY_TEXT")
-
-            val withoutThink = rawText
-                .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
-                .trim()
-
-            val cleaned = withoutThink
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-
-            val jsonObjStart = cleaned.indexOf('{')
-            val jsonObjEnd = cleaned.lastIndexOf('}')
-            val jsonSlice = if (jsonObjStart >= 0 && jsonObjEnd > jsonObjStart) {
-                cleaned.substring(jsonObjStart, jsonObjEnd + 1)
-            } else {
-                cleaned
-            }
-
+            val (jsonSlice, err) = extractJsonObjectSlice(responseBody)
+            if (err != null || jsonSlice == null) return GeminiVisionResult.Error(err ?: "EMPTY_TEXT")
             val dto = json.decodeFromString(GroqProductDto.serializer(), jsonSlice)
             val name = dto.name.trim()
             if (name.isBlank()) {
@@ -820,19 +781,9 @@ class GroqVisionProductClient(
 
     internal fun parseGroqCoachReplyJson(rawJson: String): AiCoachChatResult {
         return try {
-            val root = json.parseToJsonElement(rawJson).jsonObject
-            val rawContent = root["choices"]
-                ?.jsonArray?.firstOrNull()
-                ?.jsonObject?.get("message")
-                ?.jsonObject?.get("content")
-                ?.jsonPrimitive?.contentOrNull
-                ?.trim()
-                .orEmpty()
-            val cleaned = rawContent
-                .replace(Regex("(?s)<think>.*?</think>"), "")
-                .trim()
-            if (cleaned.isEmpty()) {
-                AiCoachChatResult.Error("Empty AI response")
+            val (cleaned, err) = extractAssistantText(rawJson)
+            if (err != null || cleaned.isNullOrEmpty()) {
+                AiCoachChatResult.Error(err ?: "Empty AI response")
             } else {
                 AiCoachChatResult.Success(reply = cleaned)
             }

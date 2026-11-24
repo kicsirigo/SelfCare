@@ -32,17 +32,7 @@
     <string name="routine_no_products_hint">Adj hozzá termékeket a Polcon a reggeli és esti alapértelmezettekhez.</string>
 
     <!-- Hygiene -->
-    <string name="hygiene_title">Napi higiénia</string>
-    <string name="hygiene_shower">Zuhanyzás vagy fürdés</string>
-    <string name="hygiene_teeth_am">Reggeli fogmosás</string>
-    <string name="hygiene_teeth_pm">Esti fogmosás</string>
-    <string name="hygiene_lip_balm">Ajakápoló</string>
-    <string name="hygiene_custom_habits">Egyéni szokások</string>
-    <string name="hygiene_add_habit">Szokás hozzáadása</string>
     <string name="hygiene_completed_label">Kész</string>
-    <string name="hygiene_pending_label">Érintsd meg a naplózáshoz</string>
-    <string name="hygiene_habit_name_hint">Szokás neve</string>
-    <string name="hygiene_no_custom_habits">Még nincsenek egyéni szokások</string>
 
     <!-- Shelf -->
     <string name="shelf_title">Termékpolc</string>

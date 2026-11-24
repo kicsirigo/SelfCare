@@ -28,8 +28,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 38
-        versionName = "3.10.0"
+        versionCode = 39
+        versionName = "3.10.1"
 
         buildConfigField(
             "String",
@@ -169,7 +169,6 @@ dependencies {
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.androidx.test.espresso.intents)
     testImplementation(libs.androidx.room.testing)
-    testImplementation(libs.androidx.work.testing)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.compose.ui.test.junit4)

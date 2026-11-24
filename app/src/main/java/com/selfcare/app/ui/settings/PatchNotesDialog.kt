@@ -30,6 +30,16 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.10.1",
+            title = "True 120Hz Display Mode & Zero-Recomposition Animation Engine",
+            highlights = listOf(
+                "Explicitly requests the display's highest supported refresh rate (120Hz/144Hz) in MainActivity so HyperOS/LTPO devices never throttle the app down to 60Hz.",
+                "Moved breathing AI FAB halo, floating +ml popups, confetti overlay, calorie ring, and macro progress bars to deferred GPU draw/graphicsLayer state reads (0 recompositions/sec & 0 re-layouts during animations).",
+                "Eliminated per-frame Path allocations in AnimatedWaterGlass and switched tab transitions to jank-free GPU fade+micro-scale.",
+                "Codebase lean audit: removed dead Hygiene UI/ViewModel files, unused strings and test dependency, and deduplicated Groq response parsing."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.10.0",
             title = "Material 3 Expressive Motion Pack & Larger Breathing AI Coach Button",
             highlights = listOf(

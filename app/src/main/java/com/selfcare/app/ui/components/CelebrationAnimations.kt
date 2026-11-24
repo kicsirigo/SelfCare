@@ -98,11 +98,10 @@ fun CelebrationOverlay(
         )
     }
 
-    val t = progress.value
-    if (t >= 0.995f) return
-
     Box(modifier = modifier.fillMaxSize()) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            val t = progress.value
+            if (t >= 0.995f) return@Canvas
             val w = size.width
             val h = size.height
             val alpha = ((1f - t) * 1.4f).coerceIn(0f, 1f)
@@ -208,6 +207,11 @@ fun AnimatedWaterGlass(
         label = "sparkle_pulse"
     )
 
+    val glassPath = remember { Path() }
+    val backWave = remember { Path() }
+    val frontWave = remember { Path() }
+    val bubbleOffsets = remember { listOf(0.38f to 0.0f, 0.56f to 0.35f, 0.64f to 0.72f) }
+
     Canvas(
         modifier = modifier
             .size(width = glassWidth, height = glassHeight)
@@ -227,13 +231,12 @@ fun AnimatedWaterGlass(
         val bottomRightX = w * 0.76f
         val bottomY = h - padBottom
 
-        val glassPath = Path().apply {
-            moveTo(topLeftX, padTop)
-            lineTo(bottomLeftX, bottomY)
-            lineTo(bottomRightX, bottomY)
-            lineTo(topRightX, padTop)
-            close()
-        }
+        glassPath.reset()
+        glassPath.moveTo(topLeftX, padTop)
+        glassPath.lineTo(bottomLeftX, bottomY)
+        glassPath.lineTo(bottomRightX, bottomY)
+        glassPath.lineTo(topRightX, padTop)
+        glassPath.close()
 
         // Subtle glass interior backdrop
         drawPath(
@@ -246,21 +249,21 @@ fun AnimatedWaterGlass(
             val usableHeight = (bottomY - padTop) * 0.92f
             val waterTopY = bottomY - usableHeight * fill
             val waveAmp = if (fill >= 0.99f) 2.5f else 4.5f
+            val phase = wavePhase.value
 
             clipPath(glassPath) {
                 // Back wave layer
-                val backWave = Path().apply {
-                    moveTo(0f, bottomY)
-                    lineTo(0f, waterTopY)
-                    val steps = 28
-                    for (i in 0..steps) {
-                        val x = (i.toFloat() / steps) * w
-                        val y = waterTopY + sin(wavePhase.value + i * 0.42f + 1.4f) * waveAmp
-                        lineTo(x, y)
-                    }
-                    lineTo(w, bottomY)
-                    close()
+                backWave.reset()
+                backWave.moveTo(0f, bottomY)
+                backWave.lineTo(0f, waterTopY)
+                val steps = 28
+                for (i in 0..steps) {
+                    val x = (i.toFloat() / steps) * w
+                    val y = waterTopY + sin(phase + i * 0.42f + 1.4f) * waveAmp
+                    backWave.lineTo(x, y)
                 }
+                backWave.lineTo(w, bottomY)
+                backWave.close()
                 drawPath(
                     path = backWave,
                     color = if (isGoalReached) {
@@ -271,18 +274,16 @@ fun AnimatedWaterGlass(
                 )
 
                 // Front wave layer with rich gradient
-                val frontWave = Path().apply {
-                    moveTo(0f, bottomY)
-                    lineTo(0f, waterTopY)
-                    val steps = 28
-                    for (i in 0..steps) {
-                        val x = (i.toFloat() / steps) * w
-                        val y = waterTopY + sin(wavePhase.value + i * 0.38f) * waveAmp
-                        lineTo(x, y)
-                    }
-                    lineTo(w, bottomY)
-                    close()
+                frontWave.reset()
+                frontWave.moveTo(0f, bottomY)
+                frontWave.lineTo(0f, waterTopY)
+                for (i in 0..steps) {
+                    val x = (i.toFloat() / steps) * w
+                    val y = waterTopY + sin(phase + i * 0.38f) * waveAmp
+                    frontWave.lineTo(x, y)
                 }
+                frontWave.lineTo(w, bottomY)
+                frontWave.close()
                 val liquidBrush = if (isGoalReached) {
                     Brush.verticalGradient(
                         colors = listOf(Color(0xFF38BDF8), NeonGreen.copy(alpha = 0.85f)),
@@ -299,9 +300,8 @@ fun AnimatedWaterGlass(
                 drawPath(path = frontWave, brush = liquidBrush)
 
                 // Animated rising micro-bubbles inside water
-                val bubblePhase = (wavePhase.value / (2f * PI).toFloat())
+                val bubblePhase = (phase / (2f * PI).toFloat())
                 val liquidDepth = (bottomY - waterTopY).coerceAtLeast(1f)
-                val bubbleOffsets = listOf(0.38f to 0.0f, 0.56f to 0.35f, 0.64f to 0.72f)
                 for ((bxFrac, offset) in bubbleOffsets) {
                     val bProgress = (bubblePhase + offset) % 1f
                     val by = bottomY - bProgress * liquidDepth * 0.85f

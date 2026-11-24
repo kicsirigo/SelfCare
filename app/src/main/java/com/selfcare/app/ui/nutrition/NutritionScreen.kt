@@ -1,8 +1,5 @@
 package com.selfcare.app.ui.nutrition
 
-import android.content.ActivityNotFoundException
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -87,10 +84,8 @@ import com.selfcare.app.domain.health.MealTimingAnalyzer
 import com.selfcare.app.ui.components.AnimatedWaterGlass
 import com.selfcare.app.ui.components.CelebrationOverlay
 import com.selfcare.app.ui.icons.AppIcons
-import com.selfcare.app.ui.shelf.ScanPhotoHelper
 import com.selfcare.app.ui.theme.NeonGreen
 import com.selfcare.app.ui.theme.NeonWarning
-import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -707,7 +702,7 @@ private fun CalorieMacroSummaryCard(
     onLogWeight: () -> Unit
 ) {
     val targetKcal = state.effectiveCalorieTarget.coerceAtLeast(1)
-    val kcalProgress by animateFloatAsState(
+    val kcalProgressState = animateFloatAsState(
         targetValue = (state.totalCalories.toFloat() / targetKcal).coerceIn(0f, 1f),
         animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessLow),
         label = "kcal_ring"
@@ -777,6 +772,7 @@ private fun CalorieMacroSummaryCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
+                        val kcalProgress = kcalProgressState.value
                         val stroke = 11.dp.toPx()
                         drawArc(
                             color = Color.White.copy(alpha = 0.10f),
@@ -903,7 +899,7 @@ private fun MacroBarRow(
     target: Int,
     color: Color
 ) {
-    val progress by animateFloatAsState(
+    val progressState = animateFloatAsState(
         targetValue = (current / target.coerceAtLeast(1)).coerceIn(0f, 1f),
         animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessLow),
         label = "macro_bar_$label"
@@ -925,20 +921,24 @@ private fun MacroBarRow(
                 color = color
             )
         }
-        Box(
+        Canvas(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(7.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(Color.White.copy(alpha = 0.10f))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(7.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(color)
+            val corner = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.10f),
+                cornerRadius = corner
             )
+            val fillW = size.width * progressState.value
+            if (fillW > 0.5f) {
+                drawRoundRect(
+                    color = color,
+                    size = androidx.compose.ui.geometry.Size(fillW, size.height),
+                    cornerRadius = corner
+                )
+            }
         }
     }
 }
