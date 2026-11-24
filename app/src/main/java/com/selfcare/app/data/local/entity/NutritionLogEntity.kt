@@ -22,6 +22,7 @@ data class NutritionLogEntity(
     val fatGrams: Float = 0f,
     val fiberGrams: Float = 0f,
     val sugarGrams: Float = 0f,
+    val saltGrams: Float = 0f,
     val source: String = "MANUAL",
     val createdAtEpochMillis: Long
 ) {

@@ -48,7 +48,8 @@ data class EstimatedMealInfo(
     val carbsGrams: Float,
     val fatGrams: Float,
     val fiberGrams: Float = 0f,
-    val sugarGrams: Float = 0f
+    val sugarGrams: Float = 0f,
+    val saltGrams: Float = 0f
 )
 
 sealed interface MealVisionResult {
@@ -60,6 +61,8 @@ interface ProductVisionClient {
     suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
     suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
     suspend fun estimateMealFromPhoto(bitmap: Bitmap, apiKey: String): MealVisionResult =
+        MealVisionResult.Error("Not supported")
+    suspend fun estimateMealFromText(query: String, apiKey: String): MealVisionResult =
         MealVisionResult.Error("Not supported")
 }
 
@@ -307,6 +310,78 @@ class GroqVisionProductClient(
             MealVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
+    override suspend fun estimateMealFromText(query: String, apiKey: String): MealVisionResult =
+        withContext(Dispatchers.IO) {
+            val cleanKey = apiKey.trim()
+            val cleanQuery = query.trim()
+            if (cleanKey.isEmpty()) {
+                return@withContext MealVisionResult.Error("API key is empty")
+            }
+            if (cleanQuery.isEmpty()) {
+                return@withContext MealVisionResult.Error("Query is empty")
+            }
+
+            val modelsToTry = discoverVisionModels(cleanKey, useCache = true)
+            val errors = mutableListOf<String>()
+            val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+            for (model in modelsToTry) {
+                val payload = buildJsonObject {
+                    put("model", model)
+                    put("temperature", 0.1)
+                    put("max_tokens", 512)
+                    put("messages", buildJsonArray {
+                        add(buildJsonObject {
+                            put("role", "user")
+                            put("content", "$TEXT_MEAL_ESTIMATION_PROMPT\n\nFood/Meal: $cleanQuery")
+                        })
+                    })
+                }.toString()
+                val label = shortModelLabel(model)
+                for (attempt in 0 until MAX_TRANSIENT_ATTEMPTS) {
+                    try {
+                        val request = Request.Builder()
+                            .url(url)
+                            .header("Authorization", "Bearer $cleanKey")
+                            .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                            .build()
+
+                        var shouldRetry = false
+                        httpClient.newCall(request).execute().use { response ->
+                            val bodyStr = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                                val err = "HTTP ${response.code} ($label): $apiMsg"
+                                if (response.code == 401 || response.code == 403) {
+                                    return@withContext MealVisionResult.Error(err)
+                                }
+                                shouldRetry = isTransientRetryableStatus(response.code) &&
+                                    attempt < MAX_TRANSIENT_ATTEMPTS - 1
+                                if (!shouldRetry) errors.add(err)
+                                return@use
+                            }
+                            when (val parsed = parseGroqMealResponseJson(bodyStr)) {
+                                is MealVisionResult.Success -> {
+                                    return@withContext parsed.copy(modelUsed = "$label (Groq)")
+                                }
+                                is MealVisionResult.Error -> {
+                                    errors.add("$label: ${parsed.reason}")
+                                }
+                            }
+                        }
+                        if (shouldRetry) {
+                            delayFn(RETRY_BACKOFF_MS[attempt])
+                            continue
+                        }
+                        break
+                    } catch (e: Exception) {
+                        errors.add(sanitizeExceptionReason(label, e))
+                        break
+                    }
+                }
+            }
+            MealVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
+        }
+
     fun parseGroqMealResponseJson(responseBody: String): MealVisionResult {
         return try {
             val root = json.parseToJsonElement(responseBody).jsonObject
@@ -346,7 +421,8 @@ class GroqVisionProductClient(
                     carbsGrams = dto.carbsGrams.coerceIn(0f, 600f),
                     fatGrams = dto.fatGrams.coerceIn(0f, 300f),
                     fiberGrams = dto.fiberGrams.coerceIn(0f, 150f),
-                    sugarGrams = dto.sugarGrams.coerceIn(0f, 300f)
+                    sugarGrams = dto.sugarGrams.coerceIn(0f, 300f),
+                    saltGrams = dto.saltGrams.coerceIn(0f, 30f)
                 )
             )
         } catch (e: Exception) {
@@ -511,7 +587,8 @@ class GroqVisionProductClient(
         val carbsGrams: Float = 0f,
         val fatGrams: Float = 0f,
         val fiberGrams: Float = 0f,
-        val sugarGrams: Float = 0f
+        val sugarGrams: Float = 0f,
+        val saltGrams: Float = 0f
     )
 
     companion object {
@@ -565,7 +642,7 @@ class GroqVisionProductClient(
                 "\"ingredients\" (comma-separated key active ingredients or vitamins/dosages visible or known for this exact product, e.g. 'Niacinamide, Salicylic Acid' or 'Vitamin D3 2000 IU')."
 
         private const val MEAL_ESTIMATION_PROMPT =
-            "Identify the meal or food on this photo and estimate realistic portion nutrition for the ENTIRE visible serving. " +
+            "Identify the meal or food on this photo (e.g. sandwich, stew, salad, pastry) and estimate realistic portion nutrition INCLUDING salt content for the ENTIRE visible serving. " +
                 "Return ONLY a single raw JSON object (no markdown, no explanation) with keys: " +
                 "\"name\" (short descriptive meal name, empty string if no food visible), " +
                 "\"estimatedGrams\" (number, estimated total grams of food), " +
@@ -574,7 +651,21 @@ class GroqVisionProductClient(
                 "\"carbsGrams\" (number), " +
                 "\"fatGrams\" (number), " +
                 "\"fiberGrams\" (number), " +
-                "\"sugarGrams\" (number)."
+                "\"sugarGrams\" (number), " +
+                "\"saltGrams\" (number, estimated total salt in grams, e.g. 1.8 for a ham sandwich or 3.2 for chicken paprikash)."
+
+        private const val TEXT_MEAL_ESTIMATION_PROMPT =
+            "Estimate realistic nutrition INCLUDING salt content for the described Hungarian or international dish/food and serving size (default to a typical single portion if no grams/count is specified). " +
+                "Return ONLY a single raw JSON object (no markdown, no explanation) with keys: " +
+                "\"name\" (clean meal name in the same language as the user's input), " +
+                "\"estimatedGrams\" (number, total grams of the portion), " +
+                "\"caloriesKcal\" (integer, total kcal), " +
+                "\"proteinGrams\" (number), " +
+                "\"carbsGrams\" (number), " +
+                "\"fatGrams\" (number), " +
+                "\"fiberGrams\" (number), " +
+                "\"sugarGrams\" (number), " +
+                "\"saltGrams\" (number, estimated total salt in grams)."
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

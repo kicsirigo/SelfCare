@@ -256,7 +256,7 @@
     <string name="shelf_offline_ocr_badge">Offline OCR mód (kulcs nélkül)</string>
     <string name="shelf_camera_permission_needed">Kameraengedély szükséges az élő termékszkennerhez.</string>
     <string name="settings_ai_vision_title">Groq Vision AI (Qwen 3.8 27B)</string>
-    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Qwen 3.8 27B Vision, ~1 mp válaszidő). Üresen 100% offline Vonalkód + INCI OCR fut. A szelfik soha nem hagyják el az eszközt.</string>
+    <string name="settings_ai_vision_desc">Illessz be egy ingyenes Groq API kulcsot (gsk_... a console.groq.com-ról — Qwen 3.8 27B Vision, ~1 mp válaszidő). A Groq a képeket és szövegeket NEM használja AI tanításra (az ingyenes tieren sem). A szelfik és testprofil-adatok soha nem hagyják el az eszközt.</string>
     <string name="settings_gemini_key_label">Groq API kulcs (gsk_...)</string>
     <string name="settings_gemini_key_hint">gsk_... kulcs beillesztése (opcionális)</string>
     <string name="settings_gemini_key_saved">API kulcs helyben elmentve</string>
@@ -442,4 +442,25 @@
     <string name="nutrition_err_no_barcode">Nem látható vonalkód a képen. Próbáld újra jobb fénynél!</string>
     <string name="nutrition_err_not_found">Nincs találat az OpenFoodFacts adatbázisban.</string>
     <string name="nutrition_err_food_not_found">A(z) %1$s vonalkód nem található az OpenFoodFacts-ben.</string>
+    <string name="nutrition_ai_estimate_btn">AI becslés</string>
+    <string name="nutrition_recent_meals">Legutóbbi ételek (1 koppintás)</string>
+    <string name="nutrition_fiber_sugar_salt_summary">Rost: %1$s g  ·  Cukor: %2$s g  ·  Só: %3$s g</string>
+    <string name="nutrition_salt_short">Só</string>
+    <string name="nutrition_salt_water_bonus">Só ma: %1$s g (+%2$d ml extra víz ajánlott)</string>
+    <string name="nutrition_salt_daily_ok">Só ma: %1$s g / 5.0 g (Optimális)</string>
+    <string name="nutrition_auto_age_hint">Életkor automatikusan átvéve a születési dátumodból: %d év (100%% offline)</string>
+    <string name="nutrition_current_weight_label">Jelenlegi (kg)</string>
+    <string name="nutrition_target_weight_label">Célsúly (kg)</string>
+    <string name="nutrition_gender_male">Férfi</string>
+    <string name="nutrition_gender_female">Nő</string>
+    <string name="nutrition_act_sedentary">Ülő</string>
+    <string name="nutrition_act_light">Könnyű</string>
+    <string name="nutrition_act_moderate">Közepes</string>
+    <string name="nutrition_act_active">Aktív</string>
+    <string name="privacy_no_ai_training_note">A Groq API-nak küldött képeket és szövegeket nem használják AI tanításra.</string>
+    <string name="trends_history_manage">Kezelés</string>
+    <string name="trends_history_select_all">Összes kijelölése</string>
+    <string name="trends_history_deselect_all">Kijelölés törlése</string>
+    <string name="trends_history_delete_selected">Törlés (%d)</string>
+    <string name="trends_bulk_delete_confirm_body">Biztosan véglegesen törlöd a kijelölt %d db állapotfelmérést?</string>
 </resources>

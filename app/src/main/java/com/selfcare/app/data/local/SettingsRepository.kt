@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -46,7 +47,13 @@ data class UserSettings(
     val dailyProteinTargetGrams: Int = DEFAULT_PROTEIN_TARGET,
     val dailyCarbsTargetGrams: Int = DEFAULT_CARBS_TARGET,
     val dailyFatTargetGrams: Int = DEFAULT_FAT_TARGET,
-    val dailyWaterTargetMl: Int = DEFAULT_WATER_TARGET_ML
+    val dailyWaterTargetMl: Int = DEFAULT_WATER_TARGET_ML,
+    val bodyWeightKg: Float? = null,
+    val targetWeightKg: Float? = null,
+    val bodyHeightCm: Int? = null,
+    val bodyIsMale: Boolean = true,
+    val bodyActivityLevel: String = "MODERATE",
+    val bodyMacroGoal: String = "MAINTAIN"
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -106,7 +113,13 @@ class SettingsRepository(
             dailyProteinTargetGrams = (prefs[KEY_DAILY_PROTEIN_TARGET] ?: UserSettings.DEFAULT_PROTEIN_TARGET).coerceIn(40, 400),
             dailyCarbsTargetGrams = (prefs[KEY_DAILY_CARBS_TARGET] ?: UserSettings.DEFAULT_CARBS_TARGET).coerceIn(20, 700),
             dailyFatTargetGrams = (prefs[KEY_DAILY_FAT_TARGET] ?: UserSettings.DEFAULT_FAT_TARGET).coerceIn(20, 250),
-            dailyWaterTargetMl = (prefs[KEY_DAILY_WATER_TARGET_ML] ?: UserSettings.DEFAULT_WATER_TARGET_ML).coerceIn(1000, 6000)
+            dailyWaterTargetMl = (prefs[KEY_DAILY_WATER_TARGET_ML] ?: UserSettings.DEFAULT_WATER_TARGET_ML).coerceIn(1000, 6000),
+            bodyWeightKg = prefs[KEY_BODY_WEIGHT_KG]?.coerceIn(30f, 250f),
+            targetWeightKg = prefs[KEY_TARGET_WEIGHT_KG]?.coerceIn(30f, 250f),
+            bodyHeightCm = prefs[KEY_BODY_HEIGHT_CM]?.coerceIn(120, 240),
+            bodyIsMale = prefs[KEY_BODY_IS_MALE] ?: true,
+            bodyActivityLevel = prefs[KEY_BODY_ACTIVITY_LEVEL] ?: "MODERATE",
+            bodyMacroGoal = prefs[KEY_BODY_MACRO_GOAL] ?: "MAINTAIN"
         )
     }
 
@@ -227,6 +240,24 @@ class SettingsRepository(
         }
     }
 
+    suspend fun saveBodyProfile(
+        weightKg: Float?,
+        targetWeightKg: Float?,
+        heightCm: Int?,
+        isMale: Boolean,
+        activityLevel: String,
+        macroGoal: String
+    ) {
+        dataStore.edit { prefs ->
+            if (weightKg != null) prefs[KEY_BODY_WEIGHT_KG] = weightKg.coerceIn(30f, 250f) else prefs.remove(KEY_BODY_WEIGHT_KG)
+            if (targetWeightKg != null) prefs[KEY_TARGET_WEIGHT_KG] = targetWeightKg.coerceIn(30f, 250f) else prefs.remove(KEY_TARGET_WEIGHT_KG)
+            if (heightCm != null) prefs[KEY_BODY_HEIGHT_CM] = heightCm.coerceIn(120, 240) else prefs.remove(KEY_BODY_HEIGHT_CM)
+            prefs[KEY_BODY_IS_MALE] = isMale
+            prefs[KEY_BODY_ACTIVITY_LEVEL] = activityLevel
+            prefs[KEY_BODY_MACRO_GOAL] = macroGoal
+        }
+    }
+
     suspend fun replaceAll(userSettings: UserSettings) {
         dataStore.edit { prefs ->
             prefs[KEY_THEME_MODE] = userSettings.themeMode.name
@@ -280,6 +311,12 @@ class SettingsRepository(
         private val KEY_DAILY_CARBS_TARGET = intPreferencesKey("daily_carbs_target")
         private val KEY_DAILY_FAT_TARGET = intPreferencesKey("daily_fat_target")
         private val KEY_DAILY_WATER_TARGET_ML = intPreferencesKey("daily_water_target_ml")
+        private val KEY_BODY_WEIGHT_KG = floatPreferencesKey("body_weight_kg")
+        private val KEY_TARGET_WEIGHT_KG = floatPreferencesKey("target_weight_kg")
+        private val KEY_BODY_HEIGHT_CM = intPreferencesKey("body_height_cm")
+        private val KEY_BODY_IS_MALE = booleanPreferencesKey("body_is_male")
+        private val KEY_BODY_ACTIVITY_LEVEL = stringPreferencesKey("body_activity_level")
+        private val KEY_BODY_MACRO_GOAL = stringPreferencesKey("body_macro_goal")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

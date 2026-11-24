@@ -30,7 +30,7 @@ import com.selfcare.app.data.local.entity.WaterLogEntity
         NutritionLogEntity::class,
         WaterLogEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class SelfCareDatabase : RoomDatabase() {
@@ -101,6 +101,12 @@ abstract class SelfCareDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `nutrition_logs` ADD COLUMN `saltGrams` REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         @Volatile
         private var instance: SelfCareDatabase? = null
 
@@ -110,7 +116,7 @@ abstract class SelfCareDatabase : RoomDatabase() {
                     context.applicationContext,
                     SelfCareDatabase::class.java,
                     DATABASE_NAME
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { db ->
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build().also { db ->
                     instance = db
                 }
             }

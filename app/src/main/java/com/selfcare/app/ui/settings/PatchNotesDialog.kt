@@ -30,6 +30,18 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.6.0",
+            title = "Hungarian Dishes, Salt-Adjusted Hydration, Offline Body Profile & Safe Trends History",
+            highlights = listOf(
+                "Expanded offline food catalog to 65+ Hungarian & international dishes (e.g. Csirkepörkölt / Chicken Paprikash, Nokedli, Lecsó, Gulyásleves, Gyros, Sandwiches) with accent- and language-tolerant search.",
+                "Added Groq AI Text Meal Estimation ('AI Estimate' button) to estimate calories, macros, and salt for any typed Hungarian or English dish in ~1s, plus 1-tap Recent Meals and Hungarian OpenFoodFacts priority.",
+                "Added automatic Salt (g) tracking across photos, AI text, barcodes, and presets (Room v6 MIGRATION_5_6) — automatically adds extra recommended water (+150 ml per excess gram above 5g WHO reference) directly to your animated Water Glass target.",
+                "Added a 100% offline Body Profile (current weight, target weight, height, gender, activity, goal) that automatically reuses your saved birthday/age.",
+                "Clarified in Settings, Nutrition, and README that images/text sent to Groq API are never used for AI model training.",
+                "Upgraded Trends Measurement History with exact second-precision timestamps (YYYY-MM-DD · HH:mm:ss) and a safe 'Manage' bulk-selection delete mode to prevent accidental deletions."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.5.0",
             title = "Calorie, Macro & Animated Water Tracker + Celebration Animations",
             highlights = listOf(

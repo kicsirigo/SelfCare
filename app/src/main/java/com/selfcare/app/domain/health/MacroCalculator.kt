@@ -29,7 +29,8 @@ data class ScaledNutritionValues(
     val carbsGrams: Float,
     val fatGrams: Float,
     val fiberGrams: Float,
-    val sugarGrams: Float
+    val sugarGrams: Float,
+    val saltGrams: Float = 0f
 )
 
 /**
@@ -93,7 +94,8 @@ object MacroCalculator {
         per100gCarbs: Float,
         per100gFat: Float,
         per100gFiber: Float = 0f,
-        per100gSugar: Float = 0f
+        per100gSugar: Float = 0f,
+        per100gSalt: Float = 0f
     ): ScaledNutritionValues {
         val factor = (grams.coerceAtLeast(0f)) / 100f
         return ScaledNutritionValues(
@@ -102,9 +104,25 @@ object MacroCalculator {
             carbsGrams = round1(per100gCarbs.coerceAtLeast(0f) * factor),
             fatGrams = round1(per100gFat.coerceAtLeast(0f) * factor),
             fiberGrams = round1(per100gFiber.coerceAtLeast(0f) * factor),
-            sugarGrams = round1(per100gSugar.coerceAtLeast(0f) * factor)
+            sugarGrams = round1(per100gSugar.coerceAtLeast(0f) * factor),
+            saltGrams = round1(per100gSalt.coerceAtLeast(0f) * factor)
         )
     }
+
+    /**
+     * WHO daily reference salt intake is ~5.0 g/day.
+     * Above 5.0 g/day, adds +150 ml recommended extra water per excess gram of salt
+     * (rounded to 50 ml steps, capped at +1000 ml).
+     */
+    fun computeSaltHydrationBonusMl(totalSaltGrams: Float): Int {
+        val excessSalt = (totalSaltGrams - WHO_DAILY_SALT_REFERENCE_G).coerceAtLeast(0f)
+        if (excessSalt <= 0.1f) return 0
+        val rawMl = excessSalt * 150f
+        val rounded50 = ((rawMl + 25f) / 50f).toInt() * 50
+        return rounded50.coerceIn(50, 1000)
+    }
+
+    const val WHO_DAILY_SALT_REFERENCE_G = 5.0f
 
     private fun round1(value: Float): Float = (value * 10f).roundToInt() / 10f
 }

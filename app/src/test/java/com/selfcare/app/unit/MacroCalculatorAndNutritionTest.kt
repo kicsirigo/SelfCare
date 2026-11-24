@@ -130,4 +130,62 @@ class MacroCalculatorAndNutritionTest {
         assertEquals(48.5f, meal.proteinGrams, 0.1f)
         assertEquals(420f, meal.estimatedGrams, 0.1f)
     }
+
+    @Test
+    fun `hungarian food catalog supports accent-free, spaced, and English queries for csirkeporkolt`() {
+        val bySpaced = FoodPresetCatalog.search("Csirke pörkölt")
+        val byNoAccent = FoodPresetCatalog.search("csirkeporkolt")
+        val byEnglish = FoodPresetCatalog.search("chicken paprikash")
+        assertTrue(bySpaced.any { it.id == "csirkeporkolt" })
+        assertTrue(byNoAccent.any { it.id == "csirkeporkolt" })
+        assertTrue(byEnglish.any { it.id == "csirkeporkolt" })
+        assertTrue(FoodPresetCatalog.search("nokedli").any { it.id == "nokedli" })
+        assertTrue(FoodPresetCatalog.search("lecso").any { it.id == "lecso" })
+    }
+
+    @Test
+    fun `salt hydration bonus adds extra recommended water above 5g WHO reference`() {
+        assertEquals(0, MacroCalculator.computeSaltHydrationBonusMl(3.5f))
+        assertEquals(0, MacroCalculator.computeSaltHydrationBonusMl(5.0f))
+        assertEquals(300, MacroCalculator.computeSaltHydrationBonusMl(7.0f))
+        assertEquals(1000, MacroCalculator.computeSaltHydrationBonusMl(20.0f))
+    }
+
+    @Test
+    fun `groq estimateMealFromText returns calories macros and saltGrams`() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """{"data":[{"id":"qwen/qwen3.8-27b"}]}"""
+                )
+            )
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {
+                      "choices": [{
+                        "message": {
+                          "content": "{\"name\":\"Csirkepörkölt nokedlivel\",\"estimatedGrams\":450,\"caloriesKcal\":645,\"proteinGrams\":51.0,\"carbsGrams\":67.0,\"fatGrams\":19.0,\"fiberGrams\":3.4,\"sugarGrams\":4.2,\"saltGrams\":4.9}"
+                        }
+                      }]
+                    }
+                    """.trimIndent()
+                )
+            )
+            val client = GroqVisionProductClient(
+                baseUrl = server.url("/").toString(),
+                delayFn = {}
+            )
+            val result = client.estimateMealFromText("csirkepörkölt nokedlivel", "gsk_test_key")
+            assertTrue(result is MealVisionResult.Success)
+            val meal = (result as MealVisionResult.Success).meal
+            assertEquals("Csirkepörkölt nokedlivel", meal.name)
+            assertEquals(645, meal.caloriesKcal)
+            assertEquals(4.9f, meal.saltGrams, 0.1f)
+        } finally {
+            server.shutdown()
+        }
+    }
 }

@@ -5,11 +5,11 @@
 **Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
 *Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
 
-[![Version](https://img.shields.io/badge/Release-v3.5.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.5.0)
+[![Version](https://img.shields.io/badge/Release-v3.6.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.6.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-88%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Tests](https://img.shields.io/badge/Tests-91%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
 [![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
@@ -85,7 +85,8 @@
 SelfCare enforces strict on-device isolation with **zero analytics, crash reporting, ads, or tracking SDKs**, and `android:allowBackup="false"`:
 - `android.permission.CAMERA` — Used solely for on-device CameraX guided selfie check-ins, barcode scanning, and label OCR.
 - `android.permission.POST_NOTIFICATIONS` — Used solely for optional local routine and haircut reminders.
-- `android.permission.INTERNET` — Permitted **only** for anonymous, read-only public lookups to Open Beauty Facts (`BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`). Face photos, check-in metrics, haircut status, product shelves, and routine logs never leave the device.
+- **Privacy & Zero AI Training:** Face check-in selfies, trends, body profile, and routine logs are 100% offline on-device. Optional product/meal photos and text sent to Groq API (`qwen/qwen3.8-27b`) are **never used for AI model training** (per Groq's official Services Agreement, including on the free tier).
+- `android.permission.INTERNET` — Permitted **only** for anonymous, read-only public lookups to Open Beauty Facts / OpenFoodFacts (`BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`), GitHub Release updates, and optional user-initiated Groq Vision requests. Face photos, check-in metrics, haircut status, product shelves, and routine logs never leave the device.
 
 ---
 

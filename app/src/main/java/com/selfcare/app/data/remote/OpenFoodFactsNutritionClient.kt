@@ -26,6 +26,7 @@ data class FoodNutritionItem(
     val per100gFat: Float,
     val per100gFiber: Float = 0f,
     val per100gSugar: Float = 0f,
+    val per100gSalt: Float = 0f,
     val defaultGrams: Float = 100f
 )
 
@@ -88,7 +89,7 @@ class OpenFoodFactsNutritionClient(
         if (clean.isEmpty()) return@withContext FoodSearchResult.Success(emptyList())
 
         val encoded = URLEncoder.encode(clean, StandardCharsets.UTF_8.name())
-        val url = "${baseUrl.trimEnd('/')}/cgi/search.pl?search_terms=$encoded&search_simple=1&action=process&json=1&page_size=12" +
+        val url = "${baseUrl.trimEnd('/')}/cgi/search.pl?search_terms=$encoded&search_simple=1&action=process&json=1&page_size=12&lc=hu&cc=hu" +
             "&fields=code,product_name,brands,nutriments,serving_quantity"
         val req = Request.Builder()
             .url(url)
@@ -131,6 +132,9 @@ class OpenFoodFactsNutritionClient(
         val fat = readNumber(nutriments, "fat_100g") ?: 0f
         val fiber = readNumber(nutriments, "fiber_100g") ?: 0f
         val sugar = readNumber(nutriments, "sugars_100g") ?: 0f
+        val salt = readNumber(nutriments, "salt_100g")
+            ?: readNumber(nutriments, "sodium_100g")?.let { it * 2.5f }
+            ?: 0f
 
         return FoodNutritionItem(
             barcode = barcode,
@@ -142,6 +146,7 @@ class OpenFoodFactsNutritionClient(
             per100gFat = fat.coerceAtLeast(0f),
             per100gFiber = fiber.coerceAtLeast(0f),
             per100gSugar = sugar.coerceAtLeast(0f),
+            per100gSalt = salt.coerceAtLeast(0f),
             defaultGrams = servingQty
         )
     }

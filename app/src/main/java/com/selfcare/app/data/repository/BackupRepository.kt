@@ -118,6 +118,7 @@ data class BackupNutritionLog(
     val fatGrams: Float = 0f,
     val fiberGrams: Float = 0f,
     val sugarGrams: Float = 0f,
+    val saltGrams: Float = 0f,
     val source: String = "MANUAL",
     val createdAtEpochMillis: Long
 )
@@ -478,6 +479,7 @@ private fun NutritionLogEntity.toBackup(): BackupNutritionLog = BackupNutritionL
     fatGrams = fatGrams,
     fiberGrams = fiberGrams,
     sugarGrams = sugarGrams,
+    saltGrams = saltGrams,
     source = source,
     createdAtEpochMillis = createdAtEpochMillis
 )
@@ -496,6 +498,7 @@ private fun BackupNutritionLog.toEntity(): NutritionLogEntity = NutritionLogEnti
     fatGrams = fatGrams,
     fiberGrams = fiberGrams,
     sugarGrams = sugarGrams,
+    saltGrams = saltGrams,
     source = source,
     createdAtEpochMillis = createdAtEpochMillis
 )

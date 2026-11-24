@@ -256,7 +256,7 @@
     <string name="shelf_offline_ocr_badge">Offline OCR mode (no API key)</string>
     <string name="shelf_camera_permission_needed">Camera permission is required for the live product scanner.</string>
     <string name="settings_ai_vision_title">Groq Vision AI (Qwen 3.8 27B)</string>
-    <string name="settings_ai_vision_desc">Paste a free Groq API key (gsk_... from console.groq.com — Qwen 3.8 27B Vision, fast ~1s responses). Leave empty for 100% offline Barcode + INCI OCR. Selfies never leave your device.</string>
+    <string name="settings_ai_vision_desc">Paste a free Groq API key (gsk_... from console.groq.com — Qwen 3.8 27B Vision, fast ~1s responses). Groq does NOT use API images or text for AI training (even on the free tier). Selfies and body profile data never leave your device.</string>
     <string name="settings_gemini_key_label">Groq API Key (gsk_...)</string>
     <string name="settings_gemini_key_hint">Paste gsk_... key (optional)</string>
     <string name="settings_gemini_key_saved">API key saved locally</string>
@@ -442,4 +442,25 @@
     <string name="nutrition_err_no_barcode">No barcode detected in photo. Try again with better light.</string>
     <string name="nutrition_err_not_found">No matching food found on OpenFoodFacts.</string>
     <string name="nutrition_err_food_not_found">Barcode %1$s was not found in OpenFoodFacts.</string>
+    <string name="nutrition_ai_estimate_btn">AI Estimate</string>
+    <string name="nutrition_recent_meals">Recent meals (1-tap)</string>
+    <string name="nutrition_fiber_sugar_salt_summary">Fiber: %1$s g  ·  Sugar: %2$s g  ·  Salt: %3$s g</string>
+    <string name="nutrition_salt_short">Salt</string>
+    <string name="nutrition_salt_water_bonus">Salt today: %1$s g (+%2$d ml extra water recommended)</string>
+    <string name="nutrition_salt_daily_ok">Salt today: %1$s g / 5.0 g (Balanced)</string>
+    <string name="nutrition_auto_age_hint">Age auto-filled from your saved birthday: %d yrs (100%% offline)</string>
+    <string name="nutrition_current_weight_label">Weight (kg)</string>
+    <string name="nutrition_target_weight_label">Target (kg)</string>
+    <string name="nutrition_gender_male">Male</string>
+    <string name="nutrition_gender_female">Female</string>
+    <string name="nutrition_act_sedentary">Sedentary</string>
+    <string name="nutrition_act_light">Light</string>
+    <string name="nutrition_act_moderate">Moderate</string>
+    <string name="nutrition_act_active">Active</string>
+    <string name="privacy_no_ai_training_note">Photos &amp; text sent to Groq API are never used for AI model training.</string>
+    <string name="trends_history_manage">Manage</string>
+    <string name="trends_history_select_all">Select All</string>
+    <string name="trends_history_deselect_all">Clear Selection</string>
+    <string name="trends_history_delete_selected">Delete (%d)</string>
+    <string name="trends_bulk_delete_confirm_body">Are you sure you want to permanently delete %d selected check-in(s)?</string>
 </resources>

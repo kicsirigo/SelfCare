@@ -41,6 +41,7 @@ class NutritionRepository(
         fatGrams: Float,
         fiberGrams: Float = 0f,
         sugarGrams: Float = 0f,
+        saltGrams: Float = 0f,
         source: String = "MANUAL"
     ): Long {
         val cleanName = name.trim()
@@ -59,6 +60,7 @@ class NutritionRepository(
                 fatGrams = fatGrams.coerceAtLeast(0f),
                 fiberGrams = fiberGrams.coerceAtLeast(0f),
                 sugarGrams = sugarGrams.coerceAtLeast(0f),
+                saltGrams = saltGrams.coerceAtLeast(0f),
                 source = source,
                 createdAtEpochMillis = clock.millis()
             )

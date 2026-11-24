@@ -170,18 +170,14 @@ fun NutritionScreen(
 
     if (showGoalsDialog) {
         NutritionGoalsDialog(
-            currentKcal = state.calorieTarget,
-            currentProtein = state.proteinTarget,
-            currentCarbs = state.carbsTarget,
-            currentFat = state.fatTarget,
-            currentWaterMl = state.waterTargetMl,
+            state = state,
             onDismiss = { showGoalsDialog = false },
             onSaveManual = { kcal, p, c, f, w ->
                 viewModel.updateManualTargets(kcal, p, c, f, w)
                 showGoalsDialog = false
             },
-            onCalculateAuto = { weight, height, age, isMale, activity, goal ->
-                viewModel.calculateAndSaveTargets(weight, height, age, isMale, activity, goal)
+            onCalculateAuto = { weight, targetWeight, height, age, isMale, activity, goal ->
+                viewModel.calculateAndSaveTargets(weight, targetWeight, height, age, isMale, activity, goal)
                 showGoalsDialog = false
             }
         )
@@ -192,7 +188,7 @@ fun NutritionScreen(
             pending = pending,
             defaultMealType = state.selectedMealType,
             onDismiss = viewModel::dismissPendingConfirmation,
-            onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, mealType ->
+            onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, salt, mealType ->
                 viewModel.saveConfirmedMeal(
                     name = name,
                     brand = pending.brand,
@@ -204,6 +200,7 @@ fun NutritionScreen(
                     fatGrams = f,
                     fiberGrams = fiber,
                     sugarGrams = sugar,
+                    saltGrams = salt,
                     mealType = mealType,
                     source = pending.source
                 )
@@ -227,11 +224,13 @@ fun NutritionScreen(
                 )
             }
 
-            // 2. Animated Water Glass Hydration Card (+250ml, +500ml, Custom)
+            // 2. Animated Water Glass Hydration Card (+250ml, +500ml, Custom + Salt Hydration Bonus)
             item {
                 HydrationGlassCard(
                     currentMl = state.totalWaterMl,
                     targetMl = state.waterTargetMl,
+                    totalSaltGrams = state.totalSaltGrams,
+                    saltBonusMl = state.saltWaterBonusMl,
                     canUndo = state.todayWaterLogs.isNotEmpty(),
                     onAddWater = viewModel::addWater,
                     onCustomWaterClick = { showCustomWaterDialog = true },
@@ -389,8 +388,69 @@ fun NutritionScreen(
                                 },
                                 modifier = Modifier.weight(1f)
                             )
-                            OutlinedButton(onClick = viewModel::searchOpenFoodFacts) {
-                                Text(text = stringResource(R.string.shelf_lookup))
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = viewModel::estimateMealByText,
+                                enabled = state.searchQuery.isNotBlank() && !state.isBusy,
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .testTag("nutrition_ai_text_estimate_btn")
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Sparkle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.nutrition_ai_estimate_btn),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = viewModel::searchOpenFoodFacts,
+                                enabled = state.searchQuery.isNotBlank() && !state.isBusy,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.shelf_lookup),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = stringResource(R.string.privacy_no_ai_training_note),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        if (state.recentUniqueMeals.isNotEmpty()) {
+                            Text(
+                                text = stringResource(R.string.nutrition_recent_meals),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = NeonGreen
+                            )
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(state.recentUniqueMeals, key = { "recent_${it.id}" }) { recent ->
+                                    AssistChip(
+                                        onClick = { viewModel.openRecentMealConfirmation(recent) },
+                                        label = {
+                                            Text(
+                                                text = "${recent.name} (${recent.caloriesKcal} kcal)",
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
 
@@ -598,12 +658,31 @@ private fun CalorieMacroSummaryCard(
                 }
             }
 
-            if (state.totalFiber > 0f || state.totalSugar > 0f) {
+            if (state.bodyWeightKg != null) {
+                val goalText = when (state.bodyMacroGoal) {
+                    MacroGoalType.CUT.name -> stringResource(R.string.nutrition_goal_cut)
+                    MacroGoalType.BULK.name -> stringResource(R.string.nutrition_goal_bulk)
+                    else -> stringResource(R.string.nutrition_goal_maintain)
+                }
+                val weightSummary = if (state.targetWeightKg != null) {
+                    "${String.format(Locale.US, "%.1f", state.bodyWeightKg)} kg → ${String.format(Locale.US, "%.1f", state.targetWeightKg)} kg · $goalText"
+                } else {
+                    "${String.format(Locale.US, "%.1f", state.bodyWeightKg)} kg · $goalText"
+                }
+                Text(
+                    text = weightSummary,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF38BDF8)
+                )
+            }
+
+            if (state.totalFiber > 0f || state.totalSugar > 0f || state.totalSaltGrams > 0f) {
                 Text(
                     text = stringResource(
-                        R.string.nutrition_fiber_sugar_summary,
+                        R.string.nutrition_fiber_sugar_salt_summary,
                         String.format(Locale.US, "%.1f", state.totalFiber),
-                        String.format(Locale.US, "%.1f", state.totalSugar)
+                        String.format(Locale.US, "%.1f", state.totalSugar),
+                        String.format(Locale.US, "%.1f", state.totalSaltGrams)
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -664,6 +743,8 @@ private fun MacroBarRow(
 private fun HydrationGlassCard(
     currentMl: Int,
     targetMl: Int,
+    totalSaltGrams: Float,
+    saltBonusMl: Int,
     canUndo: Boolean,
     onAddWater: (Int) -> Unit,
     onCustomWaterClick: () -> Unit,
@@ -722,6 +803,26 @@ private fun HydrationGlassCard(
                             )
                         }
                     }
+                }
+
+                if (totalSaltGrams > 0f) {
+                    val saltText = if (saltBonusMl > 0) {
+                        stringResource(
+                            R.string.nutrition_salt_water_bonus,
+                            String.format(Locale.US, "%.1f", totalSaltGrams),
+                            saltBonusMl
+                        )
+                    } else {
+                        stringResource(
+                            R.string.nutrition_salt_daily_ok,
+                            String.format(Locale.US, "%.1f", totalSaltGrams)
+                        )
+                    }
+                    Text(
+                        text = saltText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (saltBonusMl > 0) NeonWarning else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 if (reached) {
@@ -811,8 +912,13 @@ private fun MealLogCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                val saltSuffix = if (meal.saltGrams > 0.05f) {
+                    "  ·  ${stringResource(R.string.nutrition_salt_short)}: ${String.format(Locale.US, "%.1f", meal.saltGrams)}g"
+                } else {
+                    ""
+                }
                 Text(
-                    text = "P: ${meal.proteinGrams.roundToInt()}g  ·  CH: ${meal.carbsGrams.roundToInt()}g  ·  F: ${meal.fatGrams.roundToInt()}g",
+                    text = "P: ${meal.proteinGrams.roundToInt()}g  ·  CH: ${meal.carbsGrams.roundToInt()}g  ·  F: ${meal.fatGrams.roundToInt()}g$saltSuffix",
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonGreen
                 )
@@ -880,6 +986,7 @@ private fun MealConfirmationDialog(
         fat: Float,
         fiber: Float,
         sugar: Float,
+        salt: Float,
         mealType: String
     ) -> Unit
 ) {
@@ -889,6 +996,7 @@ private fun MealConfirmationDialog(
     var proteinText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.proteinGrams)) }
     var carbsText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.carbsGrams)) }
     var fatText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.fatGrams)) }
+    var saltText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.saltGrams)) }
     var mealType by remember(pending) { mutableStateOf(defaultMealType) }
 
     fun applyMultiplier(factor: Float) {
@@ -898,6 +1006,7 @@ private fun MealConfirmationDialog(
         proteinText = String.format(Locale.US, "%.1f", pending.proteinGrams * factor)
         carbsText = String.format(Locale.US, "%.1f", pending.carbsGrams * factor)
         fatText = String.format(Locale.US, "%.1f", pending.fatGrams * factor)
+        saltText = String.format(Locale.US, "%.1f", pending.saltGrams * factor)
     }
 
     fun applyGramsIfScalable(newGramsStr: String) {
@@ -911,12 +1020,14 @@ private fun MealConfirmationDialog(
                 per100gCarbs = pending.per100gCarbs,
                 per100gFat = pending.per100gFat,
                 per100gFiber = pending.per100gFiber,
-                per100gSugar = pending.per100gSugar
+                per100gSugar = pending.per100gSugar,
+                per100gSalt = pending.per100gSalt
             )
             kcalText = scaled.caloriesKcal.toString()
             proteinText = String.format(Locale.US, "%.1f", scaled.proteinGrams)
             carbsText = String.format(Locale.US, "%.1f", scaled.carbsGrams)
             fatText = String.format(Locale.US, "%.1f", scaled.fatGrams)
+            saltText = String.format(Locale.US, "%.1f", scaled.saltGrams)
         }
     }
 
@@ -1000,6 +1111,14 @@ private fun MealConfirmationDialog(
                         modifier = Modifier.weight(1f)
                     )
                 }
+                OutlinedTextField(
+                    value = saltText,
+                    onValueChange = { saltText = it },
+                    label = { Text("${stringResource(R.string.nutrition_salt_short)} (g)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         },
         confirmButton = {
@@ -1010,7 +1129,8 @@ private fun MealConfirmationDialog(
                     val p = proteinText.replace(',', '.').toFloatOrNull() ?: pending.proteinGrams
                     val c = carbsText.replace(',', '.').toFloatOrNull() ?: pending.carbsGrams
                     val f = fatText.replace(',', '.').toFloatOrNull() ?: pending.fatGrams
-                    onConfirm(name.ifBlank { pending.name }, g, k, p, c, f, pending.fiberGrams, pending.sugarGrams, mealType)
+                    val s = saltText.replace(',', '.').toFloatOrNull() ?: pending.saltGrams
+                    onConfirm(name.ifBlank { pending.name }, g, k, p, c, f, pending.fiberGrams, pending.sugarGrams, s, mealType)
                 }
             ) {
                 Text(stringResource(R.string.action_save))
@@ -1127,27 +1247,37 @@ private fun ManualMealDialog(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NutritionGoalsDialog(
-    currentKcal: Int,
-    currentProtein: Int,
-    currentCarbs: Int,
-    currentFat: Int,
-    currentWaterMl: Int,
+    state: NutritionUiState,
     onDismiss: () -> Unit,
     onSaveManual: (Int, Int, Int, Int, Int) -> Unit,
-    onCalculateAuto: (Float, Float, Int, Boolean, ActivityLevel, MacroGoalType) -> Unit
+    onCalculateAuto: (Float, Float?, Float, Int, Boolean, ActivityLevel, MacroGoalType) -> Unit
 ) {
-    var useAutoCalc by remember { mutableStateOf(false) }
-    var kcalStr by remember { mutableStateOf(currentKcal.toString()) }
-    var proteinStr by remember { mutableStateOf(currentProtein.toString()) }
-    var carbsStr by remember { mutableStateOf(currentCarbs.toString()) }
-    var fatStr by remember { mutableStateOf(currentFat.toString()) }
-    var waterStr by remember { mutableStateOf(currentWaterMl.toString()) }
+    var useAutoCalc by remember { mutableStateOf(true) }
+    var kcalStr by remember { mutableStateOf(state.calorieTarget.toString()) }
+    var proteinStr by remember { mutableStateOf(state.proteinTarget.toString()) }
+    var carbsStr by remember { mutableStateOf(state.carbsTarget.toString()) }
+    var fatStr by remember { mutableStateOf(state.fatTarget.toString()) }
+    var waterStr by remember { mutableStateOf(state.baseWaterTargetMl.toString()) }
 
-    var weightStr by remember { mutableStateOf("75") }
-    var heightStr by remember { mutableStateOf("178") }
-    var ageStr by remember { mutableStateOf("26") }
-    var isMale by remember { mutableStateOf(true) }
-    var goal by remember { mutableStateOf(MacroGoalType.MAINTAIN) }
+    var weightStr by remember {
+        mutableStateOf(state.bodyWeightKg?.let { String.format(Locale.US, "%.1f", it) } ?: "75")
+    }
+    var targetWeightStr by remember {
+        mutableStateOf(state.targetWeightKg?.let { String.format(Locale.US, "%.1f", it) } ?: "")
+    }
+    var heightStr by remember { mutableStateOf((state.bodyHeightCm ?: 178).toString()) }
+    var ageStr by remember { mutableStateOf((state.autoAgeYears ?: 26).toString()) }
+    var isMale by remember { mutableStateOf(state.bodyIsMale) }
+    var activity by remember {
+        mutableStateOf(
+            ActivityLevel.entries.firstOrNull { it.name == state.bodyActivityLevel } ?: ActivityLevel.MODERATE
+        )
+    }
+    var goal by remember {
+        mutableStateOf(
+            MacroGoalType.entries.firstOrNull { it.name == state.bodyMacroGoal } ?: MacroGoalType.MAINTAIN
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1159,14 +1289,14 @@ private fun NutritionGoalsDialog(
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = !useAutoCalc,
-                        onClick = { useAutoCalc = false },
-                        label = { Text(stringResource(R.string.nutrition_goals_manual)) }
-                    )
-                    FilterChip(
                         selected = useAutoCalc,
                         onClick = { useAutoCalc = true },
                         label = { Text(stringResource(R.string.nutrition_goals_auto)) }
+                    )
+                    FilterChip(
+                        selected = !useAutoCalc,
+                        onClick = { useAutoCalc = false },
+                        label = { Text(stringResource(R.string.nutrition_goals_manual)) }
                     )
                 }
 
@@ -1214,15 +1344,32 @@ private fun NutritionGoalsDialog(
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else {
+                    if (state.autoAgeYears != null) {
+                        Text(
+                            text = stringResource(R.string.nutrition_auto_age_hint, state.autoAgeYears),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonGreen
+                        )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
                             value = weightStr,
-                            onValueChange = { weightStr = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                            label = { Text("kg") },
+                            onValueChange = { weightStr = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
+                            label = { Text(stringResource(R.string.nutrition_current_weight_label)) },
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             modifier = Modifier.weight(1f)
                         )
+                        OutlinedTextField(
+                            value = targetWeightStr,
+                            onValueChange = { targetWeightStr = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' } },
+                            label = { Text(stringResource(R.string.nutrition_target_weight_label)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedTextField(
                             value = heightStr,
                             onValueChange = { heightStr = it.filter { ch -> ch.isDigit() } },
@@ -1239,6 +1386,32 @@ private fun NutritionGoalsDialog(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = isMale,
+                            onClick = { isMale = true },
+                            label = { Text(stringResource(R.string.nutrition_gender_male)) }
+                        )
+                        FilterChip(
+                            selected = !isMale,
+                            onClick = { isMale = false },
+                            label = { Text(stringResource(R.string.nutrition_gender_female)) }
+                        )
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            ActivityLevel.SEDENTARY to R.string.nutrition_act_sedentary,
+                            ActivityLevel.LIGHT to R.string.nutrition_act_light,
+                            ActivityLevel.MODERATE to R.string.nutrition_act_moderate,
+                            ActivityLevel.ACTIVE to R.string.nutrition_act_active
+                        ).forEach { (lvl, res) ->
+                            FilterChip(
+                                selected = activity == lvl,
+                                onClick = { activity = lvl },
+                                label = { Text(stringResource(res)) }
+                            )
+                        }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(
@@ -1265,19 +1438,20 @@ private fun NutritionGoalsDialog(
                 onClick = {
                     if (!useAutoCalc) {
                         onSaveManual(
-                            kcalStr.toIntOrNull() ?: currentKcal,
-                            proteinStr.toIntOrNull() ?: currentProtein,
-                            carbsStr.toIntOrNull() ?: currentCarbs,
-                            fatStr.toIntOrNull() ?: currentFat,
-                            waterStr.toIntOrNull() ?: currentWaterMl
+                            kcalStr.toIntOrNull() ?: state.calorieTarget,
+                            proteinStr.toIntOrNull() ?: state.proteinTarget,
+                            carbsStr.toIntOrNull() ?: state.carbsTarget,
+                            fatStr.toIntOrNull() ?: state.fatTarget,
+                            waterStr.toIntOrNull() ?: state.baseWaterTargetMl
                         )
                     } else {
                         onCalculateAuto(
-                            weightStr.toFloatOrNull() ?: 75f,
-                            heightStr.toFloatOrNull() ?: 178f,
-                            ageStr.toIntOrNull() ?: 26,
+                            weightStr.replace(',', '.').toFloatOrNull() ?: (state.bodyWeightKg ?: 75f),
+                            targetWeightStr.replace(',', '.').toFloatOrNull(),
+                            heightStr.toFloatOrNull() ?: (state.bodyHeightCm?.toFloat() ?: 178f),
+                            ageStr.toIntOrNull() ?: (state.autoAgeYears ?: 26),
                             isMale,
-                            ActivityLevel.MODERATE,
+                            activity,
                             goal
                         )
                     }

@@ -20,6 +20,7 @@ import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
+import com.selfcare.app.domain.health.VitaminCalculator
 import com.selfcare.app.domain.ml.BarcodeScanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,6 +43,7 @@ data class PendingMealConfirmation(
     val fatGrams: Float,
     val fiberGrams: Float = 0f,
     val sugarGrams: Float = 0f,
+    val saltGrams: Float = 0f,
     val source: String,
     val modelUsed: String = "",
     val isPer100gScalable: Boolean = false,
@@ -50,11 +52,13 @@ data class PendingMealConfirmation(
     val per100gCarbs: Float = 0f,
     val per100gFat: Float = 0f,
     val per100gFiber: Float = 0f,
-    val per100gSugar: Float = 0f
+    val per100gSugar: Float = 0f,
+    val per100gSalt: Float = 0f
 )
 
 data class NutritionUiState(
     val todayMeals: List<NutritionLogEntity> = emptyList(),
+    val recentUniqueMeals: List<NutritionLogEntity> = emptyList(),
     val todayWaterLogs: List<WaterLogEntity> = emptyList(),
     val totalCalories: Int = 0,
     val totalProtein: Float = 0f,
@@ -62,12 +66,22 @@ data class NutritionUiState(
     val totalFat: Float = 0f,
     val totalFiber: Float = 0f,
     val totalSugar: Float = 0f,
+    val totalSaltGrams: Float = 0f,
     val totalWaterMl: Int = 0,
     val calorieTarget: Int = UserSettings.DEFAULT_CALORIE_TARGET,
     val proteinTarget: Int = UserSettings.DEFAULT_PROTEIN_TARGET,
     val carbsTarget: Int = UserSettings.DEFAULT_CARBS_TARGET,
     val fatTarget: Int = UserSettings.DEFAULT_FAT_TARGET,
+    val baseWaterTargetMl: Int = UserSettings.DEFAULT_WATER_TARGET_ML,
+    val saltWaterBonusMl: Int = 0,
     val waterTargetMl: Int = UserSettings.DEFAULT_WATER_TARGET_ML,
+    val autoAgeYears: Int? = null,
+    val bodyWeightKg: Float? = null,
+    val targetWeightKg: Float? = null,
+    val bodyHeightCm: Int? = null,
+    val bodyIsMale: Boolean = true,
+    val bodyActivityLevel: String = "MODERATE",
+    val bodyMacroGoal: String = "MAINTAIN",
     val selectedMealType: String = NutritionLogEntity.MEAL_LUNCH,
     val isBusy: Boolean = false,
     val statusMessage: String? = null,
@@ -100,20 +114,28 @@ class NutritionViewModel(
 
     val uiState: StateFlow<NutritionUiState> = combine(
         nutritionRepository.observeMealsForToday(),
+        nutritionRepository.observeRecentMeals(40),
         nutritionRepository.observeWaterForToday(),
         settingsRepository.settings,
         transientFlow
-    ) { meals, waterLogs, settings, tr ->
+    ) { meals, recentMeals, waterLogs, settings, tr ->
         val totalKcal = meals.sumOf { it.caloriesKcal }
         val totalProtein = meals.sumOf { it.proteinGrams.toDouble() }.toFloat()
         val totalCarbs = meals.sumOf { it.carbsGrams.toDouble() }.toFloat()
         val totalFat = meals.sumOf { it.fatGrams.toDouble() }.toFloat()
         val totalFiber = meals.sumOf { it.fiberGrams.toDouble() }.toFloat()
         val totalSugar = meals.sumOf { it.sugarGrams.toDouble() }.toFloat()
+        val totalSalt = meals.sumOf { it.saltGrams.toDouble() }.toFloat()
         val totalWater = waterLogs.sumOf { it.amountMl }
+        val saltBonusMl = MacroCalculator.computeSaltHydrationBonusMl(totalSalt)
+        val effectiveWaterTarget = settings.dailyWaterTargetMl + saltBonusMl
+        val uniqueRecent = recentMeals
+            .distinctBy { it.name.trim().lowercase() }
+            .take(8)
 
         NutritionUiState(
             todayMeals = meals,
+            recentUniqueMeals = uniqueRecent,
             todayWaterLogs = waterLogs,
             totalCalories = totalKcal,
             totalProtein = totalProtein,
@@ -121,12 +143,22 @@ class NutritionViewModel(
             totalFat = totalFat,
             totalFiber = totalFiber,
             totalSugar = totalSugar,
+            totalSaltGrams = totalSalt,
             totalWaterMl = totalWater,
             calorieTarget = settings.dailyCalorieTarget,
             proteinTarget = settings.dailyProteinTargetGrams,
             carbsTarget = settings.dailyCarbsTargetGrams,
             fatTarget = settings.dailyFatTargetGrams,
-            waterTargetMl = settings.dailyWaterTargetMl,
+            baseWaterTargetMl = settings.dailyWaterTargetMl,
+            saltWaterBonusMl = saltBonusMl,
+            waterTargetMl = effectiveWaterTarget,
+            autoAgeYears = VitaminCalculator.computeAgeYears(settings.birthDateIso),
+            bodyWeightKg = settings.bodyWeightKg,
+            targetWeightKg = settings.targetWeightKg,
+            bodyHeightCm = settings.bodyHeightCm,
+            bodyIsMale = settings.bodyIsMale,
+            bodyActivityLevel = settings.bodyActivityLevel,
+            bodyMacroGoal = settings.bodyMacroGoal,
             selectedMealType = tr.selectedMealType,
             isBusy = tr.isBusy,
             statusMessage = tr.statusMessage,
@@ -183,7 +215,8 @@ class NutritionViewModel(
             per100gCarbs = preset.per100gCarbs,
             per100gFat = preset.per100gFat,
             per100gFiber = preset.per100gFiber,
-            per100gSugar = preset.per100gSugar
+            per100gSugar = preset.per100gSugar,
+            per100gSalt = preset.per100gSalt
         )
         transientFlow.update {
             it.copy(
@@ -196,6 +229,7 @@ class NutritionViewModel(
                     fatGrams = scaled.fatGrams,
                     fiberGrams = scaled.fiberGrams,
                     sugarGrams = scaled.sugarGrams,
+                    saltGrams = scaled.saltGrams,
                     source = "PRESET",
                     isPer100gScalable = true,
                     per100gKcal = preset.per100gKcal,
@@ -203,7 +237,30 @@ class NutritionViewModel(
                     per100gCarbs = preset.per100gCarbs,
                     per100gFat = preset.per100gFat,
                     per100gFiber = preset.per100gFiber,
-                    per100gSugar = preset.per100gSugar
+                    per100gSugar = preset.per100gSugar,
+                    per100gSalt = preset.per100gSalt
+                )
+            )
+        }
+    }
+
+    fun openRecentMealConfirmation(meal: NutritionLogEntity) {
+        transientFlow.update {
+            it.copy(
+                pendingConfirmation = PendingMealConfirmation(
+                    name = meal.name,
+                    brand = meal.brand,
+                    barcode = meal.barcode,
+                    grams = meal.grams,
+                    caloriesKcal = meal.caloriesKcal,
+                    proteinGrams = meal.proteinGrams,
+                    carbsGrams = meal.carbsGrams,
+                    fatGrams = meal.fatGrams,
+                    fiberGrams = meal.fiberGrams,
+                    sugarGrams = meal.sugarGrams,
+                    saltGrams = meal.saltGrams,
+                    source = meal.source,
+                    isPer100gScalable = false
                 )
             )
         }
@@ -217,7 +274,8 @@ class NutritionViewModel(
             per100gCarbs = item.per100gCarbs,
             per100gFat = item.per100gFat,
             per100gFiber = item.per100gFiber,
-            per100gSugar = item.per100gSugar
+            per100gSugar = item.per100gSugar,
+            per100gSalt = item.per100gSalt
         )
         transientFlow.update {
             it.copy(
@@ -233,6 +291,7 @@ class NutritionViewModel(
                     fatGrams = scaled.fatGrams,
                     fiberGrams = scaled.fiberGrams,
                     sugarGrams = scaled.sugarGrams,
+                    saltGrams = scaled.saltGrams,
                     source = source,
                     isPer100gScalable = true,
                     per100gKcal = item.per100gKcal,
@@ -240,9 +299,50 @@ class NutritionViewModel(
                     per100gCarbs = item.per100gCarbs,
                     per100gFat = item.per100gFat,
                     per100gFiber = item.per100gFiber,
-                    per100gSugar = item.per100gSugar
+                    per100gSugar = item.per100gSugar,
+                    per100gSalt = item.per100gSalt
                 )
             )
+        }
+    }
+
+    fun estimateMealByText() {
+        val q = transientFlow.value.searchQuery.trim()
+        if (q.isBlank() || visionClient == null) return
+        viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
+            transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
+            when (val res = visionClient.estimateMealFromText(q, apiKey)) {
+                is MealVisionResult.Success -> {
+                    val m: EstimatedMealInfo = res.meal
+                    transientFlow.update {
+                        it.copy(
+                            isBusy = false,
+                            pendingConfirmation = PendingMealConfirmation(
+                                name = m.name,
+                                grams = m.estimatedGrams,
+                                caloriesKcal = m.caloriesKcal,
+                                proteinGrams = m.proteinGrams,
+                                carbsGrams = m.carbsGrams,
+                                fatGrams = m.fatGrams,
+                                fiberGrams = m.fiberGrams,
+                                sugarGrams = m.sugarGrams,
+                                saltGrams = m.saltGrams,
+                                source = "GROQ_TEXT",
+                                modelUsed = res.modelUsed,
+                                isPer100gScalable = false
+                            )
+                        )
+                    }
+                }
+                is MealVisionResult.Error -> {
+                    transientFlow.update { it.copy(isBusy = false, statusMessage = res.reason) }
+                }
+            }
         }
     }
 
@@ -313,6 +413,7 @@ class NutritionViewModel(
                                 fatGrams = m.fatGrams,
                                 fiberGrams = m.fiberGrams,
                                 sugarGrams = m.sugarGrams,
+                                saltGrams = m.saltGrams,
                                 source = "GROQ_VISION",
                                 modelUsed = res.modelUsed,
                                 isPer100gScalable = false
@@ -342,6 +443,7 @@ class NutritionViewModel(
         fatGrams: Float,
         fiberGrams: Float,
         sugarGrams: Float,
+        saltGrams: Float = 0f,
         mealType: String,
         source: String
     ) {
@@ -365,6 +467,7 @@ class NutritionViewModel(
                 fatGrams = fatGrams,
                 fiberGrams = fiberGrams,
                 sugarGrams = sugarGrams,
+                saltGrams = saltGrams,
                 source = source
             )
             transientFlow.update { it.copy(pendingConfirmation = null) }
@@ -400,6 +503,7 @@ class NutritionViewModel(
 
     fun calculateAndSaveTargets(
         weightKg: Float,
+        targetWeightKg: Float?,
         heightCm: Float,
         ageYears: Int,
         isMale: Boolean,
@@ -414,13 +518,23 @@ class NutritionViewModel(
             activityLevel = activityLevel,
             goal = goal
         )
-        updateManualTargets(
-            caloriesKcal = targets.caloriesKcal,
-            proteinGrams = targets.proteinGrams,
-            carbsGrams = targets.carbsGrams,
-            fatGrams = targets.fatGrams,
-            waterMl = targets.waterMl
-        )
+        viewModelScope.launch {
+            settingsRepository.saveBodyProfile(
+                weightKg = weightKg,
+                targetWeightKg = targetWeightKg,
+                heightCm = heightCm.roundToInt(),
+                isMale = isMale,
+                activityLevel = activityLevel.name,
+                macroGoal = goal.name
+            )
+            settingsRepository.updateNutritionTargets(
+                caloriesKcal = targets.caloriesKcal,
+                proteinGrams = targets.proteinGrams,
+                carbsGrams = targets.carbsGrams,
+                fatGrams = targets.fatGrams,
+                waterMl = targets.waterMl
+            )
+        }
     }
 
     private fun triggerCelebration() {

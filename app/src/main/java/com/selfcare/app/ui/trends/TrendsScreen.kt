@@ -13,15 +13,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -44,7 +52,9 @@ import com.selfcare.app.ui.components.NeonSparklineChart
 import com.selfcare.app.ui.components.StatusPillBadge
 import com.selfcare.app.ui.components.statusLevelColor
 import com.selfcare.app.ui.icons.AppIcons
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -275,36 +285,150 @@ fun TrendsScreen(
             }
 
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = AppIcons.History,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.trends_history_title),
-                        style = MaterialTheme.typography.titleMedium
+                var isManageMode by remember { mutableStateOf(false) }
+                var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+                var showConfirmBulkDelete by remember { mutableStateOf(false) }
+
+                if (showConfirmBulkDelete && selectedIds.isNotEmpty()) {
+                    AlertDialog(
+                        onDismissRequest = { showConfirmBulkDelete = false },
+                        title = { Text(stringResource(R.string.confirm_delete_title)) },
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.trends_bulk_delete_confirm_body,
+                                    selectedIds.size
+                                )
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    viewModel.deleteCheckIns(selectedIds)
+                                    selectedIds = emptySet()
+                                    isManageMode = false
+                                    showConfirmBulkDelete = false
+                                }
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.action_delete),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showConfirmBulkDelete = false }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        }
                     )
                 }
-            }
 
-            item {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("trends_history_list"),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    uiState.recentCheckIns.forEach { item ->
-                        CheckInHistoryItemCard(
-                            item = item,
-                            onDelete = { viewModel.deleteCheckIn(item.id) }
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.trends_history_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        if (uiState.recentCheckIns.isNotEmpty()) {
+                            TextButton(
+                                onClick = {
+                                    isManageMode = !isManageMode
+                                    if (!isManageMode) selectedIds = emptySet()
+                                },
+                                modifier = Modifier.testTag("trends_history_manage_btn")
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (isManageMode) R.string.action_cancel else R.string.trends_history_manage
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    if (isManageMode && uiState.recentCheckIns.isNotEmpty()) {
+                        val allIds = uiState.recentCheckIns.map { it.id }.toSet()
+                        val allSelected = selectedIds.size == allIds.size && allIds.isNotEmpty()
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    selectedIds = if (allSelected) emptySet() else allIds
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        if (allSelected) {
+                                            R.string.trends_history_deselect_all
+                                        } else {
+                                            R.string.trends_history_select_all
+                                        }
+                                    ),
+                                    maxLines = 1
+                                )
+                            }
+                            Button(
+                                onClick = { showConfirmBulkDelete = true },
+                                enabled = selectedIds.isNotEmpty(),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.trends_history_delete_selected,
+                                        selectedIds.size
+                                    ),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("trends_history_list"),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.recentCheckIns.forEach { item ->
+                            val isSelected = item.id in selectedIds
+                            CheckInHistoryItemCard(
+                                item = item,
+                                isManageMode = isManageMode,
+                                isSelected = isSelected,
+                                onToggleSelect = {
+                                    selectedIds = if (isSelected) {
+                                        selectedIds - item.id
+                                    } else {
+                                        selectedIds + item.id
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -557,18 +681,35 @@ private fun AdherenceCorrelationCard(correlation: AdherenceCorrelation) {
 @Composable
 private fun CheckInHistoryItemCard(
     item: FaceCheckInEntity,
-    onDelete: () -> Unit
+    isManageMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelect: () -> Unit
 ) {
-    val dateText = runCatching {
-        LocalDate.ofEpochDay(item.dateEpochDay).format(DateTimeFormatter.ISO_LOCAL_DATE)
-    }.getOrDefault(item.dateEpochDay.toString())
+    val dateTimeText = runCatching {
+        Instant.ofEpochMilli(item.timestampEpochMillis)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd · HH:mm:ss"))
+    }.getOrElse {
+        runCatching {
+            LocalDate.ofEpochDay(item.dateEpochDay).format(DateTimeFormatter.ISO_LOCAL_DATE)
+        }.getOrDefault(item.dateEpochDay.toString())
+    }
 
     val underEyeStatus = MetricInterpreter.interpretUnderEye(item.underEyeDeltaLab)
     val rednessStatus = MetricInterpreter.interpretRedness(item.skinRednessIndex)
 
     Card(
+        onClick = { if (isManageMode) onToggleSelect() },
+        enabled = isManageMode,
         modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+        border = BorderStroke(
+            width = if (isSelected) 1.5.dp else 1.dp,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+            }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -577,9 +718,16 @@ private fun CheckInHistoryItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            if (isManageMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelect() }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = dateText,
+                    text = dateTimeText,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Medium
                 )
@@ -602,15 +750,6 @@ private fun CheckInHistoryItemCard(
                     ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = AppIcons.Delete,
-                    contentDescription = stringResource(R.string.action_delete),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
                 )
             }
         }

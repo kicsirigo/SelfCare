@@ -77,6 +77,15 @@ class TrendsViewModel(
         }
     }
 
+    fun deleteCheckIns(ids: Set<Long>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { id ->
+                faceCheckInRepository.deleteCheckIn(id)
+            }
+        }
+    }
+
     companion object {
         fun factory(
             faceCheckInRepository: FaceCheckInRepository
