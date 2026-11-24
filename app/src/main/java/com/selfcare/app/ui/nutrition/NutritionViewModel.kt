@@ -26,6 +26,7 @@ import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.domain.health.MealTimingAnalyzer
+import com.selfcare.app.domain.health.StreakCalculator
 import com.selfcare.app.domain.health.VitaminCalculator
 import java.time.LocalTime
 import com.selfcare.app.domain.ml.BarcodeScanner
@@ -42,6 +43,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 data class PendingMealConfirmation(
+    val editingMealId: Long = 0L,
+    val initialMealType: String? = null,
+    val initialEatenAtMillis: Long? = null,
     val name: String,
     val brand: String = "",
     val barcode: String? = null,
@@ -110,7 +114,8 @@ data class NutritionUiState(
     val remoteMatches: List<FoodNutritionItem> = emptyList(),
     val pendingConfirmation: PendingMealConfirmation? = null,
     val isGroqConfigured: Boolean = false,
-    val celebrationTrigger: Int = 0
+    val celebrationTrigger: Int = 0,
+    val nutritionStreakDays: Int = 0
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -230,7 +235,11 @@ class NutritionViewModel(
             remoteMatches = tr.remoteMatches,
             pendingConfirmation = tr.pendingConfirmation,
             isGroqConfigured = settings.geminiApiKey.isNotBlank(),
-            celebrationTrigger = tr.celebrationTrigger
+            celebrationTrigger = tr.celebrationTrigger,
+            nutritionStreakDays = StreakCalculator.computeCurrentStreak(
+                activeEpochDays = historySnap.recentMeals.map { it.dateEpochDay }.toSet(),
+                todayEpochDay = todayEpoch
+            )
         )
     }.stateIn(
         scope = viewModelScope,
@@ -316,6 +325,31 @@ class NutritionViewModel(
                     per100gFiber = preset.per100gFiber,
                     per100gSugar = preset.per100gSugar,
                     per100gSalt = preset.per100gSalt
+                )
+            )
+        }
+    }
+
+    fun openEditMealDialog(meal: NutritionLogEntity) {
+        transientFlow.update {
+            it.copy(
+                pendingConfirmation = PendingMealConfirmation(
+                    editingMealId = meal.id,
+                    initialMealType = meal.mealType,
+                    initialEatenAtMillis = meal.createdAtEpochMillis,
+                    name = meal.name,
+                    brand = meal.brand,
+                    barcode = meal.barcode,
+                    grams = meal.grams,
+                    caloriesKcal = meal.caloriesKcal,
+                    proteinGrams = meal.proteinGrams,
+                    carbsGrams = meal.carbsGrams,
+                    fatGrams = meal.fatGrams,
+                    fiberGrams = meal.fiberGrams,
+                    sugarGrams = meal.sugarGrams,
+                    saltGrams = meal.saltGrams,
+                    source = meal.source,
+                    isPer100gScalable = false
                 )
             )
         }
@@ -737,7 +771,8 @@ class NutritionViewModel(
         saltGrams: Float = 0f,
         mealType: String,
         source: String,
-        eatenAtEpochMillis: Long? = null
+        eatenAtEpochMillis: Long? = null,
+        existingId: Long = 0L
     ) {
         val currentState = uiState.value
         val day = selectedEpochDayFlow.value
@@ -764,10 +799,11 @@ class NutritionViewModel(
                 sugarGrams = sugarGrams,
                 saltGrams = saltGrams,
                 source = source,
-                eatenAtEpochMillis = eatenAtEpochMillis
+                eatenAtEpochMillis = eatenAtEpochMillis,
+                existingId = existingId
             )
             transientFlow.update { it.copy(pendingConfirmation = null) }
-            if ((wasProteinBelow && willHitProtein) || (wasKcalBelow && willHitKcalSweetSpot)) {
+            if (existingId == 0L && ((wasProteinBelow && willHitProtein) || (wasKcalBelow && willHitKcalSweetSpot))) {
                 triggerCelebration()
             }
         }

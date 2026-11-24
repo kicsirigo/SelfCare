@@ -35,6 +35,9 @@ data class UserSettings(
     val eveningReminderEnabled: Boolean = false,
     val eveningReminderHour: Int = 21,
     val eveningReminderMinute: Int = 0,
+    val waterReminderEnabled: Boolean = false,
+    val waterReminderHour: Int = 15,
+    val waterReminderMinute: Int = 0,
     val autoDeleteCheckInPhotos: Boolean = false,
     val haircutThresholdPercent: Int = DEFAULT_HAIRCUT_THRESHOLD_PERCENT,
     val geminiApiKey: String = "",
@@ -94,6 +97,9 @@ class SettingsRepository(
             eveningReminderEnabled = prefs[KEY_EVENING_REMINDER_ENABLED] ?: false,
             eveningReminderHour = (prefs[KEY_EVENING_REMINDER_HOUR] ?: 21).coerceIn(0, 23),
             eveningReminderMinute = (prefs[KEY_EVENING_REMINDER_MINUTE] ?: 0).coerceIn(0, 59),
+            waterReminderEnabled = prefs[KEY_WATER_REMINDER_ENABLED] ?: false,
+            waterReminderHour = (prefs[KEY_WATER_REMINDER_HOUR] ?: 15).coerceIn(0, 23),
+            waterReminderMinute = (prefs[KEY_WATER_REMINDER_MINUTE] ?: 0).coerceIn(0, 59),
             autoDeleteCheckInPhotos = prefs[KEY_AUTO_DELETE_CHECKIN_PHOTOS] ?: false,
             haircutThresholdPercent = (prefs[KEY_HAIRCUT_THRESHOLD_PERCENT]
                 ?: UserSettings.DEFAULT_HAIRCUT_THRESHOLD_PERCENT)
@@ -150,6 +156,14 @@ class SettingsRepository(
             prefs[KEY_EVENING_REMINDER_ENABLED] = enabled
             prefs[KEY_EVENING_REMINDER_HOUR] = hour.coerceIn(0, 23)
             prefs[KEY_EVENING_REMINDER_MINUTE] = minute.coerceIn(0, 59)
+        }
+    }
+
+    suspend fun setWaterReminder(enabled: Boolean, hour: Int, minute: Int) {
+        dataStore.edit { prefs ->
+            prefs[KEY_WATER_REMINDER_ENABLED] = enabled
+            prefs[KEY_WATER_REMINDER_HOUR] = hour.coerceIn(0, 23)
+            prefs[KEY_WATER_REMINDER_MINUTE] = minute.coerceIn(0, 59)
         }
     }
 
@@ -295,6 +309,9 @@ class SettingsRepository(
         private val KEY_EVENING_REMINDER_ENABLED = booleanPreferencesKey("evening_reminder_enabled")
         private val KEY_EVENING_REMINDER_HOUR = intPreferencesKey("evening_reminder_hour")
         private val KEY_EVENING_REMINDER_MINUTE = intPreferencesKey("evening_reminder_minute")
+        private val KEY_WATER_REMINDER_ENABLED = booleanPreferencesKey("water_reminder_enabled")
+        private val KEY_WATER_REMINDER_HOUR = intPreferencesKey("water_reminder_hour")
+        private val KEY_WATER_REMINDER_MINUTE = intPreferencesKey("water_reminder_minute")
         private val KEY_AUTO_DELETE_CHECKIN_PHOTOS =
             booleanPreferencesKey("auto_delete_checkin_photos")
         private val KEY_HAIRCUT_THRESHOLD_PERCENT =

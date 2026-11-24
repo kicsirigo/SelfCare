@@ -524,4 +524,9 @@
     <string name="trends_calorie_range_90d">90n</string>
     <string name="trends_calorie_range_365d">365n</string>
     <string name="trends_nutrition_range_avg">%1$d napos átlag: %2$d kcal/nap · %3$d g fehérje (%4$d nap)</string>
+    <string name="streak_days_suffix">napos sorozat</string>
+    <string name="nutrition_edit_meal_title">Étkezés szerkesztése</string>
+    <string name="settings_water_reminder">Vízivás emlékeztető</string>
+    <string name="notification_water_title">Vízivás emlékeztető</string>
+    <string name="notification_water_body">Ideje inni egy pohár vizet! Koppints a +250 ml naplózásához.</string>
 </resources>

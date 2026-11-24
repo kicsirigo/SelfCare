@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import com.selfcare.app.ui.components.AnimatedStreakFlamePill
 import com.selfcare.app.ui.components.ExpressiveMotion
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -280,42 +281,56 @@ fun RoutineScreenContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = if (state.isCompletedToday) AppIcons.CheckCircle else periodIcon,
-                        contentDescription = null,
-                        tint = if (state.isCompletedToday) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier
-                            .size(22.dp)
-                            .graphicsLayer {
-                                scaleX = checkScale
-                                scaleY = checkScale
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = if (state.isCompletedToday) AppIcons.CheckCircle else periodIcon,
+                            contentDescription = null,
+                            tint = if (state.isCompletedToday) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer {
+                                    scaleX = checkScale
+                                    scaleY = checkScale
+                                }
+                        )
+                        if (state.isCompletedToday) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.testTag("routine_completed_badge")
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.routine_completed_today),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
                             }
-                    )
-                    if (state.isCompletedToday) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = MaterialTheme.shapes.small,
-                            modifier = Modifier.testTag("routine_completed_badge")
-                        ) {
+                        } else {
                             Text(
-                                text = stringResource(R.string.routine_completed_today),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                text = stringResource(R.string.routine_not_completed_today),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    } else {
-                        Text(
-                            text = stringResource(R.string.routine_not_completed_today),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    if (state.streakDays > 0) {
+                        AnimatedStreakFlamePill(
+                            streakDays = state.streakDays,
+                            labelSuffix = stringResource(R.string.streak_days_suffix),
+                            modifier = Modifier.testTag("routine_streak_pill")
                         )
                     }
                 }

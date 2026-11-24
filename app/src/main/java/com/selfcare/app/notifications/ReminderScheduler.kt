@@ -37,6 +37,16 @@ class ReminderScheduler(
         } else {
             cancelReminder(RoutineRepository.PERIOD_EVENING)
         }
+
+        if (settings.waterReminderEnabled) {
+            scheduleReminder(
+                period = PERIOD_WATER,
+                hour = settings.waterReminderHour,
+                minute = settings.waterReminderMinute
+            )
+        } else {
+            cancelReminder(PERIOD_WATER)
+        }
     }
 
     fun scheduleReminder(
@@ -46,11 +56,7 @@ class ReminderScheduler(
         forceTomorrow: Boolean = false
     ) {
         val manager = alarmManager ?: return
-        val normalizedPeriod = if (period.equals(RoutineRepository.PERIOD_MORNING, ignoreCase = true)) {
-            RoutineRepository.PERIOD_MORNING
-        } else {
-            RoutineRepository.PERIOD_EVENING
-        }
+        val normalizedPeriod = normalizePeriod(period)
         val triggerAtMillis = computeNextTriggerMillis(
             hour = hour.coerceIn(0, 23),
             minute = minute.coerceIn(0, 59),
@@ -66,14 +72,16 @@ class ReminderScheduler(
 
     fun cancelReminder(period: String) {
         val manager = alarmManager ?: return
-        val normalizedPeriod = if (period.equals(RoutineRepository.PERIOD_MORNING, ignoreCase = true)) {
-            RoutineRepository.PERIOD_MORNING
-        } else {
-            RoutineRepository.PERIOD_EVENING
-        }
+        val normalizedPeriod = normalizePeriod(period)
         val pendingIntent = buildPendingIntent(normalizedPeriod, 0, 0)
         manager.cancel(pendingIntent)
         pendingIntent.cancel()
+    }
+
+    private fun normalizePeriod(period: String): String = when {
+        period.equals(RoutineRepository.PERIOD_MORNING, ignoreCase = true) -> RoutineRepository.PERIOD_MORNING
+        period.equals(PERIOD_WATER, ignoreCase = true) -> PERIOD_WATER
+        else -> RoutineRepository.PERIOD_EVENING
     }
 
     fun computeNextTriggerMillis(
@@ -97,10 +105,10 @@ class ReminderScheduler(
         hour: Int,
         minute: Int
     ): PendingIntent {
-        val requestCode = if (period == RoutineRepository.PERIOD_MORNING) {
-            REQUEST_CODE_MORNING
-        } else {
-            REQUEST_CODE_EVENING
+        val requestCode = when (period) {
+            RoutineRepository.PERIOD_MORNING -> REQUEST_CODE_MORNING
+            PERIOD_WATER -> REQUEST_CODE_WATER
+            else -> REQUEST_CODE_EVENING
         }
         val intent = Intent(context, ReminderReceiver::class.java).apply {
             putExtra(ReminderReceiver.EXTRA_PERIOD, period)
@@ -116,7 +124,9 @@ class ReminderScheduler(
     }
 
     companion object {
+        const val PERIOD_WATER = "WATER"
         private const val REQUEST_CODE_MORNING = 2001
         private const val REQUEST_CODE_EVENING = 2002
+        private const val REQUEST_CODE_WATER = 2003
     }
 }

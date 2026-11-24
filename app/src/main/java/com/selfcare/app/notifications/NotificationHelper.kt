@@ -60,17 +60,22 @@ class NotificationHelper(
         createNotificationChannels()
 
         val isMorning = period.equals(RoutineRepository.PERIOD_MORNING, ignoreCase = true)
-        val title = if (isMorning) {
-            context.getString(R.string.notification_morning_title)
-        } else {
-            context.getString(R.string.notification_evening_title)
+        val isWater = period.equals(ReminderScheduler.PERIOD_WATER, ignoreCase = true)
+        val title = when {
+            isMorning -> context.getString(R.string.notification_morning_title)
+            isWater -> context.getString(R.string.notification_water_title)
+            else -> context.getString(R.string.notification_evening_title)
         }
-        val body = if (isMorning) {
-            context.getString(R.string.notification_morning_body)
-        } else {
-            context.getString(R.string.notification_evening_body)
+        val body = when {
+            isMorning -> context.getString(R.string.notification_morning_body)
+            isWater -> context.getString(R.string.notification_water_body)
+            else -> context.getString(R.string.notification_evening_body)
         }
-        val notificationId = if (isMorning) NOTIFICATION_ID_MORNING else NOTIFICATION_ID_EVENING
+        val notificationId = when {
+            isMorning -> NOTIFICATION_ID_MORNING
+            isWater -> NOTIFICATION_ID_WATER
+            else -> NOTIFICATION_ID_EVENING
+        }
 
         return postNotification(
             channelId = CHANNEL_ROUTINE_REMINDERS,
@@ -135,5 +140,6 @@ class NotificationHelper(
         const val NOTIFICATION_ID_MORNING = 1001
         const val NOTIFICATION_ID_EVENING = 1002
         const val NOTIFICATION_ID_HAIRCUT = 1003
+        const val NOTIFICATION_ID_WATER = 1004
     }
 }

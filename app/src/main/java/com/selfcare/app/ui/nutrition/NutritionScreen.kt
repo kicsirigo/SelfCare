@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import com.selfcare.app.ui.components.AnimatedRollingInt
+import com.selfcare.app.ui.components.AnimatedStreakFlamePill
 import com.selfcare.app.ui.components.FloatingDeltaPopup
 import kotlin.math.cos
 import kotlin.math.sin
@@ -251,7 +252,8 @@ fun NutritionScreen(
                     saltGrams = salt,
                     mealType = mealType,
                     source = pending.source,
-                    eatenAtEpochMillis = eatenAtMillis
+                    eatenAtEpochMillis = eatenAtMillis,
+                    existingId = pending.editingMealId
                 )
             }
         )
@@ -679,6 +681,7 @@ fun NutritionScreen(
                         items(slotMeals, key = { it.id }) { meal ->
                             MealLogCard(
                                 meal = meal,
+                                onEdit = { viewModel.openEditMealDialog(meal) },
                                 onDelete = { viewModel.deleteMeal(meal.id) },
                                 modifier = Modifier.animateItem()
                             )
@@ -848,6 +851,14 @@ private fun CalorieMacroSummaryCard(
                         color = NeonWarning
                     )
                 }
+            }
+
+            if (state.nutritionStreakDays > 0) {
+                AnimatedStreakFlamePill(
+                    streakDays = state.nutritionStreakDays,
+                    labelSuffix = stringResource(R.string.streak_days_suffix),
+                    modifier = Modifier.testTag("nutrition_streak_pill")
+                )
             }
 
             if (state.totalBurnedKcal > 0) {
@@ -1151,6 +1162,7 @@ private fun MealTimingCard(
 @Composable
 private fun MealLogCard(
     meal: NutritionLogEntity,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1166,6 +1178,7 @@ private fun MealLogCard(
     val timePrefix = if (timeHm.isNotBlank()) "$timeHm · " else ""
 
     Card(
+        onClick = onEdit,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1282,9 +1295,12 @@ private fun MealConfirmationDialog(
     var carbsText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.carbsGrams)) }
     var fatText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.fatGrams)) }
     var saltText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.saltGrams)) }
-    var mealType by remember(pending) { mutableStateOf(defaultMealType) }
+    var mealType by remember(pending) { mutableStateOf(pending.initialMealType ?: defaultMealType) }
     var timeHmText by remember(pending) {
-        mutableStateOf(String.format(Locale.US, "%02d:%02d", nowTime.hour, nowTime.minute))
+        val initialHm = pending.initialEatenAtMillis?.let { MealTimingAnalyzer.formatTimeHm(it) }
+            ?.takeIf { it.isNotBlank() }
+            ?: String.format(Locale.US, "%02d:%02d", nowTime.hour, nowTime.minute)
+        mutableStateOf(initialHm)
     }
     var clarificationInput by remember { mutableStateOf("") }
 
@@ -1324,7 +1340,12 @@ private fun MealConfirmationDialog(
         onDismissRequest = onDismiss,
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = stringResource(R.string.nutrition_confirm_meal_title))
+                Text(
+                    text = stringResource(
+                        if (pending.editingMealId > 0L) R.string.nutrition_edit_meal_title
+                        else R.string.nutrition_confirm_meal_title
+                    )
+                )
                 if (pending.modelUsed.isNotBlank()) {
                     Text(
                         text = "AI: ${pending.modelUsed}",

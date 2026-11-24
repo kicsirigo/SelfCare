@@ -125,6 +125,19 @@ fun SettingsScreen(
             viewModel.setEveningReminderEnabled(enabled)
         },
         onAdjustEveningTime = viewModel::adjustEveningReminderTime,
+        onToggleWaterReminder = { enabled ->
+            if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+            viewModel.setWaterReminderEnabled(enabled)
+        },
+        onAdjustWaterTime = viewModel::adjustWaterReminderTime,
         onSaveGeminiApiKey = viewModel::setGeminiApiKey,
         onTestGeminiApiKey = viewModel::testGeminiApiKey,
         onCheckUpdates = viewModel::checkForUpdates,
@@ -168,6 +181,8 @@ fun SettingsScreenContent(
     onAdjustMorningTime: (Int) -> Unit,
     onToggleEveningReminder: (Boolean) -> Unit,
     onAdjustEveningTime: (Int) -> Unit,
+    onToggleWaterReminder: (Boolean) -> Unit = {},
+    onAdjustWaterTime: (Int) -> Unit = {},
     onSaveGeminiApiKey: (String) -> Unit = {},
     onTestGeminiApiKey: (String) -> Unit = {},
     onCheckUpdates: () -> Unit = {},
@@ -320,6 +335,16 @@ fun SettingsScreenContent(
                         onToggle = onToggleEveningReminder,
                         onAdjustTime = onAdjustEveningTime,
                         toggleTag = "settings_evening_reminder_toggle"
+                    )
+
+                    ReminderRow(
+                        title = stringResource(R.string.settings_water_reminder),
+                        hour = settings.waterReminderHour,
+                        minute = settings.waterReminderMinute,
+                        enabled = settings.waterReminderEnabled,
+                        onToggle = onToggleWaterReminder,
+                        onAdjustTime = onAdjustWaterTime,
+                        toggleTag = "settings_water_reminder_toggle"
                     )
                 }
             }

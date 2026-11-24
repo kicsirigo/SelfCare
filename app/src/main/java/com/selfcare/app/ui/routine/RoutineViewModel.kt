@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.selfcare.app.data.local.entity.ProductEntity
 import com.selfcare.app.data.local.entity.RoutineLogEntity
 import com.selfcare.app.data.repository.RoutineRepository
+import com.selfcare.app.domain.health.StreakCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,7 +24,8 @@ data class RoutineUiState(
     val currentLog: RoutineLogEntity? = null,
     val isCompletedToday: Boolean = false,
     val includedProductIds: Set<Long> = emptySet(),
-    val skippedProductIds: Set<Long> = emptySet()
+    val skippedProductIds: Set<Long> = emptySet(),
+    val streakDays: Int = 0
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -42,8 +44,9 @@ class RoutineViewModel(
         selectedPeriod,
         currentEpochDay,
         logsForToday,
-        routineRepository.observeAllProducts()
-    ) { period, epochDay, logs, allProducts ->
+        routineRepository.observeAllProducts(),
+        routineRepository.observeAllLogs()
+    ) { period, epochDay, logs, allProducts, allLogs ->
         val defaultProducts = allProducts.filter { product ->
             product.isDefaultInRoutine && when (product.routineSlot.uppercase()) {
                 RoutineRepository.PERIOD_MORNING -> period == RoutineRepository.PERIOD_MORNING
@@ -65,6 +68,11 @@ class RoutineViewModel(
         } else {
             defaultProducts.map { it.id }.toSet()
         }
+        val activeDays = allLogs
+            .asSequence()
+            .filter { it.completedAtEpochMillis > 0L }
+            .map { it.dateEpochDay }
+            .toSet()
 
         RoutineUiState(
             selectedPeriod = period,
@@ -74,7 +82,8 @@ class RoutineViewModel(
             currentLog = currentLog,
             isCompletedToday = currentLog != null && currentLog.completedAtEpochMillis > 0L,
             includedProductIds = includedIds,
-            skippedProductIds = skippedIds
+            skippedProductIds = skippedIds,
+            streakDays = StreakCalculator.computeCurrentStreak(activeDays, epochDay)
         )
     }.stateIn(
         scope = viewModelScope,

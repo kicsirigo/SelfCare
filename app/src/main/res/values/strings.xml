@@ -524,4 +524,9 @@
     <string name="trends_calorie_range_90d">90d</string>
     <string name="trends_calorie_range_365d">365d</string>
     <string name="trends_nutrition_range_avg">%1$dd Avg: %2$d kcal/day · %3$d g protein (%4$d days)</string>
+    <string name="streak_days_suffix">day streak</string>
+    <string name="nutrition_edit_meal_title">Edit Logged Meal</string>
+    <string name="settings_water_reminder">Hydration Reminder</string>
+    <string name="notification_water_title">Hydration Check</string>
+    <string name="notification_water_body">Time for a glass of water! Tap to log +250 ml in SelfCare.</string>
 </resources>

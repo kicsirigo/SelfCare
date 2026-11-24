@@ -230,6 +230,42 @@ class SettingsViewModel(
         }
     }
 
+    fun setWaterReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = settingsRepository.getSettingsOnce()
+            settingsRepository.setWaterReminder(
+                enabled = enabled,
+                hour = current.waterReminderHour,
+                minute = current.waterReminderMinute
+            )
+            reminderScheduler.syncReminders(
+                current.copy(waterReminderEnabled = enabled)
+            )
+        }
+    }
+
+    fun adjustWaterReminderTime(deltaMinutes: Int) {
+        viewModelScope.launch {
+            val current = settingsRepository.getSettingsOnce()
+            val (newHour, newMinute) = shiftTime(
+                current.waterReminderHour,
+                current.waterReminderMinute,
+                deltaMinutes
+            )
+            settingsRepository.setWaterReminder(
+                enabled = current.waterReminderEnabled,
+                hour = newHour,
+                minute = newMinute
+            )
+            reminderScheduler.syncReminders(
+                current.copy(
+                    waterReminderHour = newHour,
+                    waterReminderMinute = newMinute
+                )
+            )
+        }
+    }
+
     fun exportBackup(contentResolver: ContentResolver, uri: Uri) {
         viewModelScope.launch {
             isBusy.value = true

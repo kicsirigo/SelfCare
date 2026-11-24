@@ -388,4 +388,30 @@ class MacroCalculatorAndNutritionTest {
         // Latest weekly bucket averages the 2 logged days: (1800 + 2200) / 2 = 2000
         assertEquals(2000, bars365.last().caloriesKcal)
     }
+
+    @Test
+    fun `streak calculator counts consecutive days ending today or yesterday`() {
+        val today = 20100L
+        assertEquals(
+            3,
+            com.selfcare.app.domain.health.StreakCalculator.computeCurrentStreak(
+                setOf(today, today - 1L, today - 2L, today - 5L),
+                today
+            )
+        )
+        assertEquals(
+            2,
+            com.selfcare.app.domain.health.StreakCalculator.computeCurrentStreak(
+                setOf(today - 1L, today - 2L),
+                today
+            )
+        )
+        assertEquals(
+            0,
+            com.selfcare.app.domain.health.StreakCalculator.computeCurrentStreak(
+                setOf(today - 2L, today - 3L),
+                today
+            )
+        )
+    }
 }

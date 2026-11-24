@@ -65,12 +65,14 @@ class NutritionRepository(
         sugarGrams: Float = 0f,
         saltGrams: Float = 0f,
         source: String = "MANUAL",
-        eatenAtEpochMillis: Long? = null
+        eatenAtEpochMillis: Long? = null,
+        existingId: Long = 0L
     ): Long {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return 0L
         return nutritionDao.insertMeal(
             NutritionLogEntity(
+                id = existingId,
                 dateEpochDay = dateEpochDay,
                 mealType = mealType,
                 name = cleanName,

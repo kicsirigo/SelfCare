@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.11.0",
+            title = "Tap-to-Edit Logged Meals, Animated Flame Streak Pill & Hydration Reminder",
+            highlights = listOf(
+                "Tap any logged meal card on the Nutrition tab to edit its name, grams, calories, macros, salt, meal slot, or exact HH:mm time in place.",
+                "Added a 120Hz zero-recomposition Animated Streak Flame Pill (flickering dual-layer Bezier flame + rising ember sparks + spring rolling counter) on both the Routine and Nutrition tabs.",
+                "Added an optional daily Hydration Reminder (toggle + customizable time) in Settings."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.10.1",
             title = "True 120Hz Display Mode & Zero-Recomposition Animation Engine",
             highlights = listOf(
