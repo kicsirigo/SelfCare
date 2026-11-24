@@ -534,4 +534,11 @@
     <string name="nutrition_db_sources_label">Ellenőrzött források:</string>
     <string name="action_web_search_ai">Webes keresés (AI)</string>
     <string name="nutrition_verify_on_web_btn">Pontosítás webes kereséssel (AI)</string>
+    <string name="settings_groq_quota_title">Groq API kvóta figyelő (Ma)</string>
+    <string name="settings_groq_quota_reset">Nullázás</string>
+    <string name="settings_groq_quota_tokens_line">Ma elhasznált: %1$d / ~%2$d token (%3$d%%)</string>
+    <string name="settings_groq_quota_est_remaining">Becsült hátralévő ma: ~%1$d AI fotóelemzés vagy ~%2$d webes keresés</string>
+    <string name="settings_groq_quota_requests_line">Hátralévő kérések ma (élő): %1$d / %2$d</string>
+    <string name="settings_groq_quota_requests_local">Mai API hívások: %1$d (Free Tier ~1 000/nap)</string>
+    <string name="settings_groq_quota_tpm_line">Percenkénti token-limit (TPM): %1$d / %2$d</string>
 </resources>

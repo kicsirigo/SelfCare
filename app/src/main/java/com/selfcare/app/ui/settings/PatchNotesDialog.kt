@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.16.0",
+            title = "AI Web Search EOF Fix & Live Groq API Quota Monitor",
+            highlights = listOf(
+                "Fixed the 'Expected start of object {, but had EOF' error on Groq Web Search (gpt-oss-20b / 120b) by raising max_completion_tokens to 3072 with reasoning_effort='low' and adding safe JSON fallback extraction.",
+                "Added a zero-overhead Live Groq API Quota Monitor in Settings -> AI Engine showing daily tokens used vs. Free Tier reference, estimated remaining photo scans & web searches today, live remaining daily requests from Groq headers, and per-minute TPM."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.15.0",
             title = "Databases Restored (OFF + USDA + OpenBeautyFacts) + On-Demand Web Search Buttons",
             highlights = listOf(

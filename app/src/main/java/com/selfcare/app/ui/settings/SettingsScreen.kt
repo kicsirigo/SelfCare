@@ -164,6 +164,7 @@ fun SettingsScreen(
         onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
         onToggleAiWebSearch = viewModel::setAiWebSearchEnabled,
+        onResetGroqQuota = viewModel::resetGroqQuotaCounters,
         modifier = modifier
     )
 }
@@ -193,6 +194,7 @@ fun SettingsScreenContent(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onToggleAiWebSearch: (Boolean) -> Unit = {},
+    onResetGroqQuota: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings = state.settings
@@ -702,6 +704,104 @@ fun SettingsScreenContent(
                             )
                         }
                         null -> Unit
+                    }
+
+                    // Groq API Quota Monitor (live headers + daily local token counter)
+                    val dailyTokenRef = 200_000
+                    val usedTokens = settings.groqTodayTokensUsed
+                    val remainingTokensEst = (dailyTokenRef - usedTokens).coerceAtLeast(0)
+                    val estWebSearchesLeft = remainingTokensEst / 4_500
+                    val estPhotoScansLeft = remainingTokensEst / 1_800
+                    val tokenFraction = (usedTokens.toFloat() / dailyTokenRef.toFloat()).coerceIn(0f, 1f)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp)
+                            .testTag("settings_groq_quota_box"),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_groq_quota_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (usedTokens > 0 || settings.groqTodayRequestsUsed > 0) {
+                                TextButton(
+                                    onClick = onResetGroqQuota,
+                                    modifier = Modifier.testTag("settings_groq_quota_reset_btn")
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.settings_groq_quota_reset),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                        LinearProgressIndicator(
+                            progress = { tokenFraction },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.settings_groq_quota_tokens_line,
+                                usedTokens,
+                                dailyTokenRef,
+                                (tokenFraction * 100f).roundToInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.settings_groq_quota_est_remaining,
+                                estPhotoScansLeft,
+                                estWebSearchesLeft
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (settings.groqLimitRequests > 0 && settings.groqRemainingRequests >= 0) {
+                            val resetSuffix = if (settings.groqResetRequests.isNotBlank()) {
+                                " · reset: ${settings.groqResetRequests}"
+                            } else ""
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_groq_quota_requests_line,
+                                    settings.groqRemainingRequests,
+                                    settings.groqLimitRequests
+                                ) + resetSuffix,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (settings.groqTodayRequestsUsed > 0) {
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_groq_quota_requests_local,
+                                    settings.groqTodayRequestsUsed
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (settings.groqLimitTokensPerMin > 0 && settings.groqRemainingTokensPerMin >= 0) {
+                            val modelSuffix = if (settings.groqLastModelUsed.isNotBlank()) {
+                                " (${settings.groqLastModelUsed})"
+                            } else ""
+                            Text(
+                                text = stringResource(
+                                    R.string.settings_groq_quota_tpm_line,
+                                    settings.groqRemainingTokensPerMin,
+                                    settings.groqLimitTokensPerMin
+                                ) + modelSuffix,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

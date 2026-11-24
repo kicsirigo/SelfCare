@@ -543,4 +543,60 @@ class MacroCalculatorAndNutritionTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun `groq web search sends max_completion_tokens 3072, reasoning_effort low, and records quota headers`() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("x-ratelimit-limit-requests", "1000")
+                    .addHeader("x-ratelimit-remaining-requests", "987")
+                    .addHeader("x-ratelimit-reset-requests", "14h20m")
+                    .addHeader("x-ratelimit-limit-tokens", "8000")
+                    .addHeader("x-ratelimit-remaining-tokens", "4120")
+                    .setBody(
+                        """
+                        {
+                          "usage": {"total_tokens": 3880},
+                          "choices": [{
+                            "message": {
+                              "content": "",
+                              "reasoning": "Found values: {\"name\":\"Győri Édes zabfalat fahéjas\",\"estimatedGrams\":100,\"caloriesKcal\":489,\"proteinGrams\":7.5,\"carbsGrams\":65.0,\"fatGrams\":21.0,\"fiberGrams\":5.0,\"sugarGrams\":22.0,\"saltGrams\":0.75,\"detectedIngredients\":\"zabpehely, fahéj\",\"clarificationQuestion\":\"\"}"
+                            }
+                          }]
+                        }
+                        """.trimIndent()
+                    )
+            )
+            var capturedUsage: com.selfcare.app.data.remote.GroqUsageEvent? = null
+            val client = GroqVisionProductClient(
+                baseUrl = server.url("/").toString(),
+                delayFn = {},
+                onUsageRecorded = { capturedUsage = it }
+            )
+            val res = client.searchMealOnWeb(
+                EstimatedMealInfo("Győri Édes zabfalat fahéjas", 100f, 450, 7f, 60f, 20f),
+                "gsk_test_key"
+            )
+            val recordedReq = server.takeRequest()
+            val reqBody = recordedReq.body.readUtf8()
+            assertTrue(reqBody.contains("\"max_completion_tokens\":3072"))
+            assertTrue(reqBody.contains("\"reasoning_effort\":\"low\""))
+
+            assertTrue(res is WebSearchMealResult.Success)
+            assertEquals(489, (res as WebSearchMealResult.Success).meal.caloriesKcal)
+
+            assertEquals(3880, capturedUsage?.totalTokens)
+            assertEquals(1000, capturedUsage?.limitRequests)
+            assertEquals(987, capturedUsage?.remainingRequests)
+            assertEquals("14h20m", capturedUsage?.resetRequests)
+            assertEquals(8000, capturedUsage?.limitTokensPerMin)
+            assertEquals(4120, capturedUsage?.remainingTokensPerMin)
+        } finally {
+            server.shutdown()
+        }
+    }
 }

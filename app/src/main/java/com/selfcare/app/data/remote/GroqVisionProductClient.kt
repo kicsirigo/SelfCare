@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -135,10 +136,21 @@ interface ProductVisionClient {
  * Groq Vision client using OpenAI-compatible chat completions with Meta Llama 4 Scout / Maverick.
  * Fast (~1s), generous free tier (1,000 req/day), and resilient to Gemini AI Studio 503 spikes.
  */
+data class GroqUsageEvent(
+    val model: String,
+    val totalTokens: Int,
+    val limitRequests: Int? = null,
+    val remainingRequests: Int? = null,
+    val resetRequests: String? = null,
+    val limitTokensPerMin: Int? = null,
+    val remainingTokensPerMin: Int? = null
+)
+
 class GroqVisionProductClient(
     private val httpClient: OkHttpClient = defaultHttpClient(),
     private val baseUrl: String = DEFAULT_BASE_URL,
-    private val delayFn: suspend (Long) -> Unit = { delay(it) }
+    private val delayFn: suspend (Long) -> Unit = { delay(it) },
+    private val onUsageRecorded: ((GroqUsageEvent) -> Unit)? = null
 ) : ProductVisionClient {
 
     private val json = Json {
@@ -288,6 +300,7 @@ class GroqVisionProductClient(
                                 }
                                 return@use
                             }
+                            recordUsageFromResponse(response, bodyStr, label)
                             when (val parsed = parseGroqResponseJson(bodyStr)) {
                                 is GeminiVisionResult.Success -> {
                                     return@withContext parsed.copy(modelUsed = "$label (Groq)")
@@ -352,6 +365,7 @@ class GroqVisionProductClient(
                                 if (!shouldRetry) errors.add(err)
                                 return@use
                             }
+                            recordUsageFromResponse(response, bodyStr, label)
                             when (val parsed = parseGroqMealResponseJson(bodyStr)) {
                                 is MealVisionResult.Success -> {
                                     return@withContext parsed.copy(modelUsed = "$label (Groq)")
@@ -424,6 +438,7 @@ class GroqVisionProductClient(
                                 if (!shouldRetry) errors.add(err)
                                 return@use
                             }
+                            recordUsageFromResponse(response, bodyStr, label)
                             when (val parsed = parseGroqMealResponseJson(bodyStr)) {
                                 is MealVisionResult.Success -> {
                                     return@withContext parsed.copy(modelUsed = "$label (Groq)")
@@ -477,7 +492,8 @@ class GroqVisionProductClient(
             val payload = buildJsonObject {
                 put("model", model)
                 put("temperature", 0.1)
-                put("max_tokens", 700)
+                put("max_completion_tokens", WEB_SEARCH_MAX_COMPLETION_TOKENS)
+                put("reasoning_effort", "low")
                 put(
                     "tools",
                     buildJsonArray {
@@ -515,6 +531,7 @@ class GroqVisionProductClient(
                         errors.add(err)
                         return@use
                     }
+                    recordUsageFromResponse(response, bodyStr, label)
                     when (val parsed = parseGroqMealResponseJson(bodyStr)) {
                         is MealVisionResult.Success -> {
                             val webSources = parseWebSearchSources(bodyStr)
@@ -607,7 +624,8 @@ class GroqVisionProductClient(
             val payload = buildJsonObject {
                 put("model", model)
                 put("temperature", 0.1)
-                put("max_tokens", 700)
+                put("max_completion_tokens", WEB_SEARCH_MAX_COMPLETION_TOKENS)
+                put("reasoning_effort", "low")
                 put(
                     "tools",
                     buildJsonArray {
@@ -644,6 +662,7 @@ class GroqVisionProductClient(
                         errors.add(err)
                         return@use
                     }
+                    recordUsageFromResponse(response, bodyStr, label)
                     return WebSearchRawOutcome(
                         body = bodyStr,
                         modelLabel = "$label Web (Groq)",
@@ -807,6 +826,7 @@ class GroqVisionProductClient(
                                 if (!shouldRetry) errors.add(err)
                                 return@use
                             }
+                            recordUsageFromResponse(response, bodyStr, label)
                             when (val parsed = parseGroqNutritionLabelJson(bodyStr)) {
                                 is NutritionLabelVisionResult.Success -> {
                                     return@withContext parsed.copy(modelUsed = "$label (Groq)")
@@ -830,22 +850,53 @@ class GroqVisionProductClient(
             NutritionLabelVisionResult.Error(errors.joinToString(" | ").ifBlank { "Unknown Groq error" })
         }
 
+    private fun recordUsageFromResponse(
+        response: okhttp3.Response,
+        bodyStr: String,
+        modelLabel: String
+    ) {
+        val cb = onUsageRecorded ?: return
+        runCatching {
+            val totalTokens = runCatching {
+                val root = json.parseToJsonElement(bodyStr).jsonObject
+                root["usage"]?.jsonObject?.get("total_tokens")?.jsonPrimitive?.intOrNull ?: 0
+            }.getOrDefault(0)
+            cb(
+                GroqUsageEvent(
+                    model = modelLabel,
+                    totalTokens = totalTokens,
+                    limitRequests = response.header("x-ratelimit-limit-requests")?.toIntOrNull(),
+                    remainingRequests = response.header("x-ratelimit-remaining-requests")?.toIntOrNull(),
+                    resetRequests = response.header("x-ratelimit-reset-requests")?.trim()?.takeIf { it.isNotEmpty() },
+                    limitTokensPerMin = response.header("x-ratelimit-limit-tokens")?.toIntOrNull(),
+                    remainingTokensPerMin = response.header("x-ratelimit-remaining-tokens")?.toIntOrNull()
+                )
+            )
+        }
+    }
+
     private fun extractAssistantText(responseBody: String): Pair<String?, String?> {
         val root = json.parseToJsonElement(responseBody).jsonObject
         val firstChoice = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject
             ?: return null to "EMPTY_CHOICES"
-        val rawText = firstChoice["message"]?.jsonObject?.get("content")?.jsonPrimitive?.contentOrNull
-            ?.trim()
-            ?: return null to "EMPTY_TEXT"
+        val messageObj = firstChoice["message"]?.jsonObject ?: return null to "EMPTY_TEXT"
+        val rawContent = messageObj["content"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val rawText = if (rawContent.isNotEmpty()) {
+            rawContent
+        } else {
+            // Reasoning models occasionally place JSON at the end of `reasoning` if truncated
+            messageObj["reasoning"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        }
+        if (rawText.isEmpty()) return null to "EMPTY_TEXT"
         val withoutThink = rawText
             .replace(Regex("""<think>[\s\S]*?</think>""", RegexOption.IGNORE_CASE), "")
             .trim()
-        return withoutThink to null
+        return withoutThink.ifEmpty { null } to if (withoutThink.isEmpty()) "EMPTY_TEXT" else null
     }
 
     private fun extractJsonObjectSlice(responseBody: String): Pair<String?, String?> {
         val (text, err) = extractAssistantText(responseBody)
-        if (err != null || text == null) return null to (err ?: "EMPTY_TEXT")
+        if (err != null || text.isNullOrBlank()) return null to (err ?: "EMPTY_TEXT")
         val cleaned = text
             .removePrefix("```json")
             .removePrefix("```")
@@ -853,8 +904,8 @@ class GroqVisionProductClient(
             .trim()
         val start = cleaned.indexOf('{')
         val end = cleaned.lastIndexOf('}')
-        val slice = if (start >= 0 && end > start) cleaned.substring(start, end + 1) else cleaned
-        return slice to null
+        if (start < 0 || end <= start) return null to "NO_JSON_OBJECT"
+        return cleaned.substring(start, end + 1) to null
     }
 
     fun parseGroqNutritionLabelJson(responseBody: String): NutritionLabelVisionResult {
@@ -1132,6 +1183,7 @@ class GroqVisionProductClient(
                 httpClient.newCall(req).execute().use { resp ->
                     val bodyStr = resp.body?.string().orEmpty()
                     if (resp.isSuccessful) {
+                        recordUsageFromResponse(resp, bodyStr, shortModelLabel(model))
                         val parsed = parseGroqCoachReplyJson(bodyStr)
                         if (parsed is AiCoachChatResult.Success) {
                             return@withContext parsed.copy(modelUsed = shortModelLabel(model))
@@ -1217,6 +1269,7 @@ class GroqVisionProductClient(
             "openai/gpt-oss-20b",
             "openai/gpt-oss-120b"
         )
+        const val WEB_SEARCH_MAX_COMPLETION_TOKENS = 3072
         private val URL_REGEX = Regex("""https?://[^\s"'<>\\]+""")
 
         fun selectVisionModelsFromCatalog(modelIds: List<String>): List<String> {

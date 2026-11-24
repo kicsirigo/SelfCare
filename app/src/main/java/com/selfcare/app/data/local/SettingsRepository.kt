@@ -10,10 +10,12 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.selfcare.app.data.remote.GroqUsageEvent
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 enum class AppLanguage(val languageTag: String?) {
     AUTO(null),
@@ -57,7 +59,15 @@ data class UserSettings(
     val bodyIsMale: Boolean = true,
     val bodyActivityLevel: String = "MODERATE",
     val bodyMacroGoal: String = "MAINTAIN",
-    val aiWebSearchEnabled: Boolean = true
+    val aiWebSearchEnabled: Boolean = true,
+    val groqTodayTokensUsed: Int = 0,
+    val groqTodayRequestsUsed: Int = 0,
+    val groqLimitRequests: Int = 0,
+    val groqRemainingRequests: Int = -1,
+    val groqResetRequests: String = "",
+    val groqLimitTokensPerMin: Int = 0,
+    val groqRemainingTokensPerMin: Int = -1,
+    val groqLastModelUsed: String = ""
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -127,7 +137,21 @@ class SettingsRepository(
             bodyIsMale = prefs[KEY_BODY_IS_MALE] ?: true,
             bodyActivityLevel = prefs[KEY_BODY_ACTIVITY_LEVEL] ?: "MODERATE",
             bodyMacroGoal = prefs[KEY_BODY_MACRO_GOAL] ?: "MAINTAIN",
-            aiWebSearchEnabled = prefs[KEY_AI_WEB_SEARCH_ENABLED] ?: true
+            aiWebSearchEnabled = prefs[KEY_AI_WEB_SEARCH_ENABLED] ?: true,
+            groqTodayTokensUsed = if ((prefs[KEY_GROQ_QUOTA_EPOCH_DAY] ?: -1L) == LocalDate.now().toEpochDay()) {
+                (prefs[KEY_GROQ_TODAY_TOKENS] ?: 0).coerceAtLeast(0)
+            } else 0,
+            groqTodayRequestsUsed = if ((prefs[KEY_GROQ_QUOTA_EPOCH_DAY] ?: -1L) == LocalDate.now().toEpochDay()) {
+                (prefs[KEY_GROQ_TODAY_REQUESTS] ?: 0).coerceAtLeast(0)
+            } else 0,
+            groqLimitRequests = (prefs[KEY_GROQ_LIMIT_REQUESTS] ?: 0).coerceAtLeast(0),
+            groqRemainingRequests = if ((prefs[KEY_GROQ_QUOTA_EPOCH_DAY] ?: -1L) == LocalDate.now().toEpochDay()) {
+                prefs[KEY_GROQ_REMAINING_REQUESTS] ?: -1
+            } else -1,
+            groqResetRequests = prefs[KEY_GROQ_RESET_REQUESTS].orEmpty(),
+            groqLimitTokensPerMin = (prefs[KEY_GROQ_LIMIT_TPM] ?: 0).coerceAtLeast(0),
+            groqRemainingTokensPerMin = prefs[KEY_GROQ_REMAINING_TPM] ?: -1,
+            groqLastModelUsed = prefs[KEY_GROQ_LAST_MODEL].orEmpty()
         )
     }
 
@@ -184,6 +208,49 @@ class SettingsRepository(
     suspend fun setAiWebSearchEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[KEY_AI_WEB_SEARCH_ENABLED] = enabled
+        }
+    }
+
+    suspend fun recordGroqUsage(event: GroqUsageEvent, todayEpochDay: Long = LocalDate.now().toEpochDay()) {
+        dataStore.edit { prefs ->
+            val savedDay = prefs[KEY_GROQ_QUOTA_EPOCH_DAY] ?: -1L
+            val prevTokens = if (savedDay == todayEpochDay) (prefs[KEY_GROQ_TODAY_TOKENS] ?: 0) else 0
+            val prevReqs = if (savedDay == todayEpochDay) (prefs[KEY_GROQ_TODAY_REQUESTS] ?: 0) else 0
+            prefs[KEY_GROQ_QUOTA_EPOCH_DAY] = todayEpochDay
+            prefs[KEY_GROQ_TODAY_TOKENS] = (prevTokens + event.totalTokens.coerceAtLeast(0)).coerceAtLeast(0)
+            prefs[KEY_GROQ_TODAY_REQUESTS] = prevReqs + 1
+            if (event.limitRequests != null && event.limitRequests > 0) {
+                prefs[KEY_GROQ_LIMIT_REQUESTS] = event.limitRequests
+            }
+            if (event.remainingRequests != null && event.remainingRequests >= 0) {
+                prefs[KEY_GROQ_REMAINING_REQUESTS] = event.remainingRequests
+            }
+            if (!event.resetRequests.isNullOrBlank()) {
+                prefs[KEY_GROQ_RESET_REQUESTS] = event.resetRequests
+            }
+            if (event.limitTokensPerMin != null && event.limitTokensPerMin > 0) {
+                prefs[KEY_GROQ_LIMIT_TPM] = event.limitTokensPerMin
+            }
+            if (event.remainingTokensPerMin != null && event.remainingTokensPerMin >= 0) {
+                prefs[KEY_GROQ_REMAINING_TPM] = event.remainingTokensPerMin
+            }
+            if (event.model.isNotBlank()) {
+                prefs[KEY_GROQ_LAST_MODEL] = event.model
+            }
+        }
+    }
+
+    suspend fun resetGroqQuotaCounters() {
+        dataStore.edit { prefs ->
+            prefs.remove(KEY_GROQ_QUOTA_EPOCH_DAY)
+            prefs.remove(KEY_GROQ_TODAY_TOKENS)
+            prefs.remove(KEY_GROQ_TODAY_REQUESTS)
+            prefs.remove(KEY_GROQ_LIMIT_REQUESTS)
+            prefs.remove(KEY_GROQ_REMAINING_REQUESTS)
+            prefs.remove(KEY_GROQ_RESET_REQUESTS)
+            prefs.remove(KEY_GROQ_LIMIT_TPM)
+            prefs.remove(KEY_GROQ_REMAINING_TPM)
+            prefs.remove(KEY_GROQ_LAST_MODEL)
         }
     }
 
@@ -343,6 +410,15 @@ class SettingsRepository(
         private val KEY_BODY_ACTIVITY_LEVEL = stringPreferencesKey("body_activity_level")
         private val KEY_BODY_MACRO_GOAL = stringPreferencesKey("body_macro_goal")
         private val KEY_AI_WEB_SEARCH_ENABLED = booleanPreferencesKey("ai_web_search_enabled")
+        private val KEY_GROQ_QUOTA_EPOCH_DAY = longPreferencesKey("groq_quota_epoch_day")
+        private val KEY_GROQ_TODAY_TOKENS = intPreferencesKey("groq_today_tokens")
+        private val KEY_GROQ_TODAY_REQUESTS = intPreferencesKey("groq_today_requests")
+        private val KEY_GROQ_LIMIT_REQUESTS = intPreferencesKey("groq_limit_requests")
+        private val KEY_GROQ_REMAINING_REQUESTS = intPreferencesKey("groq_remaining_requests")
+        private val KEY_GROQ_RESET_REQUESTS = stringPreferencesKey("groq_reset_requests")
+        private val KEY_GROQ_LIMIT_TPM = intPreferencesKey("groq_limit_tpm")
+        private val KEY_GROQ_REMAINING_TPM = intPreferencesKey("groq_remaining_tpm")
+        private val KEY_GROQ_LAST_MODEL = stringPreferencesKey("groq_last_model")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

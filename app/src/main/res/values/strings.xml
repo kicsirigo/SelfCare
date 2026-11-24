@@ -534,4 +534,11 @@
     <string name="nutrition_db_sources_label">Verified sources:</string>
     <string name="action_web_search_ai">Web Search (AI)</string>
     <string name="nutrition_verify_on_web_btn">Verify on Web (AI)</string>
+    <string name="settings_groq_quota_title">Groq API Quota Monitor (Today)</string>
+    <string name="settings_groq_quota_reset">Reset</string>
+    <string name="settings_groq_quota_tokens_line">Used today: %1$d / ~%2$d tokens (%3$d%%)</string>
+    <string name="settings_groq_quota_est_remaining">Est. remaining today: ~%1$d AI photo scans or ~%2$d Web Searches</string>
+    <string name="settings_groq_quota_requests_line">Live daily requests left: %1$d / %2$d</string>
+    <string name="settings_groq_quota_requests_local">Requests made today: %1$d (free tier ~1,000/day)</string>
+    <string name="settings_groq_quota_tpm_line">Per-minute tokens (TPM): %1$d / %2$d</string>
 </resources>

@@ -27,6 +27,7 @@ import com.selfcare.app.domain.ml.FaceAnalyzer
 import com.selfcare.app.domain.ml.OcrScanner
 import com.selfcare.app.notifications.NotificationHelper
 import com.selfcare.app.notifications.ReminderScheduler
+import kotlinx.coroutines.launch
 import java.time.Clock
 
 open class AppContainer(
@@ -103,8 +104,18 @@ open class AppContainer(
         OpenBeautyFactsClient()
     }
 
+    private val quotaScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
+
     open val productVisionClient: ProductVisionClient by lazy {
-        GroqVisionProductClient()
+        GroqVisionProductClient(
+            onUsageRecorded = { event ->
+                quotaScope.launch {
+                    runCatching { settingsRepository.recordGroqUsage(event) }
+                }
+            }
+        )
     }
 
     open val openFoodFactsNutritionClient: OpenFoodFactsNutritionClient by lazy {

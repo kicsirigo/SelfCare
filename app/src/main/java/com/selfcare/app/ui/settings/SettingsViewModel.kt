@@ -128,6 +128,12 @@ class SettingsViewModel(
         }
     }
 
+    fun resetGroqQuotaCounters() {
+        viewModelScope.launch {
+            settingsRepository.resetGroqQuotaCounters()
+        }
+    }
+
     fun setHaircutThresholdPercent(percent: Int) {
         viewModelScope.launch {
             settingsRepository.setHaircutThresholdPercent(percent)
