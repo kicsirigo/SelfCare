@@ -92,7 +92,7 @@ object FoodPresetCatalog {
         FoodPreset("almonds", "Almonds", "Mandula", 30f, 579f, 21f, 22f, 50f, 12.5f, 4.4f, 0.02f, "mandula, olajos mag"),
         FoodPreset("olive_oil", "Olive Oil (1 tbsp = 14g)", "Olívaolaj (1 ek = 14g)", 14f, 884f, 0f, 0f, 100f, 0f, 0f, 0f, "olaj, oliva"),
         FoodPreset("turo_rudi", "Túró Rudi (1 bar = 30g)", "Túró Rudi (1 db = 30g)", 30f, 360f, 9.5f, 38f, 18.5f, 0.5f, 34f, 0.2f, "pottyos, rudi")
-    )
+    ).plus(FoodPresetCatalogExtra.extraItems).distinctBy { it.id }
 
     fun normalizeForSearch(text: String): String {
         val decomposed = Normalizer.normalize(text.trim().lowercase(), Normalizer.Form.NFD)

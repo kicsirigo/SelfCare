@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.12.0",
+            title = "3-Layer Mega Food Database (250+ Offline HU + 3M+ OFF + 400k+ USDA) & Food RAG",
+            highlights = listOf(
+                "Expanded the 100% offline Hungarian & international food catalog to 250+ items (bakery/sandwich items, cold cuts, cheeses, fast food like McDonald's/Burger King/KFC, soups, stews, fruits, veggies, sweets, and drinks).",
+                "Upgraded remote search to query OpenFoodFacts (Hungarian + automatic global fallback for 3M+ products) and USDA FoodData Central (400k+ raw & restaurant foods via built-in DEMO_KEY with HU->EN ingredient bridge) in parallel.",
+                "Added AI -> Database -> AI Food RAG grounding: after Qwen identifies a meal photo or plain-language description, SelfCare looks up verified per-100g facts from the 3-layer DB and feeds them back to Qwen for database-grounded macro & salt calculation ('DB + AI Verified')."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.11.1",
             title = "Free Portion Multiplier (Any ×) for Every Meal",
             highlights = listOf(

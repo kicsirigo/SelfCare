@@ -1362,9 +1362,13 @@ private fun MealConfirmationDialog(
                 )
                 if (pending.modelUsed.isNotBlank()) {
                     Text(
-                        text = "AI: ${pending.modelUsed}",
+                        text = if (pending.isDatabaseGrounded) {
+                            "${stringResource(R.string.nutrition_db_ai_verified)} · ${pending.modelUsed}"
+                        } else {
+                            "AI: ${pending.modelUsed}"
+                        },
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF38BDF8)
+                        color = if (pending.isDatabaseGrounded) NeonGreen else Color(0xFF38BDF8)
                     )
                 }
             }

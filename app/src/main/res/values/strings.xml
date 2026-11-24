@@ -530,4 +530,5 @@
     <string name="notification_water_title">Hydration Check</string>
     <string name="notification_water_body">Time for a glass of water! Tap to log +250 ml in SelfCare.</string>
     <string name="nutrition_portion_multiplier_label">Multiplier / servings (×)</string>
+    <string name="nutrition_db_ai_verified">DB + AI Verified</string>
 </resources>

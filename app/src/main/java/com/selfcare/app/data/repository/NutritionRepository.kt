@@ -9,6 +9,9 @@ import com.selfcare.app.data.local.entity.WeightLogEntity
 import com.selfcare.app.data.remote.FoodLookupResult
 import com.selfcare.app.data.remote.FoodSearchResult
 import com.selfcare.app.data.remote.OpenFoodFactsNutritionClient
+import com.selfcare.app.data.remote.UsdaFoodDataClient
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 import java.time.LocalDate
@@ -16,6 +19,7 @@ import java.time.LocalDate
 class NutritionRepository(
     private val nutritionDao: NutritionDao,
     private val openFoodFactsClient: OpenFoodFactsNutritionClient,
+    private val usdaClient: UsdaFoodDataClient = UsdaFoodDataClient(),
     private val clock: Clock = Clock.systemDefaultZone()
 ) {
     fun todayEpochDay(): Long = LocalDate.now(clock).toEpochDay()
@@ -190,6 +194,22 @@ class NutritionRepository(
     suspend fun lookupBarcode(barcode: String): FoodLookupResult =
         openFoodFactsClient.fetchByBarcode(barcode)
 
-    suspend fun searchFoodRemote(query: String): FoodSearchResult =
-        openFoodFactsClient.searchByName(query)
+    suspend fun searchFoodRemote(query: String): FoodSearchResult = coroutineScope {
+        val offDeferred = async { openFoodFactsClient.searchByName(query) }
+        val usdaDeferred = async { usdaClient.searchByName(query) }
+        val offRes = offDeferred.await()
+        val usdaRes = usdaDeferred.await()
+
+        val offItems = (offRes as? FoodSearchResult.Success)?.items.orEmpty()
+        val usdaItems = (usdaRes as? FoodSearchResult.Success)?.items.orEmpty()
+        if (offItems.isEmpty() && usdaItems.isEmpty()) {
+            return@coroutineScope (offRes as? FoodSearchResult.Error)
+                ?: (usdaRes as? FoodSearchResult.Error)
+                ?: FoodSearchResult.Success(emptyList())
+        }
+        val combined = (offItems + usdaItems)
+            .distinctBy { "${it.name.trim().lowercase()}|${it.per100gKcal.toInt()}" }
+            .take(24)
+        FoodSearchResult.Success(combined)
+    }
 }

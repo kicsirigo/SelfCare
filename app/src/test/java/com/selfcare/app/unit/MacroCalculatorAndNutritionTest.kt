@@ -414,4 +414,41 @@ class MacroCalculatorAndNutritionTest {
             )
         )
     }
+
+    @Test
+    fun `expanded offline catalog has 200+ Hungarian and fast-food items`() {
+        assertTrue(FoodPresetCatalog.items.size >= 200)
+        assertTrue(FoodPresetCatalog.search("csaszarzsemle").isNotEmpty())
+        assertTrue(FoodPresetCatalog.search("whopper").isNotEmpty())
+        assertTrue(FoodPresetCatalog.search("mekis sajtburger").isNotEmpty())
+        assertTrue(FoodPresetCatalog.search("trappista").isNotEmpty())
+    }
+
+    @Test
+    fun `usda food client parses nutrients and converts sodium mg to salt grams`() {
+        val client = com.selfcare.app.data.remote.UsdaFoodDataClient()
+        val sampleJson = """
+            {
+              "foods": [
+                {
+                  "description": "Chicken, broilers or fryers, breast, meat only, roasted",
+                  "brandOwner": "USDA Foundation",
+                  "foodNutrients": [
+                    {"nutrientId": 1008, "nutrientName": "Energy", "unitName": "KCAL", "value": 165.0},
+                    {"nutrientId": 1003, "nutrientName": "Protein", "unitName": "G", "value": 31.0},
+                    {"nutrientId": 1005, "nutrientName": "Carbohydrate, by difference", "unitName": "G", "value": 0.0},
+                    {"nutrientId": 1004, "nutrientName": "Total lipid (fat)", "unitName": "G", "value": 3.6},
+                    {"nutrientId": 1093, "nutrientName": "Sodium, Na", "unitName": "MG", "value": 400.0}
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+        val parsed = client.parseSearchResponse(sampleJson)
+        assertEquals(1, parsed.size)
+        assertEquals(165f, parsed.first().per100gKcal, 0.1f)
+        assertEquals(31f, parsed.first().per100gProtein, 0.1f)
+        assertEquals(1.0f, parsed.first().per100gSalt, 0.05f)
+        assertEquals("chicken breast", com.selfcare.app.data.remote.UsdaFoodDataClient.translateHungarianHint("csirkemell"))
+    }
 }

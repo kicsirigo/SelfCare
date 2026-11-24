@@ -86,6 +86,11 @@ interface ProductVisionClient {
         userClarification: String,
         apiKey: String
     ): MealVisionResult = MealVisionResult.Error("Not supported")
+    suspend fun groundMealWithDatabaseFacts(
+        initialMeal: EstimatedMealInfo,
+        databaseFacts: String,
+        apiKey: String
+    ): MealVisionResult = MealVisionResult.Error("Not supported")
     suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         NutritionLabelVisionResult.Error("Not supported")
     suspend fun chatWithCoach(
@@ -731,6 +736,25 @@ class GroqVisionProductClient(
             append(". Recalculate exact total grams, calories, protein, carbs, fat, fiber, sugar, salt, and updated detectedIngredients.")
         }
         return estimateMealFromText(combinedQuery, apiKey)
+    }
+
+    override suspend fun groundMealWithDatabaseFacts(
+        initialMeal: EstimatedMealInfo,
+        databaseFacts: String,
+        apiKey: String
+    ): MealVisionResult {
+        if (databaseFacts.isBlank()) return MealVisionResult.Success(initialMeal)
+        val groundedQuery = buildString {
+            append("Meal identified: ").append(initialMeal.name)
+            if (initialMeal.detectedIngredients.isNotBlank()) {
+                append(" | Ingredients: ").append(initialMeal.detectedIngredients)
+            }
+            append(" | Estimated total weight: ").append(initialMeal.estimatedGrams.toInt()).append("g.\n")
+            append("VERIFIED NUTRITION DATABASE FACTS (per 100g):\n")
+            append(databaseFacts).append("\n")
+            append("Recalculate the exact calories, protein, carbs, fat, fiber, sugar, and salt for this meal using the verified per-100g database facts above. Keep the meal name in the same language and preserve any helpful clarificationQuestion.")
+        }
+        return estimateMealFromText(groundedQuery, apiKey)
     }
 
     override suspend fun chatWithCoach(

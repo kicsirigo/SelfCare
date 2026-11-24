@@ -88,9 +88,31 @@ class OpenFoodFactsNutritionClient(
         val clean = query.trim()
         if (clean.isEmpty()) return@withContext FoodSearchResult.Success(emptyList())
 
-        val encoded = URLEncoder.encode(clean, StandardCharsets.UTF_8.name())
-        val url = "${baseUrl.trimEnd('/')}/cgi/search.pl?search_terms=$encoded&search_simple=1&action=process&json=1&page_size=12&lc=hu&cc=hu" +
-            "&fields=code,product_name,brands,nutriments,serving_quantity"
+        val huResult = executeSearch(clean, hungarianOnly = true)
+        val huItems = (huResult as? FoodSearchResult.Success)?.items.orEmpty()
+        if (huItems.size >= 6) {
+            return@withContext FoodSearchResult.Success(huItems)
+        }
+
+        // Supplement with global OpenFoodFacts catalog for international brands sold in Hungary
+        val globalResult = executeSearch(clean, hungarianOnly = false)
+        val globalItems = (globalResult as? FoodSearchResult.Success)?.items.orEmpty()
+        if (huItems.isEmpty() && globalItems.isEmpty()) {
+            return@withContext (huResult as? FoodSearchResult.Error)
+                ?: (globalResult as? FoodSearchResult.Error)
+                ?: FoodSearchResult.Success(emptyList())
+        }
+        val merged = (huItems + globalItems)
+            .distinctBy { "${it.name.lowercase()}|${it.brand.lowercase()}" }
+            .take(20)
+        FoodSearchResult.Success(merged)
+    }
+
+    private fun executeSearch(query: String, hungarianOnly: Boolean): FoodSearchResult {
+        val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.name())
+        val localeFilter = if (hungarianOnly) "&lc=hu&cc=hu" else ""
+        val url = "${baseUrl.trimEnd('/')}/cgi/search.pl?search_terms=$encoded&search_simple=1&action=process&json=1&page_size=20$localeFilter" +
+            "&fields=code,product_name,product_name_hu,brands,nutriments,serving_quantity"
         val req = Request.Builder()
             .url(url)
             .get()
@@ -98,9 +120,9 @@ class OpenFoodFactsNutritionClient(
             .header("User-Agent", USER_AGENT)
             .build()
 
-        try {
+        return try {
             okHttpClient.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return@withContext FoodSearchResult.Error("HTTP ${resp.code}")
+                if (!resp.isSuccessful) return FoodSearchResult.Error("HTTP ${resp.code}")
                 val body = resp.body?.string().orEmpty()
                 val root = json.parseToJsonElement(body).jsonObject
                 val products = root["products"]?.jsonArray.orEmpty()
@@ -115,7 +137,8 @@ class OpenFoodFactsNutritionClient(
     }
 
     private fun parseProductObject(obj: JsonObject, fallbackBarcode: String?): FoodNutritionItem? {
-        val name = obj["product_name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val name = obj["product_name_hu"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotBlank() }
+            ?: obj["product_name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         if (name.isBlank()) return null
         val brand = obj["brands"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val barcode = obj["code"]?.jsonPrimitive?.contentOrNull?.trim() ?: fallbackBarcode

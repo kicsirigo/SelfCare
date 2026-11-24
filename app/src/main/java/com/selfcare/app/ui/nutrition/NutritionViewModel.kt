@@ -25,6 +25,7 @@ import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
+import com.selfcare.app.domain.health.MealDatabaseGrounder
 import com.selfcare.app.domain.health.MealTimingAnalyzer
 import com.selfcare.app.domain.health.StreakCalculator
 import com.selfcare.app.domain.health.VitaminCalculator
@@ -69,7 +70,8 @@ data class PendingMealConfirmation(
     val per100gSalt: Float = 0f,
     val detectedIngredients: String = "",
     val clarificationQuestion: String = "",
-    val isRefining: Boolean = false
+    val isRefining: Boolean = false,
+    val isDatabaseGrounded: Boolean = false
 )
 
 data class NutritionUiState(
@@ -429,25 +431,26 @@ class NutritionViewModel(
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             when (val res = visionClient.estimateMealFromText(q, apiKey)) {
                 is MealVisionResult.Success -> {
-                    val m: EstimatedMealInfo = res.meal
+                    val (finalMeal, modelLabel, grounded) = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
                     transientFlow.update {
                         it.copy(
                             isBusy = false,
                             pendingConfirmation = PendingMealConfirmation(
-                                name = m.name,
-                                grams = m.estimatedGrams,
-                                caloriesKcal = m.caloriesKcal,
-                                proteinGrams = m.proteinGrams,
-                                carbsGrams = m.carbsGrams,
-                                fatGrams = m.fatGrams,
-                                fiberGrams = m.fiberGrams,
-                                sugarGrams = m.sugarGrams,
-                                saltGrams = m.saltGrams,
+                                name = finalMeal.name,
+                                grams = finalMeal.estimatedGrams,
+                                caloriesKcal = finalMeal.caloriesKcal,
+                                proteinGrams = finalMeal.proteinGrams,
+                                carbsGrams = finalMeal.carbsGrams,
+                                fatGrams = finalMeal.fatGrams,
+                                fiberGrams = finalMeal.fiberGrams,
+                                sugarGrams = finalMeal.sugarGrams,
+                                saltGrams = finalMeal.saltGrams,
                                 source = "GROQ_TEXT",
-                                modelUsed = res.modelUsed,
+                                modelUsed = modelLabel,
                                 isPer100gScalable = false,
-                                detectedIngredients = m.detectedIngredients,
-                                clarificationQuestion = m.clarificationQuestion
+                                detectedIngredients = finalMeal.detectedIngredients,
+                                clarificationQuestion = finalMeal.clarificationQuestion,
+                                isDatabaseGrounded = grounded
                             )
                         )
                     }
@@ -513,25 +516,26 @@ class NutritionViewModel(
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             when (val res = visionClient.estimateMealFromPhoto(bitmap, apiKey)) {
                 is MealVisionResult.Success -> {
-                    val m: EstimatedMealInfo = res.meal
+                    val (finalMeal, modelLabel, grounded) = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
                     transientFlow.update {
                         it.copy(
                             isBusy = false,
                             pendingConfirmation = PendingMealConfirmation(
-                                name = m.name,
-                                grams = m.estimatedGrams,
-                                caloriesKcal = m.caloriesKcal,
-                                proteinGrams = m.proteinGrams,
-                                carbsGrams = m.carbsGrams,
-                                fatGrams = m.fatGrams,
-                                fiberGrams = m.fiberGrams,
-                                sugarGrams = m.sugarGrams,
-                                saltGrams = m.saltGrams,
+                                name = finalMeal.name,
+                                grams = finalMeal.estimatedGrams,
+                                caloriesKcal = finalMeal.caloriesKcal,
+                                proteinGrams = finalMeal.proteinGrams,
+                                carbsGrams = finalMeal.carbsGrams,
+                                fatGrams = finalMeal.fatGrams,
+                                fiberGrams = finalMeal.fiberGrams,
+                                sugarGrams = finalMeal.sugarGrams,
+                                saltGrams = finalMeal.saltGrams,
                                 source = "GROQ_VISION",
-                                modelUsed = res.modelUsed,
+                                modelUsed = modelLabel,
                                 isPer100gScalable = false,
-                                detectedIngredients = m.detectedIngredients,
-                                clarificationQuestion = m.clarificationQuestion
+                                detectedIngredients = finalMeal.detectedIngredients,
+                                clarificationQuestion = finalMeal.clarificationQuestion,
+                                isDatabaseGrounded = grounded
                             )
                         )
                     }
@@ -540,6 +544,34 @@ class NutritionViewModel(
                     transientFlow.update { it.copy(isBusy = false, statusMessage = res.reason) }
                 }
             }
+        }
+    }
+
+    private suspend fun groundWithDatabaseIfPossible(
+        initialMeal: EstimatedMealInfo,
+        initialModel: String,
+        apiKey: String
+    ): Triple<EstimatedMealInfo, String, Boolean> {
+        val client = visionClient ?: return Triple(initialMeal, initialModel, false)
+        val facts = runCatching {
+            MealDatabaseGrounder.collectVerifiedFacts(
+                meal = initialMeal,
+                nutritionRepository = nutritionRepository,
+                allowRemoteLookup = true
+            )
+        }.getOrDefault("")
+        if (facts.isBlank()) return Triple(initialMeal, initialModel, false)
+
+        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, facts, apiKey)) {
+            is MealVisionResult.Success -> Triple(
+                grounded.meal.copy(
+                    clarificationQuestion = grounded.meal.clarificationQuestion
+                        .ifBlank { initialMeal.clarificationQuestion }
+                ),
+                grounded.modelUsed.ifBlank { initialModel },
+                true
+            )
+            is MealVisionResult.Error -> Triple(initialMeal, initialModel, false)
         }
     }
 
