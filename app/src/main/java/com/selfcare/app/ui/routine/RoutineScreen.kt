@@ -2,7 +2,13 @@ package com.selfcare.app.ui.routine
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.selfcare.app.ui.components.ExpressiveMotion
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -32,6 +38,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -241,8 +248,28 @@ fun RoutineScreenContent(
             else -> R.string.routine_complete_hair
         }
 
+        val haptics = LocalHapticFeedback.current
+        val cardPulse = remember { Animatable(1f) }
+        val checkScale by animateFloatAsState(
+            targetValue = if (state.isCompletedToday) 1.15f else 1.0f,
+            animationSpec = ExpressiveMotion.bouncySpring(),
+            label = "routine_check_scale"
+        )
+        LaunchedEffect(state.isCompletedToday) {
+            if (state.isCompletedToday) {
+                cardPulse.snapTo(0.96f)
+                cardPulse.animateTo(1.03f, ExpressiveMotion.bouncySpring())
+                cardPulse.animateTo(1.0f, ExpressiveMotion.spatialSpring())
+            }
+        }
+
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = cardPulse.value
+                    scaleY = cardPulse.value
+                },
             colors = CardDefaults.cardColors(containerColor = bannerContainerColor),
             border = BorderStroke(1.dp, bannerBorderColor)
         ) {
@@ -264,7 +291,12 @@ fun RoutineScreenContent(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer {
+                                scaleX = checkScale
+                                scaleY = checkScale
+                            }
                     )
                     if (state.isCompletedToday) {
                         Surface(
@@ -289,7 +321,10 @@ fun RoutineScreenContent(
                 }
 
                 Button(
-                    onClick = onCompleteRoutine,
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onCompleteRoutine()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(completeBtnTag)

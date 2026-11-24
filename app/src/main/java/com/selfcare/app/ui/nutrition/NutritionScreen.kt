@@ -54,12 +54,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import com.selfcare.app.ui.components.AnimatedRollingInt
+import com.selfcare.app.ui.components.FloatingDeltaPopup
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -677,7 +684,8 @@ fun NutritionScreen(
                         items(slotMeals, key = { it.id }) { meal ->
                             MealLogCard(
                                 meal = meal,
-                                onDelete = { viewModel.deleteMeal(meal.id) }
+                                onDelete = { viewModel.deleteMeal(meal.id) },
+                                modifier = Modifier.animateItem()
                             )
                         }
                     }
@@ -784,10 +792,26 @@ private fun CalorieMacroSummaryCard(
                             useCenter = false,
                             style = Stroke(width = stroke, cap = StrokeCap.Round)
                         )
+                        if (kcalProgress > 0.02f) {
+                            val angleRad = Math.toRadians((135f + 270f * kcalProgress).toDouble())
+                            val radius = (size.minDimension - stroke) / 2f
+                            val cx = size.width / 2f + (radius * cos(angleRad)).toFloat()
+                            val cy = size.height / 2f + (radius * sin(angleRad)).toFloat()
+                            drawCircle(
+                                color = ringColor.copy(alpha = 0.35f),
+                                radius = stroke * 0.9f,
+                                center = Offset(cx, cy)
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = stroke * 0.32f,
+                                center = Offset(cx, cy)
+                            )
+                        }
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${state.totalCalories}",
+                        AnimatedRollingInt(
+                            targetValue = state.totalCalories,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -932,6 +956,9 @@ private fun HydrationGlassCard(
 ) {
     val pct = ((currentMl.toFloat() / targetMl.coerceAtLeast(1)) * 100f).roundToInt().coerceAtMost(999)
     val reached = currentMl >= targetMl
+    val haptics = LocalHapticFeedback.current
+    var waterPopupKey by remember { mutableStateOf(0) }
+    var waterPopupText by remember { mutableStateOf("") }
 
     Card(
         modifier = Modifier
@@ -947,11 +974,18 @@ private fun HydrationGlassCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            AnimatedWaterGlass(
-                currentMl = currentMl,
-                targetMl = targetMl,
-                modifier = Modifier.testTag("nutrition_animated_water_glass")
-            )
+            Box(contentAlignment = Alignment.TopCenter) {
+                AnimatedWaterGlass(
+                    currentMl = currentMl,
+                    targetMl = targetMl,
+                    modifier = Modifier.testTag("nutrition_animated_water_glass")
+                )
+                FloatingDeltaPopup(
+                    triggerKey = waterPopupKey,
+                    text = waterPopupText,
+                    color = if (reached) NeonGreen else Color(0xFF38BDF8)
+                )
+            }
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -968,8 +1002,9 @@ private fun HydrationGlassCard(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Text(
-                            text = "$currentMl / $targetMl ml ($pct%)",
+                        AnimatedRollingInt(
+                            targetValue = currentMl,
+                            suffix = " / $targetMl ml ($pct%)",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (reached) NeonGreen else Color(0xFF38BDF8)
@@ -1019,7 +1054,12 @@ private fun HydrationGlassCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Button(
-                        onClick = { onAddWater(250) },
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            waterPopupText = "+250 ml"
+                            waterPopupKey++
+                            onAddWater(250)
+                        },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -1028,7 +1068,12 @@ private fun HydrationGlassCard(
                         Text(text = "+250 ml", style = MaterialTheme.typography.labelMedium, maxLines = 1)
                     }
                     OutlinedButton(
-                        onClick = { onAddWater(500) },
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            waterPopupText = "+500 ml"
+                            waterPopupKey++
+                            onAddWater(500)
+                        },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -1106,7 +1151,8 @@ private fun MealTimingCard(
 @Composable
 private fun MealLogCard(
     meal: NutritionLogEntity,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val mealTypeLabel = when (meal.mealType) {
         NutritionLogEntity.MEAL_BREAKFAST -> stringResource(R.string.nutrition_meal_breakfast)
@@ -1120,7 +1166,7 @@ private fun MealLogCard(
     val timePrefix = if (timeHm.isNotBlank()) "$timeHm · " else ""
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(

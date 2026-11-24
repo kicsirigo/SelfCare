@@ -1,5 +1,8 @@
 package com.selfcare.app.ui.trends
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -931,6 +935,15 @@ private fun CalorieHistoryBarChart(
     val firstDate = remember(bars) { LocalDate.ofEpochDay(bars.first().dateEpochDay).format(dateFmt) }
     val midDate = remember(bars) { LocalDate.ofEpochDay(bars[bars.size / 2].dateEpochDay).format(dateFmt) }
     val lastDate = remember(bars) { LocalDate.ofEpochDay(bars.last().dateEpochDay).format(dateFmt) }
+    val waveProgress = remember(bars.size, targetKcal) { Animatable(0f) }
+
+    LaunchedEffect(bars, targetKcal) {
+        waveProgress.snapTo(0f)
+        waveProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 680, easing = FastOutSlowInEasing)
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(
@@ -944,23 +957,30 @@ private fun CalorieHistoryBarChart(
             val totalGap = gap * (count - 1)
             val barWidth = ((size.width - totalGap) / count).coerceAtLeast(2f)
             val chartHeight = size.height - 6.dp.toPx()
+            val globalP = waveProgress.value
 
             bars.forEachIndexed { idx, bar ->
                 val x = idx * (barWidth + gap)
+                // Staggered left-to-right rise wave
+                val startOffset = (idx.toFloat() / count) * 0.45f
+                val localP = ((globalP - startOffset) / (1f - startOffset).coerceAtLeast(0.15f)).coerceIn(0f, 1f)
                 if (bar.caloriesKcal <= 0) {
-                    val stubH = 4.dp.toPx()
-                    drawRoundRect(
-                        color = emptyBarColor,
-                        topLeft = Offset(x, size.height - stubH),
-                        size = Size(barWidth, stubH),
-                        cornerRadius = CornerRadius(3f, 3f)
-                    )
+                    val stubH = 4.dp.toPx() * localP
+                    if (stubH > 0.5f) {
+                        drawRoundRect(
+                            color = emptyBarColor,
+                            topLeft = Offset(x, size.height - stubH),
+                            size = Size(barWidth, stubH),
+                            cornerRadius = CornerRadius(3f, 3f)
+                        )
+                    }
                 } else {
                     val ratio = (bar.caloriesKcal / maxVal).coerceIn(0.04f, 1f)
-                    val h = chartHeight * ratio
+                    val h = (chartHeight * ratio * localP).coerceAtLeast(2f)
+                    val isSweetSpot = bar.caloriesKcal in (targetKcal * 0.90f).toInt()..(targetKcal * 1.08f).toInt()
                     val barColor = when {
                         bar.caloriesKcal > (targetKcal * 1.08f) -> errorColor
-                        bar.caloriesKcal >= (targetKcal * 0.90f) -> NeonGreen
+                        isSweetSpot -> NeonGreen
                         else -> blueColor
                     }
                     drawRoundRect(
@@ -969,6 +989,14 @@ private fun CalorieHistoryBarChart(
                         size = Size(barWidth, h),
                         cornerRadius = CornerRadius(4f, 4f)
                     )
+                    if (isSweetSpot && localP > 0.85f) {
+                        drawRoundRect(
+                            color = Color.White.copy(alpha = 0.55f),
+                            topLeft = Offset(x, size.height - h),
+                            size = Size(barWidth, 2.5.dp.toPx()),
+                            cornerRadius = CornerRadius(3f, 3f)
+                        )
+                    }
                 }
             }
 

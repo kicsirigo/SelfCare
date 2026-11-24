@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.10.0",
+            title = "Material 3 Expressive Motion Pack & Larger Breathing AI Coach Button",
+            highlights = listOf(
+                "Introduced Material 3 Expressive spring physics (ExpressiveMotion) across navigation, routines, nutrition, and charts with tactile haptic feedback.",
+                "Upgraded the Qwen AI Coach button to a larger 56dp FloatingActionButton with a soft breathing neon aura on the right side (auto-hides during live camera Check-In and Settings).",
+                "Added odometer-style rolling calorie & water counters, a glowing calorie ring tip, floating '+250 ml' / '+500 ml' hydration popups, smooth animated meal-list transitions, bouncy Routine completion cards, directional shared-axis tab transitions, and a staggered wave-rise Calorie Bar Chart."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.9.0",
             title = "In-App Custom Food Camera, 14/30/90/365d Calorie Chart & Interactive AI Ingredient Clarification",
             highlights = listOf(

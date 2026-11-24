@@ -12,12 +12,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,10 +55,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import com.selfcare.app.ui.components.BreathingNeonHalo
+import com.selfcare.app.ui.components.ExpressiveMotion
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -295,6 +303,8 @@ private fun SelfCareScaffold(
         )
     }
 
+    val haptics = LocalHapticFeedback.current
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -306,20 +316,25 @@ private fun SelfCareScaffold(
                 !showAiCoachSheet
             AnimatedVisibility(
                 visible = showFab,
-                enter = fadeIn(tween(180)) + scaleIn(tween(180)),
+                enter = fadeIn(tween(180)) + scaleIn(ExpressiveMotion.bouncySpring()),
                 exit = fadeOut(tween(150)) + scaleOut(tween(150))
             ) {
-                SmallFloatingActionButton(
-                    onClick = { showAiCoachSheet = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.testTag("ai_coach_fab")
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Sparkle,
-                        contentDescription = stringResource(R.string.ai_coach_fab_desc),
-                        modifier = Modifier.size(20.dp)
-                    )
+                BreathingNeonHalo(color = MaterialTheme.colorScheme.primary) {
+                    FloatingActionButton(
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showAiCoachSheet = true
+                        },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.testTag("ai_coach_fab")
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sparkle,
+                            contentDescription = stringResource(R.string.ai_coach_fab_desc),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         },
@@ -440,18 +455,33 @@ private fun SelfCareScaffold(
                             val label = stringResource(destination.labelRes)
                             val selected = currentDestination == destination
                             val isCenterCheckIn = destination == AppDestination.CHECKIN
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (selected) 1.18f else 1.0f,
+                                animationSpec = ExpressiveMotion.bouncySpring(),
+                                label = "nav_icon_scale_${destination.name}"
+                            )
+                            val pillColor by animateColorAsState(
+                                targetValue = when {
+                                    selected -> MaterialTheme.colorScheme.primaryContainer
+                                    isCenterCheckIn -> MaterialTheme.colorScheme.surfaceVariant
+                                    else -> androidx.compose.ui.graphics.Color.Transparent
+                                },
+                                animationSpec = ExpressiveMotion.effectsSpring(),
+                                label = "nav_pill_color_${destination.name}"
+                            )
                             Surface(
-                                onClick = { currentDestination = destination },
+                                onClick = {
+                                    if (currentDestination != destination) {
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        currentDestination = destination
+                                    }
+                                },
                                 shape = if (isCenterCheckIn) {
                                     androidx.compose.foundation.shape.CircleShape
                                 } else {
                                     androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
                                 },
-                                color = when {
-                                    selected -> MaterialTheme.colorScheme.primaryContainer
-                                    isCenterCheckIn -> MaterialTheme.colorScheme.surfaceVariant
-                                    else -> androidx.compose.ui.graphics.Color.Transparent
-                                },
+                                color = pillColor,
                                 border = if (isCenterCheckIn) {
                                     androidx.compose.foundation.BorderStroke(
                                         1.25.dp,
@@ -481,7 +511,12 @@ private fun SelfCareScaffold(
                                             isCenterCheckIn -> MaterialTheme.colorScheme.onSurface
                                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                                         },
-                                        modifier = Modifier.size(if (isCenterCheckIn) 24.dp else 22.dp)
+                                        modifier = Modifier
+                                            .size(if (isCenterCheckIn) 24.dp else 22.dp)
+                                            .graphicsLayer {
+                                                scaleX = iconScale
+                                                scaleY = iconScale
+                                            }
                                     )
                                 }
                             }
@@ -499,9 +534,17 @@ private fun SelfCareScaffold(
             AnimatedContent(
                 targetState = currentDestination,
                 transitionSpec = {
+                    val fromIdx = bottomDestinations.indexOf(initialState)
+                    val toIdx = bottomDestinations.indexOf(targetState)
+                    val forward = toIdx >= fromIdx
                     (fadeIn(animationSpec = tween(220)) +
-                        slideInVertically(animationSpec = tween(220)) { it / 28 }) togetherWith
-                        fadeOut(animationSpec = tween(150))
+                        slideInHorizontally(animationSpec = ExpressiveMotion.spatialSpring()) { w ->
+                            if (forward) w / 10 else -w / 10
+                        }) togetherWith
+                        (fadeOut(animationSpec = tween(150)) +
+                            slideOutHorizontally(animationSpec = tween(150)) { w ->
+                                if (forward) -w / 14 else w / 14
+                            })
                 },
                 label = "nav_tab_transition"
             ) { targetDestination ->
