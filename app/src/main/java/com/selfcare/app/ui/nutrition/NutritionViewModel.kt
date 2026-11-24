@@ -15,15 +15,16 @@ import com.selfcare.app.data.remote.EstimatedMealInfo
 import com.selfcare.app.data.remote.FoodLookupResult
 import com.selfcare.app.data.remote.FoodNutritionItem
 import com.selfcare.app.data.remote.FoodSearchResult
+import com.selfcare.app.data.remote.GroundedSourceRef
 import com.selfcare.app.data.remote.MealVisionResult
 import com.selfcare.app.data.remote.NutritionLabelVisionResult
 import com.selfcare.app.data.remote.ProductVisionClient
+import com.selfcare.app.data.remote.WebSearchMealResult
 import com.selfcare.app.data.repository.NutritionRepository
 import com.selfcare.app.domain.health.ActivityLevel
 import com.selfcare.app.domain.health.DayMealTimingSummary
 import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
-import com.selfcare.app.domain.health.GroundedSourceRef
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.domain.health.MealDatabaseGrounder
@@ -477,10 +478,15 @@ class NutritionViewModel(
 
     fun searchOpenFoodFacts() {
         val q = transientFlow.value.searchQuery.trim()
-        if (q.isBlank()) return
+        if (q.isBlank() || visionClient == null) return
         viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
-            when (val res = nutritionRepository.searchFoodRemote(q)) {
+            when (val res = visionClient.searchFoodOnWeb(q, apiKey)) {
                 is FoodSearchResult.Success -> {
                     transientFlow.update {
                         it.copy(
@@ -498,15 +504,20 @@ class NutritionViewModel(
     }
 
     fun onBarcodePhotoCaptured(bitmap: Bitmap?) {
-        if (bitmap == null || barcodeScanner == null) return
+        if (bitmap == null || barcodeScanner == null || visionClient == null) return
         viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             val code = barcodeScanner.scanBarcode(bitmap)
             if (code.isNullOrBlank()) {
                 transientFlow.update { it.copy(isBusy = false, statusMessage = "BARCODE_NOT_FOUND") }
                 return@launch
             }
-            when (val res = nutritionRepository.lookupBarcode(code)) {
+            when (val res = visionClient.lookupFoodBarcodeOnWeb(code, apiKey)) {
                 is FoodLookupResult.Found -> openRemoteFoodConfirmation(res.item, source = "BARCODE")
                 is FoodLookupResult.NotFound -> transientFlow.update {
                     it.copy(isBusy = false, statusMessage = "FOOD_NOT_FOUND:$code")
@@ -575,19 +586,13 @@ class NutritionViewModel(
         apiKey: String
     ): GroundedMealOutcome {
         val client = visionClient ?: return GroundedMealOutcome(initialMeal, initialModel, false)
-        val dbResult = runCatching {
-            MealDatabaseGrounder.collectVerifiedFacts(
-                meal = initialMeal,
-                nutritionRepository = nutritionRepository,
-                allowRemoteLookup = true
-            )
-        }.getOrDefault(com.selfcare.app.domain.health.GroundedDatabaseResult())
-        if (dbResult.factsPromptText.isBlank()) {
-            val allowWeb = runCatching { settingsRepository.settings.first().aiWebSearchEnabled }
-                .getOrDefault(true)
-            if (!allowWeb) return GroundedMealOutcome(initialMeal, initialModel, false)
-            return when (val web = client.searchMealOnWeb(initialMeal, apiKey)) {
-                is com.selfcare.app.data.remote.WebSearchMealResult.Success -> GroundedMealOutcome(
+
+        // 1. Primary: Live AI Web Search (Groq browser_search) with clickable web source links
+        val allowWeb = runCatching { settingsRepository.settings.first().aiWebSearchEnabled }
+            .getOrDefault(true)
+        if (allowWeb) {
+            when (val web = client.searchMealOnWeb(initialMeal, apiKey)) {
+                is WebSearchMealResult.Success -> return GroundedMealOutcome(
                     meal = web.meal.copy(
                         clarificationQuestion = web.meal.clarificationQuestion
                             .ifBlank { initialMeal.clarificationQuestion }
@@ -596,12 +601,19 @@ class NutritionViewModel(
                     isGrounded = true,
                     sources = web.sources
                 )
-                is com.selfcare.app.data.remote.WebSearchMealResult.Error ->
-                    GroundedMealOutcome(initialMeal, initialModel, false)
+                is WebSearchMealResult.Error -> Unit
             }
         }
 
-        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, dbResult.factsPromptText, apiKey)) {
+        // 2. Secondary fallback: Bundled 250+ Offline HU Catalog (0ms, 0 external DB calls)
+        val offlineResult = runCatching {
+            MealDatabaseGrounder.collectOfflineFacts(initialMeal)
+        }.getOrDefault(com.selfcare.app.domain.health.GroundedDatabaseResult())
+        if (offlineResult.factsPromptText.isBlank()) {
+            return GroundedMealOutcome(initialMeal, initialModel, false)
+        }
+
+        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, offlineResult.factsPromptText, apiKey)) {
             is MealVisionResult.Success -> GroundedMealOutcome(
                 meal = grounded.meal.copy(
                     clarificationQuestion = grounded.meal.clarificationQuestion
@@ -609,7 +621,7 @@ class NutritionViewModel(
                 ),
                 modelLabel = grounded.modelUsed.ifBlank { initialModel },
                 isGrounded = true,
-                sources = dbResult.sources
+                sources = offlineResult.sources
             )
             is MealVisionResult.Error -> GroundedMealOutcome(initialMeal, initialModel, false)
         }

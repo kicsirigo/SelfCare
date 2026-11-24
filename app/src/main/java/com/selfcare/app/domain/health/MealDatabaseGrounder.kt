@@ -1,17 +1,9 @@
 package com.selfcare.app.domain.health
 
 import com.selfcare.app.data.remote.EstimatedMealInfo
-import com.selfcare.app.data.remote.FoodNutritionItem
-import com.selfcare.app.data.remote.FoodSearchResult
-import com.selfcare.app.data.repository.NutritionRepository
+import com.selfcare.app.data.remote.GroundedSourceRef
 import java.util.Locale
 import kotlin.math.roundToInt
-
-data class GroundedSourceRef(
-    val title: String,
-    val sourceLabel: String,
-    val url: String? = null
-)
 
 data class GroundedDatabaseResult(
     val factsPromptText: String = "",
@@ -19,17 +11,12 @@ data class GroundedDatabaseResult(
 )
 
 /**
- * Food RAG Grounder: takes an AI-identified meal + guessed ingredients, looks up verified
- * per-100g nutritional facts from the 3-layer database (Offline HU Catalog + OpenFoodFacts + USDA),
- * and returns both a compact prompt reference block and clickable source citations.
+ * Secondary offline fallback grounder: looks up per-100g facts from the bundled
+ * 250+ Hungarian & international FoodPresetCatalog (0ms, 0 network calls, 0 tokens).
  */
 object MealDatabaseGrounder {
 
-    suspend fun collectVerifiedFacts(
-        meal: EstimatedMealInfo,
-        nutritionRepository: NutritionRepository,
-        allowRemoteLookup: Boolean = true
-    ): GroundedDatabaseResult {
+    fun collectOfflineFacts(meal: EstimatedMealInfo): GroundedDatabaseResult {
         val terms = extractLookupTerms(meal)
         if (terms.isEmpty()) return GroundedDatabaseResult()
 
@@ -37,7 +24,6 @@ object MealDatabaseGrounder {
         val sources = mutableListOf<GroundedSourceRef>()
         val seenKeys = HashSet<String>()
 
-        // 1. Instant 0ms offline lookup (250+ Hungarian, bakery, sandwich, fast-food & raw items)
         for (term in terms) {
             val match = FoodPresetCatalog.search(term).firstOrNull() ?: continue
             if (seenKeys.add("offline:${match.id}")) {
@@ -51,30 +37,6 @@ object MealDatabaseGrounder {
                 )
             }
             if (lines.size >= 6) break
-        }
-
-        // 2. Also query OpenFoodFacts (3M+) + USDA (400k+) for verifiable web source links
-        if (allowRemoteLookup && lines.size < 6) {
-            val remoteBudget = if (lines.size < 3) 2 else 1
-            for (term in terms.take(remoteBudget)) {
-                val res = nutritionRepository.searchFoodRemote(term)
-                if (res is FoodSearchResult.Success) {
-                    res.items.take(2).forEach { item ->
-                        val key = "remote:${item.name.lowercase()}|${item.sourceUrl.orEmpty()}"
-                        if (seenKeys.add(key) && lines.size < 6) {
-                            lines.add(formatRemoteLine(item))
-                            sources.add(
-                                GroundedSourceRef(
-                                    title = item.name,
-                                    sourceLabel = item.sourceLabel.ifBlank { "DB" },
-                                    url = item.sourceUrl
-                                )
-                            )
-                        }
-                    }
-                }
-                if (lines.size >= 6) break
-            }
         }
 
         return GroundedDatabaseResult(
@@ -107,18 +69,9 @@ object MealDatabaseGrounder {
     }
 
     private fun formatPresetLine(p: FoodPreset): String =
-        "- ${p.nameHu} (${p.nameEn}) [Offline DB, per 100g]: ${p.per100gKcal.roundToInt()} kcal, " +
+        "- ${p.nameHu} (${p.nameEn}) [Offline HU DB, per 100g]: ${p.per100gKcal.roundToInt()} kcal, " +
             "P:${String.format(Locale.US, "%.1f", p.per100gProtein)}g, " +
             "CH:${String.format(Locale.US, "%.1f", p.per100gCarbs)}g, " +
             "F:${String.format(Locale.US, "%.1f", p.per100gFat)}g, " +
             "Salt:${String.format(Locale.US, "%.1f", p.per100gSalt)}g"
-
-    private fun formatRemoteLine(item: FoodNutritionItem): String {
-        val brandSuffix = if (item.brand.isNotBlank()) " (${item.brand})" else ""
-        return "- ${item.name}$brandSuffix [${item.sourceLabel}, per 100g]: ${item.per100gKcal.roundToInt()} kcal, " +
-            "P:${String.format(Locale.US, "%.1f", item.per100gProtein)}g, " +
-            "CH:${String.format(Locale.US, "%.1f", item.per100gCarbs)}g, " +
-            "F:${String.format(Locale.US, "%.1f", item.per100gFat)}g, " +
-            "Salt:${String.format(Locale.US, "%.1f", item.per100gSalt)}g"
-    }
 }

@@ -174,7 +174,7 @@ fun ShelfScreenContent(
     onSmartScanClick: () -> Unit = {},
     onScanOcrClick: () -> Unit = {},
     onAddProductClick: () -> Unit,
-    onSelectRemoteProduct: (com.selfcare.app.data.remote.OpenBeautyFactsProduct) -> Unit,
+    onSelectRemoteProduct: (com.selfcare.app.data.remote.RemoteProductItem) -> Unit,
     onDismissOfflineFallback: () -> Unit,
     onEditProduct: (com.selfcare.app.data.local.entity.ProductEntity) -> Unit,
     onDeleteProduct: (Long) -> Unit,

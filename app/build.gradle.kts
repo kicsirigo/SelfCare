@@ -8,26 +8,6 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val envFile = rootProject.file(".env").takeIf { it.exists() } ?: rootProject.file(".env.example")
-val envProps = Properties().apply {
-    if (envFile.exists()) {
-        envFile.inputStream().use { load(it) }
-    }
-}
-val openBeautyFactsBaseUrl = envProps.getProperty("OPEN_BEAUTY_FACTS_BASE_URL")
-    ?.trim()
-    ?.removeSurrounding("\"")
-    ?.takeIf { it.isNotEmpty() }
-    ?: error("OPEN_BEAUTY_FACTS_BASE_URL must be defined in .env or .env.example")
-val supabaseUrl = envProps.getProperty("SUPABASE_URL")
-    ?.trim()
-    ?.removeSurrounding("\"")
-    .orEmpty()
-val supabaseAnonKey = envProps.getProperty("SUPABASE_ANON_KEY")
-    ?.trim()
-    ?.removeSurrounding("\"")
-    .orEmpty()
-
 android {
     namespace = "com.selfcare.app"
     compileSdk = 36
@@ -36,24 +16,8 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 44
-        versionName = "3.13.0"
-
-        buildConfigField(
-            "String",
-            "OPEN_BEAUTY_FACTS_BASE_URL",
-            "\"$openBeautyFactsBaseUrl\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_URL",
-            "\"$supabaseUrl\""
-        )
-        buildConfigField(
-            "String",
-            "SUPABASE_ANON_KEY",
-            "\"$supabaseAnonKey\""
-        )
+        versionCode = 45
+        versionName = "3.14.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -2,7 +2,6 @@ package com.selfcare.app.data.remote
 
 import android.graphics.Bitmap
 import android.util.Base64
-import com.selfcare.app.domain.health.GroundedSourceRef
 import com.selfcare.app.domain.inci.InciConflictDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -105,6 +104,22 @@ interface ProductVisionClient {
         initialMeal: EstimatedMealInfo,
         apiKey: String
     ): WebSearchMealResult = WebSearchMealResult.Error("Not supported")
+    suspend fun lookupFoodBarcodeOnWeb(
+        barcode: String,
+        apiKey: String
+    ): FoodLookupResult = FoodLookupResult.Error("Not supported")
+    suspend fun searchFoodOnWeb(
+        query: String,
+        apiKey: String
+    ): FoodSearchResult = FoodSearchResult.Error("Not supported")
+    suspend fun lookupProductBarcodeOnWeb(
+        barcode: String,
+        apiKey: String
+    ): ProductWebLookupResult = ProductWebLookupResult.Error("Not supported")
+    suspend fun searchProductOnWeb(
+        query: String,
+        apiKey: String
+    ): ProductWebSearchResult = ProductWebSearchResult.Error("Not supported")
     suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         NutritionLabelVisionResult.Error("Not supported")
     suspend fun chatWithCoach(
@@ -574,6 +589,181 @@ class GroqVisionProductClient(
         }
         return out.take(5)
     }
+
+    private data class WebSearchRawOutcome(
+        val body: String? = null,
+        val modelLabel: String = "",
+        val sources: List<GroundedSourceRef> = emptyList(),
+        val error: String? = null
+    )
+
+    private fun executeWebSearchPrompt(prompt: String, apiKey: String): WebSearchRawOutcome {
+        val cleanKey = apiKey.trim()
+        if (cleanKey.isEmpty()) return WebSearchRawOutcome(error = "API key is empty")
+        val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+        val errors = mutableListOf<String>()
+        for (model in DEFAULT_WEB_SEARCH_MODELS) {
+            val payload = buildJsonObject {
+                put("model", model)
+                put("temperature", 0.1)
+                put("max_tokens", 700)
+                put(
+                    "tools",
+                    buildJsonArray {
+                        add(buildJsonObject { put("type", "browser_search") })
+                    }
+                )
+                put(
+                    "messages",
+                    buildJsonArray {
+                        add(
+                            buildJsonObject {
+                                put("role", "user")
+                                put("content", prompt)
+                            }
+                        )
+                    }
+                )
+            }.toString()
+            val label = shortModelLabel(model)
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Authorization", "Bearer $cleanKey")
+                    .post(payload.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .build()
+                httpClient.newCall(request).execute().use { response ->
+                    val bodyStr = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        val apiMsg = extractApiErrorMessage(bodyStr, cleanKey)
+                        val err = "HTTP ${response.code} ($label): $apiMsg"
+                        if (response.code == 401 || response.code == 403) {
+                            return WebSearchRawOutcome(error = err)
+                        }
+                        errors.add(err)
+                        return@use
+                    }
+                    return WebSearchRawOutcome(
+                        body = bodyStr,
+                        modelLabel = "$label Web (Groq)",
+                        sources = parseWebSearchSources(bodyStr)
+                    )
+                }
+            } catch (e: Exception) {
+                errors.add(sanitizeExceptionReason(label, e))
+            }
+        }
+        return WebSearchRawOutcome(error = errors.joinToString(" | ").ifBlank { "Web search unavailable" })
+    }
+
+    override suspend fun lookupFoodBarcodeOnWeb(barcode: String, apiKey: String): FoodLookupResult =
+        withContext(Dispatchers.IO) {
+            val clean = barcode.trim()
+            if (clean.isEmpty()) return@withContext FoodLookupResult.NotFound(barcode)
+            val prompt = """
+                Use browser_search to look up food product barcode "$clean" and its verified nutrition facts per 100g.
+                Return ONLY a single raw JSON object (no markdown, no explanation) with keys:
+                "name" (product name, or empty string if barcode not found), "brand" (brand or empty string), "per100gKcal" (number), "per100gProtein" (number), "per100gCarbs" (number), "per100gFat" (number), "per100gFiber" (number), "per100gSugar" (number), "per100gSalt" (number), "defaultGrams" (number, package or serving size in g, default 100).
+            """.trimIndent()
+            val raw = executeWebSearchPrompt(prompt, apiKey)
+            val body = raw.body ?: return@withContext FoodLookupResult.Error(raw.error ?: "Web search failed")
+            when (val parsed = parseGroqNutritionLabelJson(body)) {
+                is NutritionLabelVisionResult.Success -> {
+                    if (parsed.item.name.isBlank() || parsed.item.name == "Scanned Package") {
+                        FoodLookupResult.NotFound(clean)
+                    } else {
+                        FoodLookupResult.Found(
+                            parsed.item.copy(
+                                barcode = clean,
+                                sourceLabel = "Web Search",
+                                sourceUrl = raw.sources.firstOrNull()?.url
+                            )
+                        )
+                    }
+                }
+                is NutritionLabelVisionResult.Error -> FoodLookupResult.NotFound(clean)
+            }
+        }
+
+    override suspend fun searchFoodOnWeb(query: String, apiKey: String): FoodSearchResult =
+        withContext(Dispatchers.IO) {
+            val clean = query.trim()
+            if (clean.isEmpty()) return@withContext FoodSearchResult.Success(emptyList())
+            val prompt = """
+                Use browser_search to look up verified nutrition facts per 100g for: "$clean" (Hungarian or international food/product).
+                Return ONLY a single raw JSON object (no markdown, no explanation) with keys:
+                "name" (exact food/product name in the same language as "$clean", empty string if not found), "brand" (brand or empty string), "per100gKcal" (number), "per100gProtein" (number), "per100gCarbs" (number), "per100gFat" (number), "per100gFiber" (number), "per100gSugar" (number), "per100gSalt" (number), "defaultGrams" (number, typical portion in g, default 100).
+            """.trimIndent()
+            val raw = executeWebSearchPrompt(prompt, apiKey)
+            val body = raw.body ?: return@withContext FoodSearchResult.Error(raw.error ?: "Web search failed")
+            when (val parsed = parseGroqNutritionLabelJson(body)) {
+                is NutritionLabelVisionResult.Success -> FoodSearchResult.Success(
+                    listOf(
+                        parsed.item.copy(
+                            sourceLabel = "Web Search",
+                            sourceUrl = raw.sources.firstOrNull()?.url
+                        )
+                    )
+                )
+                is NutritionLabelVisionResult.Error -> FoodSearchResult.Success(emptyList())
+            }
+        }
+
+    override suspend fun lookupProductBarcodeOnWeb(barcode: String, apiKey: String): ProductWebLookupResult =
+        withContext(Dispatchers.IO) {
+            val clean = barcode.trim()
+            if (clean.isEmpty()) return@withContext ProductWebLookupResult.NotFound(barcode)
+            val prompt = """
+                Use browser_search to look up skincare/haircare/vitamin/medication product barcode "$clean" and its INCI ingredients list.
+                Return ONLY a single raw JSON object (no markdown, no explanation) with keys:
+                "name" (exact product name, empty string if barcode not found), "brand" (brand), "category" (one of: OTHER, RX_TREATMENT, SHAMPOO, VITAMIN, MEDICATION), "routineSlot" (one of: MORNING, EVENING, BOTH, HAIR, NONE), "ingredients" (comma-separated INCI ingredients or active vitamins/dosages).
+            """.trimIndent()
+            val raw = executeWebSearchPrompt(prompt, apiKey)
+            val body = raw.body ?: return@withContext ProductWebLookupResult.Error(raw.error ?: "Web search failed")
+            when (val parsed = parseGroqResponseJson(body)) {
+                is GeminiVisionResult.Success -> ProductWebLookupResult.Found(
+                    RemoteProductItem(
+                        barcode = clean,
+                        name = parsed.product.name,
+                        brand = parsed.product.brand,
+                        ingredientsText = parsed.product.ingredientsText,
+                        sourceUrl = raw.sources.firstOrNull()?.url,
+                        category = parsed.product.category,
+                        routineSlot = parsed.product.routineSlot
+                    )
+                )
+                is GeminiVisionResult.Error -> ProductWebLookupResult.NotFound(clean)
+            }
+        }
+
+    override suspend fun searchProductOnWeb(query: String, apiKey: String): ProductWebSearchResult =
+        withContext(Dispatchers.IO) {
+            val clean = query.trim()
+            if (clean.isEmpty()) return@withContext ProductWebSearchResult.Success(emptyList())
+            val prompt = """
+                Use browser_search to look up skincare/haircare/vitamin/medication product "$clean" and its INCI ingredients list.
+                Return ONLY a single raw JSON object (no markdown, no explanation) with keys:
+                "name" (exact product name, empty string if not found), "brand" (brand), "category" (one of: OTHER, RX_TREATMENT, SHAMPOO, VITAMIN, MEDICATION), "routineSlot" (one of: MORNING, EVENING, BOTH, HAIR, NONE), "ingredients" (comma-separated INCI ingredients or active vitamins/dosages).
+            """.trimIndent()
+            val raw = executeWebSearchPrompt(prompt, apiKey)
+            val body = raw.body ?: return@withContext ProductWebSearchResult.Error(raw.error ?: "Web search failed")
+            when (val parsed = parseGroqResponseJson(body)) {
+                is GeminiVisionResult.Success -> ProductWebSearchResult.Success(
+                    listOf(
+                        RemoteProductItem(
+                            barcode = "",
+                            name = parsed.product.name,
+                            brand = parsed.product.brand,
+                            ingredientsText = parsed.product.ingredientsText,
+                            sourceUrl = raw.sources.firstOrNull()?.url,
+                            category = parsed.product.category,
+                            routineSlot = parsed.product.routineSlot
+                        )
+                    )
+                )
+                is GeminiVisionResult.Error -> ProductWebSearchResult.Success(emptyList())
+            }
+        }
 
     override suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         withContext(Dispatchers.IO) {

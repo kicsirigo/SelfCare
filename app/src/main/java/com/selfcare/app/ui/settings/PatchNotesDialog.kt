@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.14.0",
+            title = "Streamlined AI + Web Search Primary Architecture (Zero External DBs)",
+            highlights = listOf(
+                "Removed all external food & beauty database clients (OpenFoodFacts, USDA FoodData Central, OpenBeautyFacts) and removed Cloud Save for a leaner, 100% local-storage + single-engine architecture.",
+                "Promoted live AI Web Search (Groq browser_search on gpt-oss-20b / gpt-oss-120b) to the primary online lookup & verifier for meal photos, text meals, food barcodes, and skincare/INCI products — complete with clickable web source links.",
+                "Kept the bundled 250+ Offline Hungarian & international food catalog and 100% on-device INCI conflict analyzer as instant 0ms offline fallbacks."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.13.0",
             title = "Layer-4 AI Web Search Fallback & Zero-Knowledge Cloud Save",
             highlights = listOf(

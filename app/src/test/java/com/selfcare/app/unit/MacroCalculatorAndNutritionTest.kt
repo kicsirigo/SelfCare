@@ -1,9 +1,11 @@
 package com.selfcare.app.unit
 
+import com.selfcare.app.data.remote.EstimatedMealInfo
 import com.selfcare.app.data.remote.FoodLookupResult
 import com.selfcare.app.data.remote.GroqVisionProductClient
 import com.selfcare.app.data.remote.MealVisionResult
-import com.selfcare.app.data.remote.OpenFoodFactsNutritionClient
+import com.selfcare.app.data.remote.ProductWebLookupResult
+import com.selfcare.app.data.remote.WebSearchMealResult
 import com.selfcare.app.domain.health.ActivityLevel
 import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
@@ -63,7 +65,7 @@ class MacroCalculatorAndNutritionTest {
     }
 
     @Test
-    fun `openFoodFactsNutritionClient parses barcode nutriments and handles 404`() = runTest {
+    fun `groq lookupFoodBarcodeOnWeb parses nutrition per 100g and clickable source URL`() = runTest {
         val server = MockWebServer()
         server.start()
         try {
@@ -71,27 +73,25 @@ class MacroCalculatorAndNutritionTest {
                 MockResponse().setResponseCode(200).setBody(
                     """
                     {
-                      "status": 1,
-                      "product": {
-                        "code": "5991234567890",
-                        "product_name": "High Protein Pudding Vanilla",
-                        "brands": "Ehrmann",
-                        "serving_quantity": 200,
-                        "nutriments": {
-                          "energy-kcal_100g": 76,
-                          "proteins_100g": 10.0,
-                          "carbohydrates_100g": 5.5,
-                          "fat_100g": 1.5,
-                          "fiber_100g": 0.4,
-                          "sugars_100g": 4.2
+                      "choices": [{
+                        "message": {
+                          "content": "{\"name\":\"High Protein Pudding Vanilla\",\"brand\":\"Ehrmann\",\"per100gKcal\":76,\"per100gProtein\":10.0,\"per100gCarbs\":5.5,\"per100gFat\":1.5,\"per100gFiber\":0.4,\"per100gSugar\":4.2,\"per100gSalt\":0.18,\"defaultGrams\":200}",
+                          "executed_tools": [{
+                            "type": "browser_search",
+                            "search_results": {
+                              "results": [
+                                {"title": "Ehrmann High Protein Pudding", "url": "https://example.com/ehrmann-5991234567890"}
+                              ]
+                            }
+                          }]
                         }
-                      }
+                      }]
                     }
                     """.trimIndent()
                 )
             )
-            val client = OpenFoodFactsNutritionClient(baseUrl = server.url("/").toString())
-            val found = client.fetchByBarcode("5991234567890")
+            val client = GroqVisionProductClient(baseUrl = server.url("/").toString(), delayFn = {})
+            val found = client.lookupFoodBarcodeOnWeb("5991234567890", "gsk_test_key")
             assertTrue(found is FoodLookupResult.Found)
             val item = (found as FoodLookupResult.Found).item
             assertEquals("High Protein Pudding Vanilla", item.name)
@@ -99,11 +99,7 @@ class MacroCalculatorAndNutritionTest {
             assertEquals(76f, item.per100gKcal, 0.1f)
             assertEquals(10f, item.per100gProtein, 0.1f)
             assertEquals(200f, item.defaultGrams, 0.1f)
-            assertEquals("https://hu.openfoodfacts.org/product/5991234567890", item.sourceUrl)
-
-            server.enqueue(MockResponse().setResponseCode(404))
-            val notFound = client.fetchByBarcode("0000000000000")
-            assertTrue(notFound is FoodLookupResult.NotFound)
+            assertEquals("https://example.com/ehrmann-5991234567890", item.sourceUrl)
         } finally {
             server.shutdown()
         }
@@ -426,32 +422,69 @@ class MacroCalculatorAndNutritionTest {
     }
 
     @Test
-    fun `usda food client parses nutrients and converts sodium mg to salt grams`() {
-        val client = com.selfcare.app.data.remote.UsdaFoodDataClient()
-        val sampleJson = """
-            {
-              "foods": [
-                {
-                  "fdcId": 171477,
-                  "description": "Chicken, broilers or fryers, breast, meat only, roasted",
-                  "brandOwner": "USDA Foundation",
-                  "foodNutrients": [
-                    {"nutrientId": 1008, "nutrientName": "Energy", "unitName": "KCAL", "value": 165.0},
-                    {"nutrientId": 1003, "nutrientName": "Protein", "unitName": "G", "value": 31.0},
-                    {"nutrientId": 1005, "nutrientName": "Carbohydrate, by difference", "unitName": "G", "value": 0.0},
-                    {"nutrientId": 1004, "nutrientName": "Total lipid (fat)", "unitName": "G", "value": 3.6},
-                    {"nutrientId": 1093, "nutrientName": "Sodium, Na", "unitName": "MG", "value": 400.0}
-                  ]
-                }
-              ]
-            }
-        """.trimIndent()
-        val parsed = client.parseSearchResponse(sampleJson)
-        assertEquals(1, parsed.size)
-        assertEquals(165f, parsed.first().per100gKcal, 0.1f)
-        assertEquals(31f, parsed.first().per100gProtein, 0.1f)
-        assertEquals(1.0f, parsed.first().per100gSalt, 0.05f)
-        assertEquals("https://fdc.nal.usda.gov/food-details/171477/nutrients", parsed.first().sourceUrl)
-        assertEquals("chicken breast", com.selfcare.app.data.remote.UsdaFoodDataClient.translateHungarianHint("csirkemell"))
+    fun `groq searchMealOnWeb and lookupProductBarcodeOnWeb return clickable web sources`() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {
+                      "choices": [{
+                        "message": {
+                          "content": "{\"name\":\"Dubai csokoládé szelet\",\"estimatedGrams\":100,\"caloriesKcal\":545,\"proteinGrams\":8.5,\"carbsGrams\":46.0,\"fatGrams\":36.0,\"fiberGrams\":3.2,\"sugarGrams\":38.0,\"saltGrams\":0.25,\"detectedIngredients\":\"tejcsokoládé, pisztáciakrém, kadayif\",\"clarificationQuestion\":\"\"}",
+                          "executed_tools": [{
+                            "type": "browser_search",
+                            "search_results": {
+                              "results": [
+                                {"title": "Dubai Chocolate Nutrition", "url": "https://example.com/dubai-chocolate"}
+                              ]
+                            }
+                          }]
+                        }
+                      }]
+                    }
+                    """.trimIndent()
+                )
+            )
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {
+                      "choices": [{
+                        "message": {
+                          "content": "{\"name\":\"Foaming Cleanser\",\"brand\":\"CeraVe\",\"category\":\"OTHER\",\"routineSlot\":\"BOTH\",\"ingredients\":\"Aqua, Niacinamide, Ceramide NP\"}",
+                          "executed_tools": [{
+                            "type": "browser_search",
+                            "search_results": {
+                              "results": [
+                                {"title": "CeraVe Foaming Cleanser INCI", "url": "https://kremmania.example.com/cerave"}
+                              ]
+                            }
+                          }]
+                        }
+                      }]
+                    }
+                    """.trimIndent()
+                )
+            )
+            val client = GroqVisionProductClient(baseUrl = server.url("/").toString(), delayFn = {})
+            val webMeal = client.searchMealOnWeb(
+                EstimatedMealInfo("Dubai csokoládé", 100f, 500, 7f, 50f, 30f),
+                "gsk_test_key"
+            )
+            assertTrue(webMeal is WebSearchMealResult.Success)
+            val okMeal = webMeal as WebSearchMealResult.Success
+            assertEquals(545, okMeal.meal.caloriesKcal)
+            assertEquals("https://example.com/dubai-chocolate", okMeal.sources.first().url)
+
+            val webProd = client.lookupProductBarcodeOnWeb("3337875597197", "gsk_test_key")
+            assertTrue(webProd is ProductWebLookupResult.Found)
+            val prod = (webProd as ProductWebLookupResult.Found).product
+            assertEquals("CeraVe", prod.brand)
+            assertEquals("https://kremmania.example.com/cerave", prod.sourceUrl)
+        } finally {
+            server.shutdown()
+        }
     }
 }
