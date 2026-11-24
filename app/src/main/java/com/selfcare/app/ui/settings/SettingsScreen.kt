@@ -593,6 +593,38 @@ fun SettingsScreenContent(
                 )
             }
 
+            var isEditingSavedKey by remember(settings.geminiApiKey) {
+                mutableStateOf(settings.geminiApiKey.isBlank())
+            }
+            var showClearKeyConfirmDialog by remember { mutableStateOf(false) }
+
+            if (showClearKeyConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearKeyConfirmDialog = false },
+                    title = { Text(stringResource(R.string.settings_gemini_clear_confirm_title)) },
+                    text = { Text(stringResource(R.string.settings_gemini_clear_confirm_body)) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showClearKeyConfirmDialog = false
+                                keyInput = ""
+                                onSaveGeminiApiKey("")
+                                isEditingSavedKey = true
+                                savedNotice = true
+                            },
+                            modifier = Modifier.testTag("settings_gemini_clear_confirm_btn")
+                        ) {
+                            Text(stringResource(R.string.action_delete))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearKeyConfirmDialog = false }) {
+                            Text(stringResource(R.string.action_cancel))
+                        }
+                    }
+                )
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -621,63 +653,121 @@ fun SettingsScreenContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedTextField(
-                        value = keyInput,
-                        onValueChange = {
-                            keyInput = it
-                            savedNotice = false
-                        },
-                        label = { Text(stringResource(R.string.settings_gemini_key_label)) },
-                        placeholder = { Text(stringResource(R.string.settings_gemini_key_hint)) },
-                        singleLine = true,
-                        visualTransformation = PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            autoCorrectEnabled = false
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings_gemini_key_input")
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                onSaveGeminiApiKey(keyInput)
-                                savedNotice = true
-                                if (keyInput.isNotBlank()) {
-                                    showZdrWarningDialog = true
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("settings_gemini_key_save_btn")
-                        ) {
-                            Text(text = stringResource(R.string.action_save))
+                    if (settings.geminiApiKey.isNotBlank() && !isEditingSavedKey) {
+                        val maskedKey = remember(settings.geminiApiKey) {
+                            val k = settings.geminiApiKey
+                            val prefix = k.take(4)
+                            val suffix = if (k.length > 8) k.takeLast(4) else ""
+                            "$prefix••••••••$suffix"
                         }
-                        if (keyInput.isNotBlank()) {
+                        OutlinedTextField(
+                            value = maskedKey,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = false,
+                            label = { Text(stringResource(R.string.settings_gemini_key_label)) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_gemini_key_locked")
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             OutlinedButton(
                                 onClick = {
                                     savedNotice = false
-                                    onTestGeminiApiKey(keyInput)
+                                    onTestGeminiApiKey(settings.geminiApiKey)
                                 },
                                 enabled = !state.isTestingGeminiKey,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(text = stringResource(R.string.settings_gemini_test_btn))
                             }
-                        }
-                        if (settings.geminiApiKey.isNotBlank() || keyInput.isNotBlank()) {
-                            TextButton(
+                            OutlinedButton(
                                 onClick = {
                                     keyInput = ""
-                                    onSaveGeminiApiKey("")
-                                    savedNotice = true
-                                }
+                                    savedNotice = false
+                                    isEditingSavedKey = true
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("settings_gemini_key_change_btn")
                             ) {
-                                Text(text = stringResource(R.string.settings_gemini_key_clear))
+                                Text(text = stringResource(R.string.settings_gemini_key_change))
+                            }
+                            TextButton(
+                                onClick = { showClearKeyConfirmDialog = true },
+                                modifier = Modifier.testTag("settings_gemini_key_clear_btn")
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.settings_gemini_key_clear),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = keyInput,
+                            onValueChange = {
+                                keyInput = it
+                                savedNotice = false
+                            },
+                            label = { Text(stringResource(R.string.settings_gemini_key_label)) },
+                            placeholder = { Text(stringResource(R.string.settings_gemini_key_hint)) },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                autoCorrectEnabled = false
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_gemini_key_input")
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val clean = keyInput.trim()
+                                    if (clean.isNotEmpty()) {
+                                        onSaveGeminiApiKey(clean)
+                                        isEditingSavedKey = false
+                                        savedNotice = true
+                                        showZdrWarningDialog = true
+                                    }
+                                },
+                                enabled = keyInput.isNotBlank(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("settings_gemini_key_save_btn")
+                            ) {
+                                Text(text = stringResource(R.string.action_save))
+                            }
+                            if (keyInput.isNotBlank()) {
+                                OutlinedButton(
+                                    onClick = {
+                                        savedNotice = false
+                                        onTestGeminiApiKey(keyInput)
+                                    },
+                                    enabled = !state.isTestingGeminiKey,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(text = stringResource(R.string.settings_gemini_test_btn))
+                                }
+                            }
+                            if (settings.geminiApiKey.isNotBlank()) {
+                                TextButton(
+                                    onClick = {
+                                        keyInput = settings.geminiApiKey
+                                        isEditingSavedKey = false
+                                    }
+                                ) {
+                                    Text(text = stringResource(R.string.action_cancel))
+                                }
                             }
                         }
                     }

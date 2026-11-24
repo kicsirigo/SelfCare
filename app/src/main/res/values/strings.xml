@@ -541,4 +541,7 @@
     <string name="settings_groq_quota_requests_line">Live daily requests left: %1$d / %2$d</string>
     <string name="settings_groq_quota_requests_local">Requests made today: %1$d (free tier ~1,000/day)</string>
     <string name="settings_groq_quota_tpm_line">Per-minute tokens (TPM): %1$d / %2$d</string>
+    <string name="settings_gemini_key_change">Change</string>
+    <string name="settings_gemini_clear_confirm_title">Delete Groq API Key?</string>
+    <string name="settings_gemini_clear_confirm_body">Are you sure you want to remove your saved Groq API key from this device? AI meal scanning, Web Search, and AI Coach will stop working until you enter a new key.</string>
 </resources>

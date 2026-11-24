@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.16.1",
+            title = "Accidental API Key Deletion Protection",
+            highlights = listOf(
+                "Saved Groq API keys are now displayed in a locked, masked field (gsk_••••••••1234) so scrolling can never accidentally overwrite them.",
+                "Added an explicit 'Change' button to unlock editing, disabled saving an empty key, and added a confirmation dialog before clearing the saved API key."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.16.0",
             title = "AI Web Search EOF Fix & Live Groq API Quota Monitor",
             highlights = listOf(

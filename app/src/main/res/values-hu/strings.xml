@@ -541,4 +541,7 @@
     <string name="settings_groq_quota_requests_line">Hátralévő kérések ma (élő): %1$d / %2$d</string>
     <string name="settings_groq_quota_requests_local">Mai API hívások: %1$d (Free Tier ~1 000/nap)</string>
     <string name="settings_groq_quota_tpm_line">Percenkénti token-limit (TPM): %1$d / %2$d</string>
+    <string name="settings_gemini_key_change">Csere</string>
+    <string name="settings_gemini_clear_confirm_title">Törlöd a Groq API kulcsot?</string>
+    <string name="settings_gemini_clear_confirm_body">Biztosan törölni szeretnéd az elmentett Groq API kulcsodat erről az eszközről? Az AI fotóelemzés, a Webes keresés és az AI Coach új kulcs megadásáig nem fog működni.</string>
 </resources>
