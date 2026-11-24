@@ -132,6 +132,18 @@ class RoutineRepository(
         return routineDao.getByDateAndPeriod(epochDay, normalized) ?: entity.copy(id = rowId)
     }
 
+    suspend fun renameProduct(productId: Long, newName: String): ProductEntity? {
+        val clean = newName.trim()
+        if (clean.isEmpty()) return null
+        val product = productDao.getById(productId) ?: return null
+        val updated = product.copy(
+            name = clean,
+            updatedAtEpochMillis = clock.millis()
+        )
+        productDao.update(updated)
+        return updated
+    }
+
     suspend fun setProductRoutineDefault(
         productId: Long,
         isMorning: Boolean,

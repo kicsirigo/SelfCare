@@ -1,11 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SelfCare</string>
-    <string name="app_subtitle">Privát, offline napi rutin és bőrállapot-követő</string>
 
     <!-- Navigation -->
     <string name="nav_routine">Rutin</string>
-    <string name="nav_hygiene">Higiénia</string>
     <string name="nav_shelf">Polc</string>
     <string name="nav_checkin">Állapotfelmérés</string>
     <string name="nav_trends">Trendek</string>
@@ -24,22 +22,14 @@
     <string name="routine_override_hint">Érintse meg a tételt a módosításhoz vagy kihagyáshoz</string>
     <string name="routine_empty">Még nincs alapértelmezett termék beállítva</string>
     <string name="routine_default_products">Alapértelmezett termékek</string>
-    <string name="routine_configure_defaults">Alapértelmezett termékek beállítása</string>
-    <string name="routine_product_included">Tartalmazva</string>
-    <string name="routine_product_skipped">Kihagyva</string>
-    <string name="routine_morning_slot">Reggel</string>
-    <string name="routine_evening_slot">Este</string>
-    <string name="routine_no_products_hint">Adj hozzá termékeket a Polcon a reggeli és esti alapértelmezettekhez.</string>
 
     <!-- Hygiene -->
     <string name="hygiene_completed_label">Kész</string>
 
     <!-- Shelf -->
-    <string name="shelf_title">Termékpolc</string>
     <string name="shelf_smart_scan">Termék fotózása (1 fotó)</string>
     <string name="shelf_smart_scan_privacy">Eszközön futó elemzés: a fotó azonnal törlődik, csak a szöveg vagy vonalkód kerül keresésre.</string>
     <string name="shelf_smart_scan_empty">Nem található vonalkód vagy olvasható szöveg a fotón. Próbáld jobb fényben vagy add meg kézzel.</string>
-    <string name="shelf_scan_barcode">Vonalkód olvasása</string>
     <string name="shelf_scan_label">Címke olvasása (OCR)</string>
     <string name="shelf_add_manual">Termék hozzáadása</string>
     <string name="shelf_search_hint">Termék vagy vonalkód keresése</string>
@@ -67,7 +57,6 @@
     <string name="shelf_cat_rx">Vényköteles (Rx)</string>
     <string name="shelf_cat_hair">Haj &amp; Fejbőr</string>
     <string name="shelf_presets_title">Gyors felvétel (Vényköteles, Haj &amp; Arc)</string>
-    <string name="shelf_presets_subtitle">A vényköteles krémeknek (pl. Davercin, Skinoren) nincs vonalkódjuk — koppints a felvételhez</string>
     <string name="shelf_preset_added">Hozzáadva a polchoz</string>
     <string name="shelf_default_in_routine">Alapértelmezett a rutinban</string>
     <string name="shelf_parsed_inci">Felismert INCI összetevők</string>
@@ -76,21 +65,14 @@
     <string name="shelf_edit_title">Termék szerkesztése</string>
 
     <!-- Check-In & Trends -->
-    <string name="checkin_title">Arc és haj állapotfelmérés</string>
     <string name="checkin_take_photo">Felvétel készítése</string>
     <string name="checkin_analyzing">Elemzés folyamatban…</string>
-    <string name="checkin_lighting_warning">A fényviszonyok túl sötétek vagy egyenlőtlenek</string>
-    <string name="checkin_lighting_too_dark">A fény túl gyenge. Fordulj világosabb fényforrás felé.</string>
-    <string name="checkin_lighting_too_bright">A fény túl erős. Kerüld a közvetlen vakító fényt az arcodon.</string>
-    <string name="checkin_lighting_uneven">A fény egyenlőtlen. Nézz szembe a fényforrással.</string>
     <string name="checkin_permission_title">Kameraengedély szükséges</string>
     <string name="checkin_permission_body">Adj kamera-hozzáférést az eszközön futó szelfi-ellenőrzéshez. A fotók soha nem hagyják el az eszközt.</string>
     <string name="checkin_grant_permission">Kamera engedélyezése</string>
     <string name="checkin_camera_unavailable">A kamerakép nem érhető el ezen az eszközön. Így is indíthatsz ellenőrzést.</string>
     <string name="checkin_framing_hint">Igazítsd az arcod a keret közepére</string>
     <string name="checkin_privacy_note">Kizárólag az alkalmazás privát tárhelyén marad</string>
-    <string name="checkin_last_result_title">Legutóbbi mérés rögzítve</string>
-    <string name="checkin_last_result_metrics">Szem alatti %1$s | Pír %2$s | Textúra %3$s | Ajak %4$s | Fény %5$d%%</string>
     <string name="checkin_haircut_section_title">Hajvágási alapszint</string>
     <string name="checkin_haircut_status">Jelenlegi növekedés: +%1$s%% (emlékeztető: %2$d%%)</string>
     <string name="checkin_haircut_no_baseline">Még nincs hajvágási alapszint. Érintsd meg lent a következő hajvágás után.</string>
@@ -150,8 +132,6 @@
     <string name="settings_backup_export_success">Mentés sikeresen exportálva</string>
     <string name="settings_backup_import_success">Importálva: %1$d rutin, %2$d termék, %3$d higiénia napló, %4$d állapotfelmérés</string>
     <string name="settings_backup_error">A mentési művelet sikertelen: %s</string>
-    <string name="settings_decrease">Csökkentés</string>
-    <string name="settings_increase">Növelés</string>
     <string name="settings_version_format">Verzió: %1$s (build %2$d)</string>
 
     <!-- Notifications -->
@@ -171,7 +151,6 @@
     <string name="action_cancel">Mégse</string>
     <string name="action_delete">Törlés</string>
     <string name="action_edit">Szerkesztés</string>
-    <string name="action_refresh">Frissítés</string>
     <string name="action_close">Bezárás</string>
     <string name="action_back">Vissza</string>
 
@@ -231,13 +210,10 @@
     <!-- v1.2.0: Live Face Check-In, Screen Flash, Cooldown, Product Camera & Delete Confirmation -->
     <string name="confirm_delete_title">Törlés megerősítése</string>
     <string name="confirm_delete_product_body">Biztosan törlöd a(z) „%1$s” terméket a polcról? Ez a művelet nem vonható vissza.</string>
-    <string name="confirm_delete_habit_body">Biztosan törlöd a(z) „%1$s” egyéni szokást?</string>
     <string name="checkin_face_detected">Arc felismerve</string>
     <string name="checkin_no_face_detected">Nem látható arc</string>
-    <string name="checkin_no_face_error">Nem látható arc a képen. Ne takard le a kamerát, és igazítsd az arcod a keretbe.</string>
     <string name="checkin_brightness_live">Fényerő: %d%%</string>
     <string name="checkin_screen_flash">Képernyő-vaku</string>
-    <string name="checkin_cooldown_seconds">Várj %d mp…</string>
     <string name="shelf_live_scanner_title">Appon belüli termékszkenner</string>
     <string name="shelf_live_product_detected">Termék érzékelve — fotózható</string>
     <string name="shelf_live_hold_product">Tartsd a terméket stabilan a keretbe</string>
@@ -254,7 +230,6 @@
 
     <!-- v1.2.2: AI Scan Confirmation Dialog -->
     <string name="shelf_scan_confirm_title">Jó termékre gondoltam?</string>
-    <string name="shelf_scan_source_gemini">Groq Vision felismerés</string>
     <string name="shelf_scan_source_ocr">Offline OCR felismerés</string>
     <string name="shelf_scan_confirm_save">Igen, mentés</string>
     <string name="shelf_scan_confirm_edit">Szerkesztés</string>
@@ -262,14 +237,12 @@
     <string name="shelf_scan_your_photo">A fotód</string>
     <string name="shelf_scan_matched_photo">Talált termékfotó</string>
     <string name="shelf_scan_no_ref_photo">Nincs katalóguskép</string>
-    <string name="shelf_gemini_fallback_error">Groq Vision hiba (Offline OCR futott helyette): %1$s</string>
     <string name="settings_gemini_test_btn">Kulcs teszt</string>
     <string name="settings_gemini_test_ok">Sikeres kapcsolat (%1$s)</string>
     <string name="settings_gemini_test_fail">API kulcs hiba: %1$s</string>
 
     <!-- v1.3.0: Offline Blemish Detection & In-App Update Download Manager -->
     <string name="trends_metric_blemish">Pattanások és gyulladt foltok</string>
-    <string name="metric_blemish_spots_count">~%1$d észlelt folt</string>
     <string name="metric_blemish_desc_optimal">Tiszta arcbőr a homlokon, orcákon és állon (%1$d észlelt folt).</string>
     <string name="metric_blemish_desc_good">Enyhe helyi bőrpír (~%1$d észlelt folt) a normál tartományban.</string>
     <string name="metric_blemish_desc_moderate">Közepes pattanás-aktivitás (~%1$d folt) — célzott nyugtató vagy pattanás elleni ápolás javasolt.</string>
@@ -389,9 +362,6 @@
     <string name="shelf_scan_ai_model_gemini">AI: %1$s (Vision)</string>
     <string name="shelf_scan_open_google_lens">Keresés Google Lens-ben</string>
     <string name="shelf_scan_google_lens_chooser">Fotó megnyitása Google Lens-ben</string>
-    <string name="shelf_lens_photo_btn">Fotózás · Google Lens</string>
-    <string name="shelf_lens_paste_btn">Beillesztés</string>
-    <string name="shelf_lens_flow_hint">Fotózd le a terméket Google Lens-szel, majd nyomj a Megosztás → SelfCare gombra (vagy másold ki a nevét és illeszd be).</string>
     <string name="shelf_scan_source_google_lens">Google Lens</string>
     <string name="shelf_vision_ai_active_badge">Élő vonalkód + Groq Vision aktív (Qwen 3.8 27B) + Offline INCI OCR</string>
     <string name="nav_nutrition">Kalória</string>
@@ -408,7 +378,6 @@
     <string name="nutrition_protein">Fehérje</string>
     <string name="nutrition_carbs">Szénhidrát</string>
     <string name="nutrition_fat">Zsír</string>
-    <string name="nutrition_fiber_sugar_summary">Rost: %1$s g  ·  Cukor: %2$s g</string>
     <string name="nutrition_water_title">Vízfogyasztás</string>
     <string name="nutrition_water_custom">Egyéni</string>
     <string name="nutrition_water_custom_title">Egyéni vízmennyiség (ml)</string>
@@ -456,7 +425,6 @@
     <string name="nutrition_day_today">Ma</string>
     <string name="nutrition_day_yesterday">Tegnap</string>
     <string name="nutrition_day_prev">Előző nap</string>
-    <string name="nutrition_day_next">Következő nap</string>
     <string name="nutrition_burned_bonus">+%d kcal sport</string>
     <string name="nutrition_label_scan_btn">Tápérték tábla</string>
     <string name="nutrition_log_weight_btn">Testsúly</string>
@@ -478,10 +446,8 @@
     <string name="nutrition_recipe_add_ingredient">Alapanyag hozzáadása</string>
     <string name="nutrition_recipe_ingredients_count">%1$d alapanyag · %2$d kcal / adag</string>
     <string name="trends_weight_nutrition_title">Testsúly &amp; Kalória Trend</string>
-    <string name="trends_weight_latest">Aktuális: %s kg</string>
     <string name="trends_weight_target">Cél: %s kg</string>
     <string name="trends_weight_delta">Változás: %s kg</string>
-    <string name="trends_nutrition_7d_avg">7 napos átlag: %1$d kcal/nap · %2$d g fehérje (%3$d nap)</string>
     <string name="trends_weight_no_entries">Rögzítsd a testsúlyodat a Táplálkozás fülön a 30 napos grafikonhoz.</string>
     <string name="nutrition_eaten_time_label">Időpont (ÓÓ:PP)</string>
     <string name="nutrition_meal_type_label">Napszak</string>
@@ -544,4 +510,20 @@
     <string name="settings_gemini_key_change">Csere</string>
     <string name="settings_gemini_clear_confirm_title">Törlöd a Groq API kulcsot?</string>
     <string name="settings_gemini_clear_confirm_body">Biztosan törölni szeretnéd az elmentett Groq API kulcsodat erről az eszközről? Az AI fotóelemzés, a Webes keresés és az AI Coach új kulcs megadásáig nem fog működni.</string>
+    <string name="routine_update_completed_btn">Kész · Napló frissítése</string>
+    <string name="routine_rename_title">Becenév / Átnevezés</string>
+    <string name="routine_rename_hint">Adj rövid, saját nevet a terméknek (pl. CeraVe ajakápoló). Az INCI összetevők és a márka megmaradnak.</string>
+    <string name="routine_inci_conflict_header">Hatóanyag-ütközés ebben a rutinban:</string>
+    <string name="routine_shave_due_now">Borotválkozás: ma esedékes</string>
+    <string name="routine_shave_in_days">Következő borotválkozás: %1$d nap múlva</string>
+    <string name="routine_shave_done_btn">Megvolt</string>
+    <string name="routine_custom_habits_title">Napi szokások</string>
+    <string name="routine_add_habit_btn">Új</string>
+    <string name="routine_add_habit_title">Új napi szokás</string>
+    <string name="routine_add_habit_hint">pl. Kreatin, 10 perc nyújtás, Fogselyem</string>
+    <string name="routine_custom_habits_empty">Még nincs saját napi szokásod. Az Új gombbal bármit felvehetsz, amit naponta pipálnál.</string>
+    <string name="routine_empty_title">Még nincs termék ebben a rutinban</string>
+    <string name="routine_empty_desc">Adj hozzá termékeket a Polc fülön, és rendeld őket a Reggeli, Esti vagy Hajápolás rutinba.</string>
+    <string name="routine_included_label">Beleértve</string>
+    <string name="routine_skipped_label">Ma kihagyva</string>
 </resources>

@@ -255,7 +255,13 @@ private fun SelfCareScaffold(
     }
 
     val routineViewModel: RoutineViewModel = viewModel(
-        factory = RoutineViewModel.factory(container.routineRepository)
+        factory = RoutineViewModel.factory(
+            routineRepository = container.routineRepository,
+            nutritionRepository = container.nutritionRepository,
+            hygieneRepository = container.hygieneRepository,
+            settingsRepository = container.settingsRepository,
+            productRepository = container.productRepository
+        )
     )
     val nutritionViewModel: NutritionViewModel = viewModel(
         factory = NutritionViewModel.factory(

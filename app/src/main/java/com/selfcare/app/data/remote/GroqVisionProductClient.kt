@@ -1223,7 +1223,12 @@ class GroqVisionProductClient(
         history: List<AiCoachChatMessage>,
         userMessage: String
     ): String {
-        val systemFull = COACH_SYSTEM_PROMPT + "\n\n" + systemContext
+        val langRule = if (isLikelyHungarian(userMessage)) {
+            "LANGUAGE RULE: The user wrote in Hungarian. Reply ONLY in natural Hungarian using singular informal 2nd-person ('tegezés': 'Szia', 'ettél', 'érdemes') — NEVER plural 'Sziasztok' and NEVER confuse 1st person ('ettem') with 2nd person ('ettél')."
+        } else {
+            "CRITICAL LANGUAGE RULE: Reply 100% in the exact same language as the user's latest message (e.g. if the user wrote in English, reply 100% in English). NEVER switch to Hungarian even if meal or product names in the context below are Hungarian!"
+        }
+        val systemFull = "$COACH_SYSTEM_PROMPT\n$langRule\n\n$systemContext"
         val obj = buildJsonObject {
             put("model", model)
             put("temperature", 0.4)
@@ -1363,8 +1368,19 @@ class GroqVisionProductClient(
                 "1. DO NOT repeat or list back the raw numbers, calories, grams, or ml that the user already sees on their dashboard! Mention at most 1-2 numbers ONLY if strictly needed to explain a concrete recommendation. Focus on qualitative insights, patterns, and practical next-meal/hydration ideas.\n" +
                 "2. ALWAYS respect CURRENT LOCAL TIME from the context! For example, in the morning (e.g. 09:00), NEVER criticize low daily totals or missing lunch/dinner/water — instead comment on how their morning started and suggest what to focus on for the next meal.\n" +
                 "3. Keep replies short and punchy: 3-5 natural sentences (or 2-3 brief bullet points). No giant headings, no emojis, no stat tables.\n" +
-                "4. Reply in the exact same language as the user. If Hungarian, ALWAYS use natural singular informal 2nd-person ('tegezés': 'Szia', 'ettél', 'érdemes') — NEVER plural 'Sziasztok' and NEVER confuse 1st person ('ettem') with 2nd person ('ettél').\n" +
-                "5. Base your advice ONLY on the anonymized context below. Never give medical diagnoses."
+                "4. Base your advice ONLY on the anonymized context below. Never give medical diagnoses."
+
+        internal fun isLikelyHungarian(text: String): Boolean {
+            val lower = text.lowercase()
+            if (lower.any { it in "áéíóöőúüű" }) return true
+            val huWords = setOf(
+                "szia", "mit", "ma", "ettem", "igyak", "mennyi", "kaloria", "feherje",
+                "hogyan", "milyen", "vagyok", "kene", "szeretnem", "vacsora", "ebed", "reggeli",
+                "kaja", "viz", "rutin", "borom", "szerinted", "miert", "tudok", "ehetek"
+            )
+            val tokens = lower.split(Regex("""[^a-z]+""")).filter { it.isNotEmpty() }
+            return tokens.count { it in huWords } >= 1
+        }
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

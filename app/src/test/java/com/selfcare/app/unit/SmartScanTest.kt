@@ -1,6 +1,8 @@
 package com.selfcare.app.unit
 
-import com.selfcare.app.ui.shelf.ScanPhotoHelper
+import com.selfcare.app.data.local.entity.ProductEntity
+import com.selfcare.app.data.remote.GroqVisionProductClient
+import com.selfcare.app.ui.routine.RoutineViewModel
 import com.selfcare.app.ui.shelf.SmartScanQueryExtractor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,12 +62,19 @@ class SmartScanTest {
     }
 
     @Test
-    fun scanPhotoHelper_cleanupTempFileDeletesImmediately() {
-        val tempFile = File.createTempFile("selfcare_scan_test_", ".jpg")
-        tempFile.writeBytes(byteArrayOf(1, 2, 3))
-        assertTrue(tempFile.exists())
+    fun aiCoachLanguageDetector_andRoutineStepOrder_workCorrectly() {
+        assertFalse(GroqVisionProductClient.isLikelyHungarian("Hello, what should I eat for dinner?"))
+        assertFalse(GroqVisionProductClient.isLikelyHungarian("How is my protein intake today?"))
+        assertTrue(GroqVisionProductClient.isLikelyHungarian("Szia, mit egyek vacsorára?"))
+        assertTrue(GroqVisionProductClient.isLikelyHungarian("Mennyi vizet igyak ma?"))
 
-        ScanPhotoHelper.cleanupTempFile(tempFile)
-        assertFalse("Temp scan photo must be deleted immediately", tempFile.exists())
+        val cleanser = ProductEntity(name = "Foaming Cleanser", brand = "CeraVe", category = "OTHER", createdAtEpochMillis = 0L, updatedAtEpochMillis = 0L)
+        val retinol = ProductEntity(name = "Retinol Serum", brand = "Ordinary", category = "RX_TREATMENT", createdAtEpochMillis = 0L, updatedAtEpochMillis = 0L)
+        val lipBalm = ProductEntity(name = "CeraVe ajakápoló", brand = "CeraVe", category = "OTHER", createdAtEpochMillis = 0L, updatedAtEpochMillis = 0L)
+        val vitamin = ProductEntity(name = "D3-vitamin 2000 NE", brand = "BioCo", category = "VITAMIN", createdAtEpochMillis = 0L, updatedAtEpochMillis = 0L)
+        val ordered = listOf(vitamin, lipBalm, retinol, cleanser)
+            .sortedBy { RoutineViewModel.applicationStepPriority(it) }
+            .map { it.name }
+        assertTrue(ordered == listOf("Foaming Cleanser", "Retinol Serum", "CeraVe ajakápoló", "D3-vitamin 2000 NE"))
     }
 }

@@ -59,7 +59,6 @@ data class UserSettings(
     val bodyIsMale: Boolean = true,
     val bodyActivityLevel: String = "MODERATE",
     val bodyMacroGoal: String = "MAINTAIN",
-    val aiWebSearchEnabled: Boolean = true,
     val groqTodayTokensUsed: Int = 0,
     val groqTodayRequestsUsed: Int = 0,
     val groqLimitRequests: Int = 0,
@@ -137,7 +136,6 @@ class SettingsRepository(
             bodyIsMale = prefs[KEY_BODY_IS_MALE] ?: true,
             bodyActivityLevel = prefs[KEY_BODY_ACTIVITY_LEVEL] ?: "MODERATE",
             bodyMacroGoal = prefs[KEY_BODY_MACRO_GOAL] ?: "MAINTAIN",
-            aiWebSearchEnabled = prefs[KEY_AI_WEB_SEARCH_ENABLED] ?: true,
             groqTodayTokensUsed = if ((prefs[KEY_GROQ_QUOTA_EPOCH_DAY] ?: -1L) == LocalDate.now().toEpochDay()) {
                 (prefs[KEY_GROQ_TODAY_TOKENS] ?: 0).coerceAtLeast(0)
             } else 0,
@@ -202,12 +200,6 @@ class SettingsRepository(
     suspend fun setBlockScreenshots(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[KEY_BLOCK_SCREENSHOTS] = enabled
-        }
-    }
-
-    suspend fun setAiWebSearchEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[KEY_AI_WEB_SEARCH_ENABLED] = enabled
         }
     }
 
@@ -409,7 +401,6 @@ class SettingsRepository(
         private val KEY_BODY_IS_MALE = booleanPreferencesKey("body_is_male")
         private val KEY_BODY_ACTIVITY_LEVEL = stringPreferencesKey("body_activity_level")
         private val KEY_BODY_MACRO_GOAL = stringPreferencesKey("body_macro_goal")
-        private val KEY_AI_WEB_SEARCH_ENABLED = booleanPreferencesKey("ai_web_search_enabled")
         private val KEY_GROQ_QUOTA_EPOCH_DAY = longPreferencesKey("groq_quota_epoch_day")
         private val KEY_GROQ_TODAY_TOKENS = intPreferencesKey("groq_today_tokens")
         private val KEY_GROQ_TODAY_REQUESTS = intPreferencesKey("groq_today_requests")

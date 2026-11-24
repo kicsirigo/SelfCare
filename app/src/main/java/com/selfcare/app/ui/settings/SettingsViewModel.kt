@@ -122,12 +122,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setAiWebSearchEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.setAiWebSearchEnabled(enabled)
-        }
-    }
-
     fun resetGroqQuotaCounters() {
         viewModelScope.launch {
             settingsRepository.resetGroqQuotaCounters()

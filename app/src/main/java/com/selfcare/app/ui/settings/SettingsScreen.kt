@@ -166,7 +166,6 @@ fun SettingsScreen(
         },
         onExportBackup = { exportLauncher.launch("selfcare-backup.json") },
         onImportBackup = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
-        onToggleAiWebSearch = viewModel::setAiWebSearchEnabled,
         onResetGroqQuota = viewModel::resetGroqQuotaCounters,
         modifier = modifier
     )
@@ -196,7 +195,6 @@ fun SettingsScreenContent(
     onInstallUpdate: (Uri) -> Unit = {},
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
-    onToggleAiWebSearch: (Boolean) -> Unit = {},
     onResetGroqQuota: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {

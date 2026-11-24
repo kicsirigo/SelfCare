@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.18.0",
+            title = "Routine Today Hub & Coach, Product Nicknames, AI Language Fix & Codebase Cleanup",
+            highlights = listOf(
+                "Upgraded the Routine tab into a unified Today Hub & Smart Routine Coach: dead-center 100% ring, single Hero card with Morning/Evening/Hair status & completion time, Today Pulse bar (kcal, water +250 ml 1-tap, shave countdown), automatic skincare/vitamin step ordering, live INCI conflict alerts, and custom Daily Habits.",
+                "Added 1-tap Product Nickname / Rename right on Routine rows (e.g. 'Advanced Repair Ointment' -> 'CeraVe Lip Balm') while preserving all INCI data, strikethrough & dimmed completed steps, calm 'Completed · Update' state, and 92dp bottom scroll clearance for the floating AI FAB.",
+                "Fixed AI Coach replying in Hungarian when addressed in English (now strictly matches the user's message language even with Hungarian meal names in context), plus Ponytail Audit cleanup (deleted orphaned ScanPhotoHelper.kt, dead settings, and 34 unused strings)."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.17.0",
             title = "2026 Material 3 Expressive Motion Pack & 100% In-App CameraX",
             highlights = listOf(

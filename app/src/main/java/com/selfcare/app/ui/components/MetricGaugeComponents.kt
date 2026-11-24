@@ -94,18 +94,31 @@ fun HeroScoreRing(
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = centerValue,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
+                maxLines = 1,
+                softWrap = false,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-                text = centerSubtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (centerSubtitle.isNotBlank()) {
+                Text(
+                    text = centerSubtitle,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
