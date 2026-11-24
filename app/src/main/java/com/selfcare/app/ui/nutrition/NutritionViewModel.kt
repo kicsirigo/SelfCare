@@ -20,11 +20,14 @@ import com.selfcare.app.data.remote.NutritionLabelVisionResult
 import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.NutritionRepository
 import com.selfcare.app.domain.health.ActivityLevel
+import com.selfcare.app.domain.health.DayMealTimingSummary
 import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
+import com.selfcare.app.domain.health.MealTimingAnalyzer
 import com.selfcare.app.domain.health.VitaminCalculator
+import java.time.LocalTime
 import com.selfcare.app.domain.ml.BarcodeScanner
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,7 +98,8 @@ data class NutritionUiState(
     val bodyIsMale: Boolean = true,
     val bodyActivityLevel: String = "MODERATE",
     val bodyMacroGoal: String = "MAINTAIN",
-    val selectedMealType: String = NutritionLogEntity.MEAL_LUNCH,
+    val selectedMealType: String = MealTimingAnalyzer.defaultMealTypeForHour(LocalTime.now().hour, LocalTime.now().minute),
+    val timingSummary: DayMealTimingSummary = DayMealTimingSummary(),
     val isBusy: Boolean = false,
     val statusMessage: String? = null,
     val searchQuery: String = "",
@@ -128,7 +132,7 @@ class NutritionViewModel(
     )
 
     private data class TransientState(
-        val selectedMealType: String = NutritionLogEntity.MEAL_LUNCH,
+        val selectedMealType: String = MealTimingAnalyzer.defaultMealTypeForHour(LocalTime.now().hour, LocalTime.now().minute),
         val isBusy: Boolean = false,
         val statusMessage: String? = null,
         val searchQuery: String = "",
@@ -215,6 +219,7 @@ class NutritionViewModel(
             bodyActivityLevel = settings.bodyActivityLevel,
             bodyMacroGoal = settings.bodyMacroGoal,
             selectedMealType = tr.selectedMealType,
+            timingSummary = MealTimingAnalyzer.analyzeDay(daySnap.meals),
             isBusy = tr.isBusy,
             statusMessage = tr.statusMessage,
             searchQuery = tr.searchQuery,
@@ -663,7 +668,8 @@ class NutritionViewModel(
         sugarGrams: Float,
         saltGrams: Float = 0f,
         mealType: String,
-        source: String
+        source: String,
+        eatenAtEpochMillis: Long? = null
     ) {
         val currentState = uiState.value
         val day = selectedEpochDayFlow.value
@@ -689,7 +695,8 @@ class NutritionViewModel(
                 fiberGrams = fiberGrams,
                 sugarGrams = sugarGrams,
                 saltGrams = saltGrams,
-                source = source
+                source = source,
+                eatenAtEpochMillis = eatenAtEpochMillis
             )
             transientFlow.update { it.copy(pendingConfirmation = null) }
             if ((wasProteinBelow && willHitProtein) || (wasKcalBelow && willHitKcalSweetSpot)) {

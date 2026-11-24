@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.FabPosition
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,6 +63,8 @@ import com.selfcare.app.data.local.UserSettings
 import com.selfcare.app.di.AppContainer
 import com.selfcare.app.ui.checkin.CheckInScreen
 import com.selfcare.app.ui.checkin.CheckInViewModel
+import com.selfcare.app.ui.coach.AiCoachChatSheet
+import com.selfcare.app.ui.coach.AiCoachViewModel
 import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.localization.LocaleHelper
 import com.selfcare.app.ui.nutrition.NutritionScreen
@@ -260,6 +265,16 @@ private fun SelfCareScaffold(
             settingsRepository = container.settingsRepository
         )
     )
+    val aiCoachViewModel: AiCoachViewModel = viewModel(
+        factory = AiCoachViewModel.factory(
+            nutritionRepository = container.nutritionRepository,
+            productRepository = container.productRepository,
+            faceCheckInRepository = container.faceCheckInRepository,
+            settingsRepository = container.settingsRepository,
+            visionClient = container.productVisionClient
+        )
+    )
+    var showAiCoachSheet by rememberSaveable { mutableStateOf(false) }
 
     val incomingShare = sharedProductFlow?.collectAsStateWithLifecycle(initialValue = null)?.value
     LaunchedEffect(incomingShare) {
@@ -270,10 +285,34 @@ private fun SelfCareScaffold(
         }
     }
 
+    if (showAiCoachSheet) {
+        AiCoachChatSheet(
+            viewModel = aiCoachViewModel,
+            onDismiss = { showAiCoachSheet = false }
+        )
+    }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .testTag("app_root"),
+        floatingActionButtonPosition = FabPosition.Start,
+        floatingActionButton = {
+            if (currentDestination != AppDestination.SETTINGS) {
+                SmallFloatingActionButton(
+                    onClick = { showAiCoachSheet = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.testTag("ai_coach_fab")
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Sparkle,
+                        contentDescription = stringResource(R.string.ai_coach_fab_desc),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
         topBar = {
             Surface(
                 color = MaterialTheme.colorScheme.background,

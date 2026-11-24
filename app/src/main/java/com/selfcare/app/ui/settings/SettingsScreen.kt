@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -503,8 +505,64 @@ fun SettingsScreenContent(
 
         // Optional AI Visual Product Scan (Groq Llama 4 Vision / Gemini API Key)
         item {
+            val localContext = LocalContext.current
             var keyInput by remember(settings.geminiApiKey) { mutableStateOf(settings.geminiApiKey) }
             var savedNotice by remember { mutableStateOf(false) }
+            var showZdrWarningDialog by remember { mutableStateOf(false) }
+
+            if (showZdrWarningDialog) {
+                AlertDialog(
+                    onDismissRequest = { showZdrWarningDialog = false },
+                    icon = {
+                        Icon(
+                            imageVector = AppIcons.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    },
+                    title = {
+                        Text(
+                            text = stringResource(R.string.settings_zdr_warning_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = stringResource(R.string.settings_zdr_warning_body),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showZdrWarningDialog = false
+                                runCatching {
+                                    localContext.startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://console.groq.com/settings/data-controls")
+                                        )
+                                    )
+                                }
+                            },
+                            modifier = Modifier.testTag("settings_zdr_open_console_btn")
+                        ) {
+                            Text(text = stringResource(R.string.settings_zdr_open_console))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showZdrWarningDialog = false },
+                            modifier = Modifier.testTag("settings_zdr_understood_btn")
+                        ) {
+                            Text(text = stringResource(R.string.settings_zdr_understood))
+                        }
+                    }
+                )
+            }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -560,6 +618,9 @@ fun SettingsScreenContent(
                             onClick = {
                                 onSaveGeminiApiKey(keyInput)
                                 savedNotice = true
+                                if (keyInput.isNotBlank()) {
+                                    showZdrWarningDialog = true
+                                }
                             },
                             modifier = Modifier
                                 .weight(1f)

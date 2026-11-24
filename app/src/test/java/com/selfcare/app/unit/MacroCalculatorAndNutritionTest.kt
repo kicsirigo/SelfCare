@@ -222,4 +222,108 @@ class MacroCalculatorAndNutritionTest {
         assertEquals(0.14f, item.per100gSalt, 0.01f)
         assertEquals(330f, item.defaultGrams, 0.1f)
     }
+
+    @Test
+    fun `meal timing analyzer maps hours to slots and detects eating window and late meals`() {
+        assertEquals(
+            com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_BREAKFAST,
+            com.selfcare.app.domain.health.MealTimingAnalyzer.defaultMealTypeForHour(8, 15)
+        )
+        assertEquals(
+            com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_LUNCH,
+            com.selfcare.app.domain.health.MealTimingAnalyzer.defaultMealTypeForHour(12, 30)
+        )
+        assertEquals(
+            com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_SNACK,
+            com.selfcare.app.domain.health.MealTimingAnalyzer.defaultMealTypeForHour(16, 0)
+        )
+        assertEquals(
+            com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_DINNER,
+            com.selfcare.app.domain.health.MealTimingAnalyzer.defaultMealTypeForHour(20, 0)
+        )
+
+        val zone = java.time.ZoneOffset.UTC
+        val day = 20000L
+        val t1 = com.selfcare.app.domain.health.MealTimingAnalyzer.combineEpochDayAndHm(day, 8, 0, zone)
+        val t2 = com.selfcare.app.domain.health.MealTimingAnalyzer.combineEpochDayAndHm(day, 21, 30, zone)
+        val meals = listOf(
+            com.selfcare.app.data.local.entity.NutritionLogEntity(
+                dateEpochDay = day,
+                mealType = com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_BREAKFAST,
+                name = "Zabkása",
+                grams = 250f,
+                caloriesKcal = 350,
+                proteinGrams = 15f,
+                carbsGrams = 50f,
+                fatGrams = 8f,
+                createdAtEpochMillis = t1
+            ),
+            com.selfcare.app.data.local.entity.NutritionLogEntity(
+                dateEpochDay = day,
+                mealType = com.selfcare.app.data.local.entity.NutritionLogEntity.MEAL_DINNER,
+                name = "Szendvics",
+                grams = 200f,
+                caloriesKcal = 420,
+                proteinGrams = 20f,
+                carbsGrams = 40f,
+                fatGrams = 15f,
+                createdAtEpochMillis = t2
+            )
+        )
+        val summary = com.selfcare.app.domain.health.MealTimingAnalyzer.analyzeDay(meals, zone)
+        assertEquals("08:00", summary.firstMealTimeHm)
+        assertEquals("21:30", summary.lastMealTimeHm)
+        assertEquals(13 * 60 + 30, summary.eatingWindowMinutes)
+        assertTrue(summary.hasLateNightMeal)
+        assertEquals(1, summary.lateNightMealCount)
+    }
+
+    @Test
+    fun `app data context builder respects scope toggles and never leaks exact birthdate`() {
+        val settings = com.selfcare.app.data.local.UserSettings(
+            birthDateIso = "1998-05-14",
+            bodyWeightKg = 78.5f,
+            targetWeightKg = 74.0f
+        )
+        val ctx = com.selfcare.app.domain.ai.AppDataContextBuilder.buildContext(
+            scope = com.selfcare.app.domain.ai.AiChatContextScope(
+                includeNutrition = true,
+                includeFitnessWeight = false,
+                includeRoutineShelf = false,
+                includeFaceTrends = false
+            ),
+            settings = settings,
+            todayEpochDay = 20000L,
+            todayMeals = emptyList(),
+            recentMeals7d = emptyList(),
+            todayWater = emptyList(),
+            todayActivities = emptyList(),
+            weights = emptyList(),
+            shelfProducts = emptyList(),
+            recentCheckIns = emptyList(),
+            zoneId = java.time.ZoneOffset.UTC
+        )
+        assertTrue(ctx.contains("TODAY'S NUTRITION"))
+        assertTrue(!ctx.contains("EXERCISE & WEIGHT"))
+        assertTrue(!ctx.contains("FACE CHECK-IN TRENDS"))
+        assertTrue(!ctx.contains("1998-05-14"))
+    }
+
+    @Test
+    fun `groq coach reply parser strips think tags cleanly`() {
+        val client = GroqVisionProductClient()
+        val raw = """
+            {
+              "choices": [{
+                "message": {
+                  "content": "<think>Analyzing user's 08:00 breakfast and 21:30 dinner.</think>\nA mai fehérjebeviteled szuper, de próbáld a vacsorát 20:30 elé hozni."
+                }
+              }]
+            }
+        """.trimIndent()
+        val parsed = client.parseGroqCoachReplyJson(raw)
+        assertTrue(parsed is com.selfcare.app.data.remote.AiCoachChatResult.Success)
+        val reply = (parsed as com.selfcare.app.data.remote.AiCoachChatResult.Success).reply
+        assertEquals("A mai fehérjebeviteled szuper, de próbáld a vacsorát 20:30 elé hozni.", reply)
+    }
 }

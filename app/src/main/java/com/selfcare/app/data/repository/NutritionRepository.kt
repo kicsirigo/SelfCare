@@ -61,7 +61,8 @@ class NutritionRepository(
         fiberGrams: Float = 0f,
         sugarGrams: Float = 0f,
         saltGrams: Float = 0f,
-        source: String = "MANUAL"
+        source: String = "MANUAL",
+        eatenAtEpochMillis: Long? = null
     ): Long {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return 0L
@@ -81,7 +82,7 @@ class NutritionRepository(
                 sugarGrams = sugarGrams.coerceAtLeast(0f),
                 saltGrams = saltGrams.coerceAtLeast(0f),
                 source = source,
-                createdAtEpochMillis = clock.millis()
+                createdAtEpochMillis = eatenAtEpochMillis ?: clock.millis()
             )
         )
     }

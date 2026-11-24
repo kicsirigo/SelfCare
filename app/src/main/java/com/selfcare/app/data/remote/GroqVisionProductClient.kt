@@ -62,6 +62,16 @@ sealed interface NutritionLabelVisionResult {
     data class Error(val reason: String) : NutritionLabelVisionResult
 }
 
+data class AiCoachChatMessage(
+    val role: String, // "user" or "assistant"
+    val content: String
+)
+
+sealed interface AiCoachChatResult {
+    data class Success(val reply: String, val modelUsed: String = "") : AiCoachChatResult
+    data class Error(val reason: String) : AiCoachChatResult
+}
+
 interface ProductVisionClient {
     suspend fun identifyProduct(bitmap: Bitmap, apiKey: String): GeminiVisionResult
     suspend fun testApiKey(apiKey: String): GeminiKeyTestResult = GeminiKeyTestResult.Failure("Not supported")
@@ -71,6 +81,12 @@ interface ProductVisionClient {
         MealVisionResult.Error("Not supported")
     suspend fun extractNutritionLabelFromPhoto(bitmap: Bitmap, apiKey: String): NutritionLabelVisionResult =
         NutritionLabelVisionResult.Error("Not supported")
+    suspend fun chatWithCoach(
+        systemContext: String,
+        history: List<AiCoachChatMessage>,
+        userMessage: String,
+        apiKey: String
+    ): AiCoachChatResult = AiCoachChatResult.Error("Not supported")
 }
 
 /**
@@ -725,6 +741,115 @@ class GroqVisionProductClient(
         val defaultGrams: Float = 100f
     )
 
+    override suspend fun chatWithCoach(
+        systemContext: String,
+        history: List<AiCoachChatMessage>,
+        userMessage: String,
+        apiKey: String
+    ): AiCoachChatResult = withContext(Dispatchers.IO) {
+        val cleanKey = apiKey.trim()
+        val cleanMsg = userMessage.trim()
+        if (cleanKey.isEmpty()) return@withContext AiCoachChatResult.Error("Groq API key is missing")
+        if (cleanMsg.isEmpty()) return@withContext AiCoachChatResult.Error("Message is empty")
+
+        val modelsToTry = discoverVisionModels(cleanKey, useCache = true)
+        val url = "${baseUrl.trimEnd('/')}/openai/v1/chat/completions"
+        var lastError = "Unable to reach Groq AI"
+        for (model in modelsToTry) {
+            val payload = buildCoachChatPayload(model, systemContext, history, cleanMsg)
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $cleanKey")
+                .addHeader("Content-Type", "application/json")
+                .post(payload.toRequestBody("application/json".toMediaType()))
+                .build()
+            try {
+                httpClient.newCall(req).execute().use { resp ->
+                    val bodyStr = resp.body?.string().orEmpty()
+                    if (resp.isSuccessful) {
+                        val parsed = parseGroqCoachReplyJson(bodyStr)
+                        if (parsed is AiCoachChatResult.Success) {
+                            return@withContext parsed.copy(modelUsed = shortModelLabel(model))
+                        }
+                        if (parsed is AiCoachChatResult.Error) {
+                            lastError = parsed.reason
+                        }
+                    } else if (resp.code == 401 || resp.code == 403) {
+                        return@withContext AiCoachChatResult.Error("Invalid Groq API key (HTTP ${resp.code})")
+                    } else {
+                        lastError = "Groq HTTP ${resp.code}"
+                    }
+                }
+            } catch (e: Exception) {
+                lastError = e.message ?: "Network error"
+            }
+        }
+        AiCoachChatResult.Error(lastError)
+    }
+
+    internal fun parseGroqCoachReplyJson(rawJson: String): AiCoachChatResult {
+        return try {
+            val root = json.parseToJsonElement(rawJson).jsonObject
+            val rawContent = root["choices"]
+                ?.jsonArray?.firstOrNull()
+                ?.jsonObject?.get("message")
+                ?.jsonObject?.get("content")
+                ?.jsonPrimitive?.contentOrNull
+                ?.trim()
+                .orEmpty()
+            val cleaned = rawContent
+                .replace(Regex("(?s)<think>.*?</think>"), "")
+                .trim()
+            if (cleaned.isEmpty()) {
+                AiCoachChatResult.Error("Empty AI response")
+            } else {
+                AiCoachChatResult.Success(reply = cleaned)
+            }
+        } catch (e: Exception) {
+            AiCoachChatResult.Error("Parse error: ${e.message}")
+        }
+    }
+
+    private fun buildCoachChatPayload(
+        model: String,
+        systemContext: String,
+        history: List<AiCoachChatMessage>,
+        userMessage: String
+    ): String {
+        val systemFull = COACH_SYSTEM_PROMPT + "\n\n" + systemContext
+        val obj = buildJsonObject {
+            put("model", model)
+            put("temperature", 0.4)
+            put("max_tokens", 700)
+            put(
+                "messages",
+                buildJsonArray {
+                    add(
+                        buildJsonObject {
+                            put("role", "system")
+                            put("content", systemFull)
+                        }
+                    )
+                    history.takeLast(10).forEach { msg ->
+                        add(
+                            buildJsonObject {
+                                put("role", if (msg.role == "assistant") "assistant" else "user")
+                                put("content", msg.content)
+                            }
+                        )
+                    }
+                    add(
+                        buildJsonObject {
+                            put("role", "user")
+                            put("content", userMessage)
+                        }
+                    )
+                }
+            )
+        }
+        return obj.toString()
+    }
+
     companion object {
         const val DEFAULT_BASE_URL = "https://api.groq.com"
         const val MAX_TRANSIENT_ATTEMPTS = 3
@@ -814,6 +939,12 @@ class GroqVisionProductClient(
                 "\"per100gSugar\" (number, sugars/cukrok g per 100g, 0 if not listed), " +
                 "\"per100gSalt\" (number, salt/só g per 100g, 0 if not listed), " +
                 "\"defaultGrams\" (number, package or serving weight in g if visible, else 100)."
+
+        private const val COACH_SYSTEM_PROMPT =
+            "You are SelfCare AI Coach (powered by Qwen). Help the user understand their nutrition, meal timing (when and what they eat), " +
+                "salt/hydration balance, exercise, weight trends, and skincare routine based ONLY on the anonymized context provided below. " +
+                "Reply in the exact same language the user writes in (Hungarian if they write in Hungarian, English if English). " +
+                "Be concise, friendly, practical, and specific using their logged numbers and timestamps. Never give medical diagnoses."
 
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

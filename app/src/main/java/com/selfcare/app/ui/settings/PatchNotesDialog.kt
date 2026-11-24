@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.8.0",
+            title = "Meal Timing & Slot Grouping + Floating Qwen AI Coach + Groq ZDR Privacy Alert",
+            highlights = listOf(
+                "Upgraded Meal Logging to track WHEN and WHAT you eat: auto-selects Breakfast, Lunch, Snack, or Dinner by time of day, adds Meal Slot chips and editable HH:mm eating time inside every logging dialog, groups today's meals by slot with kcal subtotals, and displays your daily Eating Window & late-night meal alerts.",
+                "Added a Floating AI Coach Chat button (Qwen 3.8 27B) accessible from every main tab with granular opt-in data scope toggles (Nutrition & Timing, Exercise & Weight, Routine & Shelf, Face Trends) and a 'What AI sees' context preview — photos, names, and birth dates are never sent.",
+                "Added a prominent Zero Data Retention (ZDR) privacy alert dialog when saving a Groq API key in Settings, with a direct link to console.groq.com Data Controls."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.7.0",
             title = "Day Switcher, Custom Recipes, Exercise Tracking, Weight Trend & Nutrition Label Scanner",
             highlights = listOf(

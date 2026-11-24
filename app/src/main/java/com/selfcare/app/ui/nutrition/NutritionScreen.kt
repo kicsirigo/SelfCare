@@ -72,9 +72,11 @@ import com.selfcare.app.data.local.entity.CustomRecipeEntity
 import com.selfcare.app.data.local.entity.NutritionLogEntity
 import com.selfcare.app.domain.health.ActivityCalorieCalculator
 import com.selfcare.app.domain.health.ActivityLevel
+import com.selfcare.app.domain.health.DayMealTimingSummary
 import com.selfcare.app.domain.health.FoodPresetCatalog
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
+import com.selfcare.app.domain.health.MealTimingAnalyzer
 import com.selfcare.app.ui.components.AnimatedWaterGlass
 import com.selfcare.app.ui.components.CelebrationOverlay
 import com.selfcare.app.ui.icons.AppIcons
@@ -83,6 +85,7 @@ import com.selfcare.app.ui.theme.NeonGreen
 import com.selfcare.app.ui.theme.NeonWarning
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -156,8 +159,9 @@ fun NutritionScreen(
     if (showManualMealDialog) {
         ManualMealDialog(
             defaultMealType = state.selectedMealType,
+            selectedEpochDay = state.selectedEpochDay,
             onDismiss = { showManualMealDialog = false },
-            onSave = { name, grams, kcal, protein, carbs, fat, mealType ->
+            onSave = { name, grams, kcal, protein, carbs, fat, mealType, eatenAtMillis ->
                 viewModel.saveConfirmedMeal(
                     name = name,
                     brand = "",
@@ -170,7 +174,8 @@ fun NutritionScreen(
                     fiberGrams = 0f,
                     sugarGrams = 0f,
                     mealType = mealType,
-                    source = "MANUAL"
+                    source = "MANUAL",
+                    eatenAtEpochMillis = eatenAtMillis
                 )
                 showManualMealDialog = false
             }
@@ -242,8 +247,9 @@ fun NutritionScreen(
         MealConfirmationDialog(
             pending = pending,
             defaultMealType = state.selectedMealType,
+            selectedEpochDay = state.selectedEpochDay,
             onDismiss = viewModel::dismissPendingConfirmation,
-            onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, salt, mealType ->
+            onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, salt, mealType, eatenAtMillis ->
                 viewModel.saveConfirmedMeal(
                     name = name,
                     brand = pending.brand,
@@ -257,7 +263,8 @@ fun NutritionScreen(
                     sugarGrams = sugar,
                     saltGrams = salt,
                     mealType = mealType,
-                    source = pending.source
+                    source = pending.source,
+                    eatenAtEpochMillis = eatenAtMillis
                 )
             }
         )
@@ -619,7 +626,13 @@ fun NutritionScreen(
                 )
             }
 
-            // 5. Today's Logged Meals
+            // 5. Today's Logged Meals + Meal Timing Insights
+            if (state.todayMeals.isNotEmpty()) {
+                item {
+                    MealTimingCard(summary = state.timingSummary)
+                }
+            }
+
             item {
                 Text(
                     text = stringResource(R.string.nutrition_today_meals),
@@ -644,11 +657,45 @@ fun NutritionScreen(
                     }
                 }
             } else {
-                items(state.todayMeals, key = { it.id }) { meal ->
-                    MealLogCard(
-                        meal = meal,
-                        onDelete = { viewModel.deleteMeal(meal.id) }
-                    )
+                val grouped = state.todayMeals.groupBy { it.mealType }
+                MealTimingAnalyzer.orderedSlots.forEach { slot ->
+                    val slotMeals = grouped[slot].orEmpty().sortedBy { it.createdAtEpochMillis }
+                    if (slotMeals.isNotEmpty()) {
+                        val slotKcal = slotMeals.sumOf { it.caloriesKcal }
+                        item(key = "slot_header_$slot") {
+                            val slotLabelRes = when (slot) {
+                                NutritionLogEntity.MEAL_BREAKFAST -> R.string.nutrition_meal_breakfast
+                                NutritionLogEntity.MEAL_DINNER -> R.string.nutrition_meal_dinner
+                                NutritionLogEntity.MEAL_SNACK -> R.string.nutrition_meal_snack
+                                else -> R.string.nutrition_meal_lunch
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = stringResource(slotLabelRes),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF38BDF8)
+                                )
+                                Text(
+                                    text = "$slotKcal kcal",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        items(slotMeals, key = { it.id }) { meal ->
+                            MealLogCard(
+                                meal = meal,
+                                onDelete = { viewModel.deleteMeal(meal.id) }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1022,6 +1069,56 @@ private fun HydrationGlassCard(
 }
 
 @Composable
+private fun MealTimingCard(
+    summary: DayMealTimingSummary
+) {
+    if (summary.mealCount == 0 || summary.firstMealTimeHm == null || summary.lastMealTimeHm == null) return
+    val hours = summary.eatingWindowMinutes / 60
+    val mins = summary.eatingWindowMinutes % 60
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("nutrition_timing_card"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.nutrition_timing_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = stringResource(
+                    R.string.nutrition_timing_window,
+                    summary.firstMealTimeHm,
+                    summary.lastMealTimeHm,
+                    hours,
+                    mins
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF38BDF8)
+            )
+            if (summary.hasLateNightMeal) {
+                Text(
+                    text = stringResource(R.string.nutrition_timing_late_warning, summary.lateNightMealCount),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonWarning
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.nutrition_timing_balanced),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonGreen
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MealLogCard(
     meal: NutritionLogEntity,
     onDelete: () -> Unit
@@ -1032,6 +1129,10 @@ private fun MealLogCard(
         NutritionLogEntity.MEAL_SNACK -> stringResource(R.string.nutrition_meal_snack)
         else -> stringResource(R.string.nutrition_meal_lunch)
     }
+    val timeHm = remember(meal.createdAtEpochMillis) {
+        MealTimingAnalyzer.formatTimeHm(meal.createdAtEpochMillis)
+    }
+    val timePrefix = if (timeHm.isNotBlank()) "$timeHm · " else ""
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1056,7 +1157,7 @@ private fun MealLogCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "$mealTypeLabel · ${meal.grams.roundToInt()} g · ${meal.caloriesKcal} kcal",
+                    text = "$timePrefix$mealTypeLabel · ${meal.grams.roundToInt()} g · ${meal.caloriesKcal} kcal",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1120,10 +1221,12 @@ private fun CustomWaterDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MealConfirmationDialog(
     pending: PendingMealConfirmation,
     defaultMealType: String,
+    selectedEpochDay: Long,
     onDismiss: () -> Unit,
     onConfirm: (
         name: String,
@@ -1135,9 +1238,11 @@ private fun MealConfirmationDialog(
         fiber: Float,
         sugar: Float,
         salt: Float,
-        mealType: String
+        mealType: String,
+        eatenAtMillis: Long?
     ) -> Unit
 ) {
+    val nowTime = remember { LocalTime.now() }
     var name by remember(pending) { mutableStateOf(pending.name) }
     var gramsText by remember(pending) { mutableStateOf(pending.grams.roundToInt().toString()) }
     var kcalText by remember(pending) { mutableStateOf(pending.caloriesKcal.toString()) }
@@ -1146,6 +1251,9 @@ private fun MealConfirmationDialog(
     var fatText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.fatGrams)) }
     var saltText by remember(pending) { mutableStateOf(String.format(Locale.US, "%.1f", pending.saltGrams)) }
     var mealType by remember(pending) { mutableStateOf(defaultMealType) }
+    var timeHmText by remember(pending) {
+        mutableStateOf(String.format(Locale.US, "%02d:%02d", nowTime.hour, nowTime.minute))
+    }
 
     fun applyMultiplier(factor: Float) {
         val g = (pending.grams * factor).coerceAtLeast(10f)
@@ -1198,6 +1306,12 @@ private fun MealConfirmationDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                MealSlotAndTimePicker(
+                    selectedMealType = mealType,
+                    onSelectMealType = { mealType = it },
+                    timeHmText = timeHmText,
+                    onTimeHmChange = { timeHmText = it }
+                )
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -1278,7 +1392,11 @@ private fun MealConfirmationDialog(
                     val c = carbsText.replace(',', '.').toFloatOrNull() ?: pending.carbsGrams
                     val f = fatText.replace(',', '.').toFloatOrNull() ?: pending.fatGrams
                     val s = saltText.replace(',', '.').toFloatOrNull() ?: pending.saltGrams
-                    onConfirm(name.ifBlank { pending.name }, g, k, p, c, f, pending.fiberGrams, pending.sugarGrams, s, mealType)
+                    val parsedTime = MealTimingAnalyzer.parseHmOrNull(timeHmText)
+                    val eatenAtMillis = parsedTime?.let { (h, m) ->
+                        MealTimingAnalyzer.combineEpochDayAndHm(selectedEpochDay, h, m)
+                    }
+                    onConfirm(name.ifBlank { pending.name }, g, k, p, c, f, pending.fiberGrams, pending.sugarGrams, s, mealType, eatenAtMillis)
                 }
             ) {
                 Text(stringResource(R.string.action_save))
@@ -1292,18 +1410,72 @@ private fun MealConfirmationDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MealSlotAndTimePicker(
+    selectedMealType: String,
+    onSelectMealType: (String) -> Unit,
+    timeHmText: String,
+    onTimeHmChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.nutrition_meal_type_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf(
+                NutritionLogEntity.MEAL_BREAKFAST to R.string.nutrition_meal_breakfast,
+                NutritionLogEntity.MEAL_LUNCH to R.string.nutrition_meal_lunch,
+                NutritionLogEntity.MEAL_SNACK to R.string.nutrition_meal_snack,
+                NutritionLogEntity.MEAL_DINNER to R.string.nutrition_meal_dinner
+            ).forEach { (slot, labelRes) ->
+                FilterChip(
+                    selected = selectedMealType == slot,
+                    onClick = { onSelectMealType(slot) },
+                    label = { Text(stringResource(labelRes)) }
+                )
+            }
+        }
+        OutlinedTextField(
+            value = timeHmText,
+            onValueChange = { raw ->
+                val filtered = raw.filter { it.isDigit() || it == ':' }.take(5)
+                onTimeHmChange(filtered)
+                MealTimingAnalyzer.parseHmOrNull(filtered)?.let { (h, m) ->
+                    onSelectMealType(MealTimingAnalyzer.defaultMealTypeForHour(h, m))
+                }
+            },
+            label = { Text(stringResource(R.string.nutrition_eaten_time_label)) },
+            placeholder = { Text("08:30") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
 @Composable
 private fun ManualMealDialog(
     defaultMealType: String,
+    selectedEpochDay: Long,
     onDismiss: () -> Unit,
-    onSave: (String, Float, Int, Float, Float, Float, String) -> Unit
+    onSave: (String, Float, Int, Float, Float, Float, String, Long?) -> Unit
 ) {
+    val nowTime = remember { LocalTime.now() }
     var name by remember { mutableStateOf("") }
     var grams by remember { mutableStateOf("150") }
     var kcal by remember { mutableStateOf("") }
     var protein by remember { mutableStateOf("") }
     var carbs by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
+    var mealType by remember { mutableStateOf(defaultMealType) }
+    var timeHmText by remember {
+        mutableStateOf(String.format(Locale.US, "%02d:%02d", nowTime.hour, nowTime.minute))
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1313,6 +1485,12 @@ private fun ManualMealDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                MealSlotAndTimePicker(
+                    selectedMealType = mealType,
+                    onSelectMealType = { mealType = it },
+                    timeHmText = timeHmText,
+                    onTimeHmChange = { timeHmText = it }
+                )
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -1369,6 +1547,10 @@ private fun ManualMealDialog(
         confirmButton = {
             Button(
                 onClick = {
+                    val parsedTime = MealTimingAnalyzer.parseHmOrNull(timeHmText)
+                    val eatenAtMillis = parsedTime?.let { (h, m) ->
+                        MealTimingAnalyzer.combineEpochDayAndHm(selectedEpochDay, h, m)
+                    }
                     onSave(
                         name.trim(),
                         grams.toFloatOrNull() ?: 100f,
@@ -1376,7 +1558,8 @@ private fun ManualMealDialog(
                         protein.replace(',', '.').toFloatOrNull() ?: 0f,
                         carbs.replace(',', '.').toFloatOrNull() ?: 0f,
                         fat.replace(',', '.').toFloatOrNull() ?: 0f,
-                        defaultMealType
+                        mealType,
+                        eatenAtMillis
                     )
                 },
                 enabled = name.isNotBlank() && (kcal.toIntOrNull() ?: 0) > 0
