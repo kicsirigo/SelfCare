@@ -525,5 +525,7 @@
     <string name="routine_empty_title">No products in this routine yet</string>
     <string name="routine_empty_desc">Add products on the Shelf tab and assign them to Morning, Evening, or Hair Care.</string>
     <string name="routine_included_label">Included</string>
-    <string name="routine_skipped_label">Skipped today</string>
+    <string name="routine_todo_label">To do</string>
+    <string name="routine_move_up">Move up</string>
+    <string name="routine_move_down">Move down</string>
 </resources>

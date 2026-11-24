@@ -66,7 +66,8 @@ data class UserSettings(
     val groqResetRequests: String = "",
     val groqLimitTokensPerMin: Int = 0,
     val groqRemainingTokensPerMin: Int = -1,
-    val groqLastModelUsed: String = ""
+    val groqLastModelUsed: String = "",
+    val routineProductOrderIds: List<Long> = emptyList()
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -149,7 +150,11 @@ class SettingsRepository(
             groqResetRequests = prefs[KEY_GROQ_RESET_REQUESTS].orEmpty(),
             groqLimitTokensPerMin = (prefs[KEY_GROQ_LIMIT_TPM] ?: 0).coerceAtLeast(0),
             groqRemainingTokensPerMin = prefs[KEY_GROQ_REMAINING_TPM] ?: -1,
-            groqLastModelUsed = prefs[KEY_GROQ_LAST_MODEL].orEmpty()
+            groqLastModelUsed = prefs[KEY_GROQ_LAST_MODEL].orEmpty(),
+            routineProductOrderIds = prefs[KEY_ROUTINE_PRODUCT_ORDER]
+                .orEmpty()
+                .split(",")
+                .mapNotNull { it.trim().toLongOrNull() }
         )
     }
 
@@ -228,6 +233,17 @@ class SettingsRepository(
             }
             if (event.model.isNotBlank()) {
                 prefs[KEY_GROQ_LAST_MODEL] = event.model
+            }
+        }
+    }
+
+    suspend fun setRoutineProductOrder(orderedIds: List<Long>) {
+        val serialized = orderedIds.distinct().joinToString(",")
+        dataStore.edit { prefs ->
+            if (serialized.isEmpty()) {
+                prefs.remove(KEY_ROUTINE_PRODUCT_ORDER)
+            } else {
+                prefs[KEY_ROUTINE_PRODUCT_ORDER] = serialized
             }
         }
     }
@@ -410,6 +426,7 @@ class SettingsRepository(
         private val KEY_GROQ_LIMIT_TPM = intPreferencesKey("groq_limit_tpm")
         private val KEY_GROQ_REMAINING_TPM = intPreferencesKey("groq_remaining_tpm")
         private val KEY_GROQ_LAST_MODEL = stringPreferencesKey("groq_last_model")
+        private val KEY_ROUTINE_PRODUCT_ORDER = stringPreferencesKey("routine_product_order")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)

@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.18.1",
+            title = "Live Routine % Ring, 'To Do' Uncheck State & Custom Step Reordering",
+            highlights = listOf(
+                "Routine Hero ring % now updates live whenever you check or uncheck any product (even after completing the routine), and unchecked items show 'To do' instead of 'Skipped today'.",
+                "Added compact Up / Down reorder arrows right on every Routine product row with smooth 120Hz spring gliding (saved persistently on device)."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.18.0",
             title = "Routine Today Hub & Coach, Product Nicknames, AI Language Fix & Codebase Cleanup",
             highlights = listOf(

@@ -525,5 +525,7 @@
     <string name="routine_empty_title">Még nincs termék ebben a rutinban</string>
     <string name="routine_empty_desc">Adj hozzá termékeket a Polc fülön, és rendeld őket a Reggeli, Esti vagy Hajápolás rutinba.</string>
     <string name="routine_included_label">Beleértve</string>
-    <string name="routine_skipped_label">Ma kihagyva</string>
+    <string name="routine_todo_label">Hátra van</string>
+    <string name="routine_move_up">Feljebb</string>
+    <string name="routine_move_down">Lejjebb</string>
 </resources>

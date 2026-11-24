@@ -59,7 +59,8 @@ private data class TodayPulseSnapshot(
     val todayWaterMl: Int = 0,
     val waterTargetMl: Int = UserSettings.DEFAULT_WATER_TARGET_ML,
     val shaveDaysUntilDue: Int? = null,
-    val customHabits: List<RoutineCustomHabitItem> = emptyList()
+    val customHabits: List<RoutineCustomHabitItem> = emptyList(),
+    val routineProductOrderIds: List<Long> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -127,7 +128,8 @@ class RoutineViewModel(
             todayWaterMl = todayWater,
             waterTargetMl = settings.dailyWaterTargetMl,
             shaveDaysUntilDue = shaveDaysUntilDue,
-            customHabits = habits
+            customHabits = habits,
+            routineProductOrderIds = settings.routineProductOrderIds
         )
     }
 
@@ -149,6 +151,9 @@ class RoutineViewModel(
         val allLogs = values[4] as List<RoutineLogEntity>
         val pulse = values[5] as TodayPulseSnapshot
 
+        val customOrderIndex = pulse.routineProductOrderIds
+            .withIndex()
+            .associate { (idx, id) -> id to idx }
         val defaultProducts = allProducts.filter { product ->
             product.isDefaultInRoutine && when (product.routineSlot.uppercase()) {
                 RoutineRepository.PERIOD_MORNING -> period == RoutineRepository.PERIOD_MORNING
@@ -158,7 +163,13 @@ class RoutineViewModel(
                 RoutineRepository.PERIOD_HAIR -> period == RoutineRepository.PERIOD_HAIR
                 else -> period == RoutineRepository.PERIOD_HAIR && RoutineRepository.isHairCategory(product.category)
             }
-        }.sortedBy { applicationStepPriority(it) }
+        }.sortedWith(
+            compareBy<ProductEntity>(
+                { customOrderIndex[it.id] ?: Int.MAX_VALUE },
+                { applicationStepPriority(it) },
+                { it.id }
+            )
+        )
 
         val currentLog = logs.firstOrNull { it.period == period }
         val skippedIds = if (currentLog != null) {
@@ -250,6 +261,21 @@ class RoutineViewModel(
     fun renameProduct(productId: Long, newName: String) {
         viewModelScope.launch {
             routineRepository.renameProduct(productId, newName)
+        }
+    }
+
+    fun moveProductStep(productId: Long, delta: Int) {
+        val repo = settingsRepository ?: return
+        val currentList = uiState.value.defaultProducts.map { it.id }.toMutableList()
+        val idx = currentList.indexOf(productId)
+        val targetIdx = idx + delta
+        if (idx < 0 || targetIdx !in currentList.indices) return
+        val moved = currentList.removeAt(idx)
+        currentList.add(targetIdx, moved)
+        viewModelScope.launch {
+            val existing = repo.getSettingsOnce().routineProductOrderIds
+            val merged = (currentList + existing.filterNot { it in currentList }).distinct()
+            repo.setRoutineProductOrder(merged)
         }
     }
 

@@ -89,6 +89,7 @@ fun RoutineScreen(
             },
             onToggleProduct = viewModel::toggleProductOverride,
             onRenameProduct = viewModel::renameProduct,
+            onMoveProduct = viewModel::moveProductStep,
             onQuickAddWater250 = viewModel::quickAddWater250,
             onLogShaveToday = viewModel::logShaveToday,
             onToggleCustomHabit = viewModel::toggleCustomHabit,
@@ -106,6 +107,7 @@ fun RoutineScreenContent(
     onCompleteRoutine: () -> Unit,
     onToggleProduct: (Long) -> Unit,
     onRenameProduct: (Long, String) -> Unit = { _, _ -> },
+    onMoveProduct: (Long, Int) -> Unit = { _, _ -> },
     onQuickAddWater250: () -> Unit = {},
     onLogShaveToday: () -> Unit = {},
     onToggleCustomHabit: (String, String) -> Unit = { _, _ -> },
@@ -204,10 +206,11 @@ fun RoutineScreenContent(
     val totalSteps = state.defaultProducts.size
     val activeSteps = state.defaultProducts.count { it.id !in state.skippedProductIds }
     val completionFraction = when {
-        state.isCompletedToday -> 1f
         totalSteps > 0 -> activeSteps.toFloat() / totalSteps.toFloat()
+        state.isCompletedToday -> 1f
         else -> 0f
     }
+    val completionPercent = (completionFraction * 100f).toInt()
 
     val completeBtnTag = when (period) {
         RoutineRepository.PERIOD_MORNING -> "routine_complete_morning_btn"
@@ -271,11 +274,13 @@ fun RoutineScreenContent(
                     ) {
                         HeroScoreRing(
                             progress = completionFraction,
-                            centerValue = if (state.isCompletedToday) "100%" else "$activeSteps/$totalSteps",
-                            centerSubtitle = if (state.isCompletedToday) {
+                            centerValue = "$completionPercent%",
+                            centerSubtitle = if (totalSteps > 0) {
+                                "$activeSteps/$totalSteps"
+                            } else if (state.isCompletedToday) {
                                 stringResource(R.string.hygiene_completed_label)
                             } else {
-                                "${(completionFraction * 100).toInt()}%"
+                                "0/0"
                             },
                             ringSize = 84.dp
                         )
@@ -609,11 +614,16 @@ fun RoutineScreenContent(
                     product = product,
                     isIncluded = isIncluded,
                     isDoneToday = isDoneStep,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < state.defaultProducts.lastIndex,
                     onToggle = { onToggleProduct(product.id) },
                     onRenameClick = {
                         renameText = product.name
                         renamingProduct = product
-                    }
+                    },
+                    onMoveUp = { onMoveProduct(product.id, -1) },
+                    onMoveDown = { onMoveProduct(product.id, +1) },
+                    modifier = Modifier.animateItem(placementSpec = ExpressiveMotion.spatialSpring())
                 )
             }
         }
@@ -746,8 +756,13 @@ private fun RoutineProductRow(
     product: ProductEntity,
     isIncluded: Boolean,
     isDoneToday: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onToggle: () -> Unit,
-    onRenameClick: () -> Unit
+    onRenameClick: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val haptics = LocalHapticFeedback.current
     val checkPop = remember { Animatable(1f) }
@@ -757,11 +772,10 @@ private fun RoutineProductRow(
         checkPop.animateTo(1.0f, ExpressiveMotion.spatialSpring())
     }
 
-    val isStruck = !isIncluded || isDoneToday
+    val isStruck = isDoneToday
     val cardAlpha by animateFloatAsState(
         targetValue = when {
-            !isIncluded -> 0.50f
-            isDoneToday -> 0.62f
+            isDoneToday -> 0.65f
             else -> 1f
         },
         animationSpec = tween(220),
@@ -769,7 +783,7 @@ private fun RoutineProductRow(
     )
     val rowBgColor by animateColorAsState(
         targetValue = when {
-            !isIncluded || isDoneToday -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            isDoneToday -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
             else -> MaterialTheme.colorScheme.surface
         },
         animationSpec = tween(220),
@@ -779,14 +793,14 @@ private fun RoutineProductRow(
         targetValue = when {
             isDoneToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
             isIncluded -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
         },
         animationSpec = tween(220),
         label = "routine_item_border"
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .alpha(cardAlpha)
             .clickable {
@@ -800,25 +814,42 @@ private fun RoutineProductRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (isDoneToday) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
+                IconButton(
+                    onClick = onMoveUp,
+                    enabled = canMoveUp,
+                    modifier = Modifier.size(22.dp)
+                ) {
+                    Icon(
+                        imageVector = AppIcons.ArrowUp,
+                        contentDescription = stringResource(R.string.routine_move_up),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
                 Text(
                     text = "$stepNumber",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDoneToday) NeonGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    color = if (isDoneToday) NeonGreen else MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                IconButton(
+                    onClick = onMoveDown,
+                    enabled = canMoveDown,
+                    modifier = Modifier.size(22.dp)
+                ) {
+                    Icon(
+                        imageVector = AppIcons.ArrowDown,
+                        contentDescription = stringResource(R.string.routine_move_down),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
             Column(
                 modifier = Modifier.weight(1f),
@@ -837,7 +868,7 @@ private fun RoutineProductRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 val statusLabel = when {
-                    !isIncluded -> stringResource(R.string.routine_skipped_label)
+                    !isIncluded -> stringResource(R.string.routine_todo_label)
                     isDoneToday -> stringResource(R.string.hygiene_completed_label)
                     else -> stringResource(R.string.routine_included_label)
                 }
@@ -855,7 +886,7 @@ private fun RoutineProductRow(
             IconButton(
                 onClick = onRenameClick,
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(32.dp)
                     .testTag("routine_rename_btn_${product.id}")
             ) {
                 Icon(
