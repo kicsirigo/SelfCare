@@ -1303,21 +1303,35 @@ private fun MealConfirmationDialog(
         mutableStateOf(initialHm)
     }
     var clarificationInput by remember { mutableStateOf("") }
+    var multiplierText by remember(pending) { mutableStateOf("1") }
+    var activeMultiplier by remember(pending) { mutableStateOf(1f) }
 
-    fun applyMultiplier(factor: Float) {
-        val g = (pending.grams * factor).coerceAtLeast(10f)
+    fun applyMultiplier(factor: Float, updateText: Boolean = true) {
+        val safeFactor = factor.coerceIn(0.05f, 50f)
+        activeMultiplier = safeFactor
+        if (updateText) {
+            multiplierText = if (safeFactor % 1f == 0f) {
+                safeFactor.toInt().toString()
+            } else {
+                String.format(Locale.US, "%.2f", safeFactor).trimEnd('0').trimEnd('.')
+            }
+        }
+        val g = (pending.grams * safeFactor).coerceAtLeast(1f)
         gramsText = g.roundToInt().toString()
-        kcalText = (pending.caloriesKcal * factor).roundToInt().toString()
-        proteinText = String.format(Locale.US, "%.1f", pending.proteinGrams * factor)
-        carbsText = String.format(Locale.US, "%.1f", pending.carbsGrams * factor)
-        fatText = String.format(Locale.US, "%.1f", pending.fatGrams * factor)
-        saltText = String.format(Locale.US, "%.1f", pending.saltGrams * factor)
+        kcalText = (pending.caloriesKcal * safeFactor).roundToInt().toString()
+        proteinText = String.format(Locale.US, "%.1f", pending.proteinGrams * safeFactor)
+        carbsText = String.format(Locale.US, "%.1f", pending.carbsGrams * safeFactor)
+        fatText = String.format(Locale.US, "%.1f", pending.fatGrams * safeFactor)
+        saltText = String.format(Locale.US, "%.1f", pending.saltGrams * safeFactor)
     }
 
     fun applyGramsIfScalable(newGramsStr: String) {
         gramsText = newGramsStr
         val g = newGramsStr.toFloatOrNull() ?: return
         if (pending.isPer100gScalable && g > 0f) {
+            if (pending.grams > 0f) {
+                activeMultiplier = g / pending.grams
+            }
             val scaled = MacroCalculator.scalePer100g(
                 grams = g,
                 per100gKcal = pending.per100gKcal,
@@ -1373,15 +1387,42 @@ private fun MealConfirmationDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (!pending.isPer100gScalable) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(0.5f to "0.5×", 1.0f to "1×", 1.5f to "1.5×").forEach { (mult, lbl) ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(
+                            0.5f to "0.5×",
+                            1.0f to "1×",
+                            1.5f to "1.5×",
+                            2.0f to "2×",
+                            3.0f to "3×"
+                        ).forEach { (mult, lbl) ->
                             AssistChip(
                                 onClick = { applyMultiplier(mult) },
                                 label = { Text(lbl) }
                             )
                         }
                     }
+                    OutlinedTextField(
+                        value = multiplierText,
+                        onValueChange = { raw ->
+                            val filtered = raw.filter { it.isDigit() || it == '.' || it == ',' }.take(6)
+                            multiplierText = filtered
+                            val parsed = filtered.replace(',', '.').toFloatOrNull()
+                            if (parsed != null && parsed > 0f) {
+                                applyMultiplier(parsed, updateText = false)
+                            }
+                        },
+                        label = { Text(stringResource(R.string.nutrition_portion_multiplier_label)) },
+                        placeholder = { Text("1.0, 2, 2.5…") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("nutrition_portion_multiplier_input")
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
@@ -1510,7 +1551,19 @@ private fun MealConfirmationDialog(
                     val eatenAtMillis = parsedTime?.let { (h, m) ->
                         MealTimingAnalyzer.combineEpochDayAndHm(selectedEpochDay, h, m)
                     }
-                    onConfirm(name.ifBlank { pending.name }, g, k, p, c, f, pending.fiberGrams, pending.sugarGrams, s, mealType, eatenAtMillis)
+                    onConfirm(
+                        name.ifBlank { pending.name },
+                        g,
+                        k,
+                        p,
+                        c,
+                        f,
+                        pending.fiberGrams * activeMultiplier,
+                        pending.sugarGrams * activeMultiplier,
+                        s,
+                        mealType,
+                        eatenAtMillis
+                    )
                 }
             ) {
                 Text(stringResource(R.string.action_save))

@@ -30,6 +30,13 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.11.1",
+            title = "Free Portion Multiplier (Any ×) for Every Meal",
+            highlights = listOf(
+                "Added quick portion chips (0.5x, 1x, 1.5x, 2x, 3x) plus a free numeric Multiplier / Servings input (e.g. 2.5, 4, 0.75) inside Meal Confirmation & Edit dialogs for every meal type (presets, barcodes, recipes, photos, AI text, and edited meals)."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.11.0",
             title = "Tap-to-Edit Logged Meals, Animated Flame Streak Pill & Hydration Reminder",
             highlights = listOf(

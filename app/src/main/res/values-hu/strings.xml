@@ -529,4 +529,5 @@
     <string name="settings_water_reminder">Vízivás emlékeztető</string>
     <string name="notification_water_title">Vízivás emlékeztető</string>
     <string name="notification_water_body">Ideje inni egy pohár vizet! Koppints a +250 ml naplózásához.</string>
+    <string name="nutrition_portion_multiplier_label">Adag / szorzó (×)</string>
 </resources>
