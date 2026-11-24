@@ -30,6 +30,14 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.12.1",
+            title = "Clickable Verified Database Source Links (OpenFoodFacts & USDA)",
+            highlights = listOf(
+                "Added clickable verified database source links inside the Meal Confirmation dialog so you can open the exact OpenFoodFacts product page or USDA FoodData Central nutrient sheet in your browser.",
+                "Works for both AI -> Database -> AI ('DB + AI Verified') Food RAG grounding and direct barcode / online database search results."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.12.0",
             title = "3-Layer Mega Food Database (250+ Offline HU + 3M+ OFF + 400k+ USDA) & Food RAG",
             highlights = listOf(

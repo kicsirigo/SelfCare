@@ -99,6 +99,7 @@ class MacroCalculatorAndNutritionTest {
             assertEquals(76f, item.per100gKcal, 0.1f)
             assertEquals(10f, item.per100gProtein, 0.1f)
             assertEquals(200f, item.defaultGrams, 0.1f)
+            assertEquals("https://hu.openfoodfacts.org/product/5991234567890", item.sourceUrl)
 
             server.enqueue(MockResponse().setResponseCode(404))
             val notFound = client.fetchByBarcode("0000000000000")
@@ -431,6 +432,7 @@ class MacroCalculatorAndNutritionTest {
             {
               "foods": [
                 {
+                  "fdcId": 171477,
                   "description": "Chicken, broilers or fryers, breast, meat only, roasted",
                   "brandOwner": "USDA Foundation",
                   "foodNutrients": [
@@ -449,6 +451,7 @@ class MacroCalculatorAndNutritionTest {
         assertEquals(165f, parsed.first().per100gKcal, 0.1f)
         assertEquals(31f, parsed.first().per100gProtein, 0.1f)
         assertEquals(1.0f, parsed.first().per100gSalt, 0.05f)
+        assertEquals("https://fdc.nal.usda.gov/food-details/171477/nutrients", parsed.first().sourceUrl)
         assertEquals("chicken breast", com.selfcare.app.data.remote.UsdaFoodDataClient.translateHungarianHint("csirkemell"))
     }
 }

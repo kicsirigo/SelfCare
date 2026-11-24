@@ -1,5 +1,7 @@
 package com.selfcare.app.ui.nutrition
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -7,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +71,7 @@ import kotlin.math.sin
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -1287,6 +1291,7 @@ private fun MealConfirmationDialog(
         eatenAtMillis: Long?
     ) -> Unit
 ) {
+    val context = LocalContext.current
     val nowTime = remember { LocalTime.now() }
     var name by remember(pending) { mutableStateOf(pending.name) }
     var gramsText by remember(pending) { mutableStateOf(pending.grams.roundToInt().toString()) }
@@ -1480,6 +1485,57 @@ private fun MealConfirmationDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (pending.groundedSources.isNotEmpty()) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.nutrition_db_sources_label),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = NeonGreen
+                            )
+                            pending.groundedSources.forEach { src ->
+                                val url = src.url
+                                if (!url.isNullOrBlank()) {
+                                    Text(
+                                        text = "${src.title} (${src.sourceLabel})",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            textDecoration = TextDecoration.Underline
+                                        ),
+                                        color = Color(0xFF38BDF8),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                runCatching {
+                                                    context.startActivity(
+                                                        Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                                    )
+                                                }
+                                            }
+                                            .padding(vertical = 2.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "• ${src.title} (${src.sourceLabel})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 if (pending.source == "GROQ_VISION" || pending.source == "GROQ_TEXT") {
                     if (pending.detectedIngredients.isNotBlank()) {
                         Text(

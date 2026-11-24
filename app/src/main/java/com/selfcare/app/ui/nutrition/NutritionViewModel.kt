@@ -23,6 +23,7 @@ import com.selfcare.app.domain.health.ActivityLevel
 import com.selfcare.app.domain.health.DayMealTimingSummary
 import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
+import com.selfcare.app.domain.health.GroundedSourceRef
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.domain.health.MealDatabaseGrounder
@@ -71,7 +72,8 @@ data class PendingMealConfirmation(
     val detectedIngredients: String = "",
     val clarificationQuestion: String = "",
     val isRefining: Boolean = false,
-    val isDatabaseGrounded: Boolean = false
+    val isDatabaseGrounded: Boolean = false,
+    val groundedSources: List<GroundedSourceRef> = emptyList()
 )
 
 data class NutritionUiState(
@@ -413,7 +415,16 @@ class NutritionViewModel(
                     per100gFat = item.per100gFat,
                     per100gFiber = item.per100gFiber,
                     per100gSugar = item.per100gSugar,
-                    per100gSalt = item.per100gSalt
+                    per100gSalt = item.per100gSalt,
+                    groundedSources = listOfNotNull(
+                        item.sourceUrl?.let { url ->
+                            GroundedSourceRef(
+                                title = item.name,
+                                sourceLabel = item.sourceLabel.ifBlank { "DB" },
+                                url = url
+                            )
+                        }
+                    )
                 )
             )
         }
@@ -431,7 +442,8 @@ class NutritionViewModel(
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             when (val res = visionClient.estimateMealFromText(q, apiKey)) {
                 is MealVisionResult.Success -> {
-                    val (finalMeal, modelLabel, grounded) = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
+                    val outcome = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
+                    val finalMeal = outcome.meal
                     transientFlow.update {
                         it.copy(
                             isBusy = false,
@@ -446,11 +458,12 @@ class NutritionViewModel(
                                 sugarGrams = finalMeal.sugarGrams,
                                 saltGrams = finalMeal.saltGrams,
                                 source = "GROQ_TEXT",
-                                modelUsed = modelLabel,
+                                modelUsed = outcome.modelLabel,
                                 isPer100gScalable = false,
                                 detectedIngredients = finalMeal.detectedIngredients,
                                 clarificationQuestion = finalMeal.clarificationQuestion,
-                                isDatabaseGrounded = grounded
+                                isDatabaseGrounded = outcome.isGrounded,
+                                groundedSources = outcome.sources
                             )
                         )
                     }
@@ -516,7 +529,8 @@ class NutritionViewModel(
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             when (val res = visionClient.estimateMealFromPhoto(bitmap, apiKey)) {
                 is MealVisionResult.Success -> {
-                    val (finalMeal, modelLabel, grounded) = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
+                    val outcome = groundWithDatabaseIfPossible(res.meal, res.modelUsed, apiKey)
+                    val finalMeal = outcome.meal
                     transientFlow.update {
                         it.copy(
                             isBusy = false,
@@ -531,11 +545,12 @@ class NutritionViewModel(
                                 sugarGrams = finalMeal.sugarGrams,
                                 saltGrams = finalMeal.saltGrams,
                                 source = "GROQ_VISION",
-                                modelUsed = modelLabel,
+                                modelUsed = outcome.modelLabel,
                                 isPer100gScalable = false,
                                 detectedIngredients = finalMeal.detectedIngredients,
                                 clarificationQuestion = finalMeal.clarificationQuestion,
-                                isDatabaseGrounded = grounded
+                                isDatabaseGrounded = outcome.isGrounded,
+                                groundedSources = outcome.sources
                             )
                         )
                     }
@@ -547,31 +562,41 @@ class NutritionViewModel(
         }
     }
 
+    private data class GroundedMealOutcome(
+        val meal: EstimatedMealInfo,
+        val modelLabel: String,
+        val isGrounded: Boolean,
+        val sources: List<GroundedSourceRef> = emptyList()
+    )
+
     private suspend fun groundWithDatabaseIfPossible(
         initialMeal: EstimatedMealInfo,
         initialModel: String,
         apiKey: String
-    ): Triple<EstimatedMealInfo, String, Boolean> {
-        val client = visionClient ?: return Triple(initialMeal, initialModel, false)
-        val facts = runCatching {
+    ): GroundedMealOutcome {
+        val client = visionClient ?: return GroundedMealOutcome(initialMeal, initialModel, false)
+        val dbResult = runCatching {
             MealDatabaseGrounder.collectVerifiedFacts(
                 meal = initialMeal,
                 nutritionRepository = nutritionRepository,
                 allowRemoteLookup = true
             )
-        }.getOrDefault("")
-        if (facts.isBlank()) return Triple(initialMeal, initialModel, false)
+        }.getOrDefault(com.selfcare.app.domain.health.GroundedDatabaseResult())
+        if (dbResult.factsPromptText.isBlank()) {
+            return GroundedMealOutcome(initialMeal, initialModel, false)
+        }
 
-        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, facts, apiKey)) {
-            is MealVisionResult.Success -> Triple(
-                grounded.meal.copy(
+        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, dbResult.factsPromptText, apiKey)) {
+            is MealVisionResult.Success -> GroundedMealOutcome(
+                meal = grounded.meal.copy(
                     clarificationQuestion = grounded.meal.clarificationQuestion
                         .ifBlank { initialMeal.clarificationQuestion }
                 ),
-                grounded.modelUsed.ifBlank { initialModel },
-                true
+                modelLabel = grounded.modelUsed.ifBlank { initialModel },
+                isGrounded = true,
+                sources = dbResult.sources
             )
-            is MealVisionResult.Error -> Triple(initialMeal, initialModel, false)
+            is MealVisionResult.Error -> GroundedMealOutcome(initialMeal, initialModel, false)
         }
     }
 

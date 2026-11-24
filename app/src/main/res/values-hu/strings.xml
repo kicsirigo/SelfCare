@@ -531,4 +531,5 @@
     <string name="notification_water_body">Ideje inni egy pohár vizet! Koppints a +250 ml naplózásához.</string>
     <string name="nutrition_portion_multiplier_label">Adag / szorzó (×)</string>
     <string name="nutrition_db_ai_verified">DB + AI hitelesítve</string>
+    <string name="nutrition_db_sources_label">Ellenőrzött adatbázis-források:</string>
 </resources>

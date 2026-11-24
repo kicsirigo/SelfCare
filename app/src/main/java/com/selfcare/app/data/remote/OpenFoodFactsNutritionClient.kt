@@ -27,7 +27,9 @@ data class FoodNutritionItem(
     val per100gFiber: Float = 0f,
     val per100gSugar: Float = 0f,
     val per100gSalt: Float = 0f,
-    val defaultGrams: Float = 100f
+    val defaultGrams: Float = 100f,
+    val sourceLabel: String = "OpenFoodFacts",
+    val sourceUrl: String? = null
 )
 
 sealed interface FoodLookupResult {
@@ -159,6 +161,10 @@ class OpenFoodFactsNutritionClient(
             ?: readNumber(nutriments, "sodium_100g")?.let { it * 2.5f }
             ?: 0f
 
+        val productUrl = barcode?.takeIf { it.isNotBlank() }?.let {
+            "https://hu.openfoodfacts.org/product/$it"
+        }
+
         return FoodNutritionItem(
             barcode = barcode,
             name = name,
@@ -170,7 +176,9 @@ class OpenFoodFactsNutritionClient(
             per100gFiber = fiber.coerceAtLeast(0f),
             per100gSugar = sugar.coerceAtLeast(0f),
             per100gSalt = salt.coerceAtLeast(0f),
-            defaultGrams = servingQty
+            defaultGrams = servingQty,
+            sourceLabel = "OpenFoodFacts",
+            sourceUrl = productUrl
         )
     }
 

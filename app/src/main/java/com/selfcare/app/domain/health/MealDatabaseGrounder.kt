@@ -7,10 +7,21 @@ import com.selfcare.app.data.repository.NutritionRepository
 import java.util.Locale
 import kotlin.math.roundToInt
 
+data class GroundedSourceRef(
+    val title: String,
+    val sourceLabel: String,
+    val url: String? = null
+)
+
+data class GroundedDatabaseResult(
+    val factsPromptText: String = "",
+    val sources: List<GroundedSourceRef> = emptyList()
+)
+
 /**
  * Food RAG Grounder: takes an AI-identified meal + guessed ingredients, looks up verified
  * per-100g nutritional facts from the 3-layer database (Offline HU Catalog + OpenFoodFacts + USDA),
- * and formats a compact factual reference block to feed back into Qwen for grounded calculation.
+ * and returns both a compact prompt reference block and clickable source citations.
  */
 object MealDatabaseGrounder {
 
@@ -18,33 +29,58 @@ object MealDatabaseGrounder {
         meal: EstimatedMealInfo,
         nutritionRepository: NutritionRepository,
         allowRemoteLookup: Boolean = true
-    ): String {
+    ): GroundedDatabaseResult {
         val terms = extractLookupTerms(meal)
-        if (terms.isEmpty()) return ""
+        if (terms.isEmpty()) return GroundedDatabaseResult()
 
         val lines = LinkedHashSet<String>()
+        val sources = mutableListOf<GroundedSourceRef>()
+        val seenKeys = HashSet<String>()
 
         // 1. Instant 0ms offline lookup (250+ Hungarian, bakery, sandwich, fast-food & raw items)
         for (term in terms) {
             val match = FoodPresetCatalog.search(term).firstOrNull() ?: continue
-            lines.add(formatPresetLine(match))
+            if (seenKeys.add("offline:${match.id}")) {
+                lines.add(formatPresetLine(match))
+                sources.add(
+                    GroundedSourceRef(
+                        title = match.nameHu,
+                        sourceLabel = "Offline HU DB",
+                        url = null
+                    )
+                )
+            }
             if (lines.size >= 6) break
         }
 
-        // 2. If fewer than 3 offline hits, query OpenFoodFacts (3M+) + USDA (400k+) for top terms
-        if (allowRemoteLookup && lines.size < 3) {
-            for (term in terms.take(2)) {
+        // 2. Also query OpenFoodFacts (3M+) + USDA (400k+) for verifiable web source links
+        if (allowRemoteLookup && lines.size < 6) {
+            val remoteBudget = if (lines.size < 3) 2 else 1
+            for (term in terms.take(remoteBudget)) {
                 val res = nutritionRepository.searchFoodRemote(term)
                 if (res is FoodSearchResult.Success) {
                     res.items.take(2).forEach { item ->
-                        lines.add(formatRemoteLine(item))
+                        val key = "remote:${item.name.lowercase()}|${item.sourceUrl.orEmpty()}"
+                        if (seenKeys.add(key) && lines.size < 6) {
+                            lines.add(formatRemoteLine(item))
+                            sources.add(
+                                GroundedSourceRef(
+                                    title = item.name,
+                                    sourceLabel = item.sourceLabel.ifBlank { "DB" },
+                                    url = item.sourceUrl
+                                )
+                            )
+                        }
                     }
                 }
                 if (lines.size >= 6) break
             }
         }
 
-        return lines.take(6).joinToString("\n")
+        return GroundedDatabaseResult(
+            factsPromptText = lines.take(6).joinToString("\n"),
+            sources = sources.take(6)
+        )
     }
 
     internal fun extractLookupTerms(meal: EstimatedMealInfo): List<String> {
@@ -63,7 +99,6 @@ object MealDatabaseGrounder {
     }
 
     private fun cleanIngredientPhrase(phrase: String): String {
-        // Strip leading quantities like "2 slices", "1 db", "150g", "kis"
         return phrase
             .trim()
             .replace(Regex("""^\d+([.,]\d+)?\s*(g|gr|gramm|ml|dl|db|szelet|slices?|ek|tk|tbsp|tsp|cup|cups|pcs?)?\s*""", RegexOption.IGNORE_CASE), "")
@@ -80,7 +115,7 @@ object MealDatabaseGrounder {
 
     private fun formatRemoteLine(item: FoodNutritionItem): String {
         val brandSuffix = if (item.brand.isNotBlank()) " (${item.brand})" else ""
-        return "- ${item.name}$brandSuffix [DB, per 100g]: ${item.per100gKcal.roundToInt()} kcal, " +
+        return "- ${item.name}$brandSuffix [${item.sourceLabel}, per 100g]: ${item.per100gKcal.roundToInt()} kcal, " +
             "P:${String.format(Locale.US, "%.1f", item.per100gProtein)}g, " +
             "CH:${String.format(Locale.US, "%.1f", item.per100gCarbs)}g, " +
             "F:${String.format(Locale.US, "%.1f", item.per100gFat)}g, " +

@@ -106,6 +106,9 @@ class UsdaFoodDataClient(
         val serving = obj["servingSize"]?.jsonPrimitive?.doubleOrNull?.toFloat()
             ?.takeIf { it in 10f..1000f } ?: 100f
 
+        val fdcId = obj["fdcId"]?.jsonPrimitive?.intOrNull
+        val usdaUrl = fdcId?.let { "https://fdc.nal.usda.gov/food-details/$it/nutrients" }
+
         return FoodNutritionItem(
             barcode = obj["gtinUpc"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { it.isNotEmpty() },
             name = desc,
@@ -117,7 +120,9 @@ class UsdaFoodDataClient(
             per100gFiber = fiber.coerceIn(0f, 100f),
             per100gSugar = sugar.coerceIn(0f, 100f),
             per100gSalt = saltGrams,
-            defaultGrams = serving
+            defaultGrams = serving,
+            sourceLabel = "USDA FoodData",
+            sourceUrl = usdaUrl
         )
     }
 
