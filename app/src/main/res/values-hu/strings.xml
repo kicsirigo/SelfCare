@@ -530,8 +530,8 @@
     <string name="notification_water_title">Vízivás emlékeztető</string>
     <string name="notification_water_body">Ideje inni egy pohár vizet! Koppints a +250 ml naplózásához.</string>
     <string name="nutrition_portion_multiplier_label">Adag / szorzó (×)</string>
-    <string name="nutrition_db_ai_verified">Web + AI hitelesítve</string>
+    <string name="nutrition_db_ai_verified">DB + AI hitelesítve</string>
     <string name="nutrition_db_sources_label">Ellenőrzött források:</string>
-    <string name="settings_ai_web_search_title">Elsődleges AI webes keresés</string>
-    <string name="settings_ai_web_search_desc">Élő Groq browser_search mint elsődleges étel- és termék-hitelesítő (kattintható forráslinkekkel); offline a beépített 250+ magyar katalógusra vált vissza.</string>
+    <string name="action_web_search_ai">Webes keresés (AI)</string>
+    <string name="nutrition_verify_on_web_btn">Pontosítás webes kereséssel (AI)</string>
 </resources>

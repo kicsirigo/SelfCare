@@ -13,8 +13,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.selfcare.app.SelfCareApp
 import com.selfcare.app.data.local.SelfCareDatabase
 import com.selfcare.app.data.local.SettingsRepository
-import com.selfcare.app.data.remote.GroqVisionProductClient
-import com.selfcare.app.data.remote.ProductVisionClient
+import com.selfcare.app.data.remote.OpenBeautyFactsClient
 import com.selfcare.app.data.repository.FaceCheckInRepository
 import com.selfcare.app.di.AppContainer
 import com.selfcare.app.domain.ml.BarcodeScanner
@@ -135,13 +134,13 @@ class TestAppContainer(
     settingsRepository = settingsRepository,
     clock = clock
 ) {
-    override val productVisionClient: ProductVisionClient by lazy {
+    override val openBeautyFactsClient: OpenBeautyFactsClient by lazy {
         val client = OkHttpClient.Builder()
             .connectTimeout(2, TimeUnit.SECONDS)
             .readTimeout(2, TimeUnit.SECONDS)
             .writeTimeout(2, TimeUnit.SECONDS)
             .build()
-        GroqVisionProductClient(httpClient = client, baseUrl = obfBaseUrl, delayFn = {})
+        OpenBeautyFactsClient(okHttpClient = client, baseUrl = obfBaseUrl)
     }
 }
 
@@ -187,13 +186,7 @@ class SelfCareE2ERule : ExternalResource() {
             scope = dataStoreScope,
             produceFile = { File(tempDir, "e2e_settings.preferences_pb") }
         )
-        settingsRepository = SettingsRepository(
-            dataStore = dataStore,
-            secretCipher = object : com.selfcare.app.data.local.SecretTextCipher {
-                override fun encrypt(plaintext: String): String = "e2e:$plaintext"
-                override fun decrypt(stored: String): String = stored.removePrefix("e2e:")
-            }
-        )
+        settingsRepository = SettingsRepository(dataStore)
 
         clock = MutableClock()
         fakeFaceAnalyzer = FakeFaceAnalyzer()

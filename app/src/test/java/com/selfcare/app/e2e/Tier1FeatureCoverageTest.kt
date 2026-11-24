@@ -102,18 +102,20 @@ class Tier1FeatureCoverageTest {
 
     @Test
     fun shelf_mockedObfLookupAndOcrFallback_detectsInciMatchesAndConflicts() {
-        runBlocking { e2eRule.settingsRepository.setGeminiApiKey("gsk_e2e_test_key") }
         e2eRule.mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
                 .setBody(
                     """
                     {
-                      "choices": [{
-                        "message": {
-                          "content": "{\"name\":\"Night Retinol Cream\",\"brand\":\"DermTest\",\"category\":\"OTHER\",\"routineSlot\":\"EVENING\",\"ingredients\":\"Aqua, Glycerin, Retinol, Tocopherol\"}"
-                        }
-                      }]
+                      "status": 1,
+                      "code": "3600523750009",
+                      "product": {
+                        "code": "3600523750009",
+                        "product_name": "Night Retinol Cream",
+                        "brands": "DermTest",
+                        "ingredients_text_en": "Aqua, Glycerin, Retinol, Tocopherol"
+                      }
                     }
                     """.trimIndent()
                 )

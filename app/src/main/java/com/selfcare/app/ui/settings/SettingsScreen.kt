@@ -703,29 +703,6 @@ fun SettingsScreenContent(
                         }
                         null -> Unit
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = stringResource(R.string.settings_ai_web_search_title),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = stringResource(R.string.settings_ai_web_search_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = settings.aiWebSearchEnabled,
-                            onCheckedChange = onToggleAiWebSearch,
-                            modifier = Modifier.testTag("settings_ai_web_search_switch")
-                        )
-                    }
                 }
             }
         }

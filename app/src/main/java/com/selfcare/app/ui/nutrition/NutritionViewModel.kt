@@ -15,7 +15,6 @@ import com.selfcare.app.data.remote.EstimatedMealInfo
 import com.selfcare.app.data.remote.FoodLookupResult
 import com.selfcare.app.data.remote.FoodNutritionItem
 import com.selfcare.app.data.remote.FoodSearchResult
-import com.selfcare.app.data.remote.GroundedSourceRef
 import com.selfcare.app.data.remote.MealVisionResult
 import com.selfcare.app.data.remote.NutritionLabelVisionResult
 import com.selfcare.app.data.remote.ProductVisionClient
@@ -25,6 +24,7 @@ import com.selfcare.app.domain.health.ActivityLevel
 import com.selfcare.app.domain.health.DayMealTimingSummary
 import com.selfcare.app.domain.health.FoodPreset
 import com.selfcare.app.domain.health.FoodPresetCatalog
+import com.selfcare.app.domain.health.GroundedSourceRef
 import com.selfcare.app.domain.health.MacroCalculator
 import com.selfcare.app.domain.health.MacroGoalType
 import com.selfcare.app.domain.health.MealDatabaseGrounder
@@ -478,6 +478,28 @@ class NutritionViewModel(
 
     fun searchOpenFoodFacts() {
         val q = transientFlow.value.searchQuery.trim()
+        if (q.isBlank()) return
+        viewModelScope.launch {
+            transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
+            when (val res = nutritionRepository.searchFoodRemote(q)) {
+                is FoodSearchResult.Success -> {
+                    transientFlow.update {
+                        it.copy(
+                            isBusy = false,
+                            remoteMatches = res.items,
+                            statusMessage = if (res.items.isEmpty()) "NOT_FOUND" else null
+                        )
+                    }
+                }
+                is FoodSearchResult.Error -> {
+                    transientFlow.update { it.copy(isBusy = false, statusMessage = res.reason) }
+                }
+            }
+        }
+    }
+
+    fun searchFoodOnWebManual() {
+        val q = transientFlow.value.searchQuery.trim()
         if (q.isBlank() || visionClient == null) return
         viewModelScope.launch {
             val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
@@ -504,20 +526,15 @@ class NutritionViewModel(
     }
 
     fun onBarcodePhotoCaptured(bitmap: Bitmap?) {
-        if (bitmap == null || barcodeScanner == null || visionClient == null) return
+        if (bitmap == null || barcodeScanner == null) return
         viewModelScope.launch {
-            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
-            if (apiKey.isEmpty()) {
-                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
-                return@launch
-            }
             transientFlow.update { it.copy(isBusy = true, statusMessage = null) }
             val code = barcodeScanner.scanBarcode(bitmap)
             if (code.isNullOrBlank()) {
                 transientFlow.update { it.copy(isBusy = false, statusMessage = "BARCODE_NOT_FOUND") }
                 return@launch
             }
-            when (val res = visionClient.lookupFoodBarcodeOnWeb(code, apiKey)) {
+            when (val res = nutritionRepository.lookupBarcode(code)) {
                 is FoodLookupResult.Found -> openRemoteFoodConfirmation(res.item, source = "BARCODE")
                 is FoodLookupResult.NotFound -> transientFlow.update {
                     it.copy(isBusy = false, statusMessage = "FOOD_NOT_FOUND:$code")
@@ -586,34 +603,18 @@ class NutritionViewModel(
         apiKey: String
     ): GroundedMealOutcome {
         val client = visionClient ?: return GroundedMealOutcome(initialMeal, initialModel, false)
-
-        // 1. Primary: Live AI Web Search (Groq browser_search) with clickable web source links
-        val allowWeb = runCatching { settingsRepository.settings.first().aiWebSearchEnabled }
-            .getOrDefault(true)
-        if (allowWeb) {
-            when (val web = client.searchMealOnWeb(initialMeal, apiKey)) {
-                is WebSearchMealResult.Success -> return GroundedMealOutcome(
-                    meal = web.meal.copy(
-                        clarificationQuestion = web.meal.clarificationQuestion
-                            .ifBlank { initialMeal.clarificationQuestion }
-                    ),
-                    modelLabel = web.modelUsed.ifBlank { initialModel },
-                    isGrounded = true,
-                    sources = web.sources
-                )
-                is WebSearchMealResult.Error -> Unit
-            }
-        }
-
-        // 2. Secondary fallback: Bundled 250+ Offline HU Catalog (0ms, 0 external DB calls)
-        val offlineResult = runCatching {
-            MealDatabaseGrounder.collectOfflineFacts(initialMeal)
+        val dbResult = runCatching {
+            MealDatabaseGrounder.collectVerifiedFacts(
+                meal = initialMeal,
+                nutritionRepository = nutritionRepository,
+                allowRemoteLookup = true
+            )
         }.getOrDefault(com.selfcare.app.domain.health.GroundedDatabaseResult())
-        if (offlineResult.factsPromptText.isBlank()) {
+        if (dbResult.factsPromptText.isBlank()) {
             return GroundedMealOutcome(initialMeal, initialModel, false)
         }
 
-        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, offlineResult.factsPromptText, apiKey)) {
+        return when (val grounded = client.groundMealWithDatabaseFacts(initialMeal, dbResult.factsPromptText, apiKey)) {
             is MealVisionResult.Success -> GroundedMealOutcome(
                 meal = grounded.meal.copy(
                     clarificationQuestion = grounded.meal.clarificationQuestion
@@ -621,9 +622,73 @@ class NutritionViewModel(
                 ),
                 modelLabel = grounded.modelUsed.ifBlank { initialModel },
                 isGrounded = true,
-                sources = offlineResult.sources
+                sources = dbResult.sources
             )
             is MealVisionResult.Error -> GroundedMealOutcome(initialMeal, initialModel, false)
+        }
+    }
+
+    fun verifyPendingMealOnWeb() {
+        val current = transientFlow.value.pendingConfirmation ?: return
+        if (visionClient == null) return
+        viewModelScope.launch {
+            val apiKey = settingsRepository.settings.first().geminiApiKey.trim()
+            if (apiKey.isEmpty()) {
+                transientFlow.update { it.copy(statusMessage = "NO_GROQ_KEY") }
+                return@launch
+            }
+            transientFlow.update {
+                it.copy(pendingConfirmation = current.copy(isRefining = true))
+            }
+            val prevInfo = EstimatedMealInfo(
+                name = current.name,
+                estimatedGrams = current.grams,
+                caloriesKcal = current.caloriesKcal,
+                proteinGrams = current.proteinGrams,
+                carbsGrams = current.carbsGrams,
+                fatGrams = current.fatGrams,
+                fiberGrams = current.fiberGrams,
+                sugarGrams = current.sugarGrams,
+                saltGrams = current.saltGrams,
+                detectedIngredients = current.detectedIngredients,
+                clarificationQuestion = current.clarificationQuestion
+            )
+            when (val web = visionClient.searchMealOnWeb(prevInfo, apiKey)) {
+                is WebSearchMealResult.Success -> {
+                    val m = web.meal
+                    transientFlow.update {
+                        it.copy(
+                            pendingConfirmation = current.copy(
+                                name = m.name,
+                                grams = m.estimatedGrams,
+                                caloriesKcal = m.caloriesKcal,
+                                proteinGrams = m.proteinGrams,
+                                carbsGrams = m.carbsGrams,
+                                fatGrams = m.fatGrams,
+                                fiberGrams = m.fiberGrams,
+                                sugarGrams = m.sugarGrams,
+                                saltGrams = m.saltGrams,
+                                modelUsed = web.modelUsed.ifBlank { current.modelUsed },
+                                detectedIngredients = m.detectedIngredients.ifBlank { current.detectedIngredients },
+                                clarificationQuestion = m.clarificationQuestion,
+                                isDatabaseGrounded = true,
+                                groundedSources = (web.sources + current.groundedSources)
+                                    .distinctBy { it.url ?: "${it.title}|${it.sourceLabel}" }
+                                    .take(6),
+                                isRefining = false
+                            )
+                        )
+                    }
+                }
+                is WebSearchMealResult.Error -> {
+                    transientFlow.update {
+                        it.copy(
+                            pendingConfirmation = current.copy(isRefining = false),
+                            statusMessage = web.reason
+                        )
+                    }
+                }
+            }
         }
     }
 

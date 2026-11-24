@@ -138,6 +138,7 @@ fun ShelfScreen(
         onSearchQueryChange = viewModel::onSearchQueryChange,
         onLookupClick = viewModel::performLookup,
         onSelectCategoryFilter = viewModel::selectCategoryFilter,
+        onWebSearchClick = viewModel::searchProductOnWebManual,
         onAddPreset = viewModel::addPresetProduct,
         onSmartScanClick = viewModel::openLiveScanner,
         onScanOcrClick = { launchFullResOcr() },
@@ -169,12 +170,13 @@ fun ShelfScreenContent(
     state: ShelfUiState,
     onSearchQueryChange: (String) -> Unit,
     onLookupClick: () -> Unit,
+    onWebSearchClick: () -> Unit = {},
     onSelectCategoryFilter: (ShelfCategoryFilter) -> Unit,
     onAddPreset: (PresetProduct) -> Unit,
     onSmartScanClick: () -> Unit = {},
     onScanOcrClick: () -> Unit = {},
     onAddProductClick: () -> Unit,
-    onSelectRemoteProduct: (com.selfcare.app.data.remote.RemoteProductItem) -> Unit,
+    onSelectRemoteProduct: (com.selfcare.app.data.remote.OpenBeautyFactsProduct) -> Unit,
     onDismissOfflineFallback: () -> Unit,
     onEditProduct: (com.selfcare.app.data.local.entity.ProductEntity) -> Unit,
     onDeleteProduct: (Long) -> Unit,
@@ -544,6 +546,21 @@ fun ShelfScreenContent(
             ) {
                 Text(text = stringResource(R.string.shelf_lookup))
             }
+        }
+        OutlinedButton(
+            onClick = onWebSearchClick,
+            enabled = state.searchQuery.isNotBlank() && !state.isLookingUp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("shelf_web_search_btn")
+        ) {
+            Icon(
+                imageVector = AppIcons.Search,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.size(6.dp))
+            Text(text = stringResource(R.string.action_web_search_ai))
         }
 
         // Sleek 1-row primary action bar: Smart Scan (Live Barcode + Groq Vision) + INCI OCR + Manual Add

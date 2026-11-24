@@ -241,6 +241,7 @@ fun NutritionScreen(
             selectedEpochDay = state.selectedEpochDay,
             onDismiss = viewModel::dismissPendingConfirmation,
             onRefineWithAi = viewModel::refinePendingMeal,
+            onVerifyOnWeb = viewModel::verifyPendingMealOnWeb,
             onConfirm = { name, grams, kcal, p, c, f, fiber, sugar, salt, mealType, eatenAtMillis ->
                 viewModel.saveConfirmedMeal(
                     name = name,
@@ -523,6 +524,25 @@ fun NutritionScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
+                        }
+                        OutlinedButton(
+                            onClick = viewModel::searchFoodOnWebManual,
+                            enabled = state.searchQuery.isNotBlank() && !state.isBusy,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("nutrition_web_search_btn")
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.action_web_search_ai),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
 
                         Text(
@@ -1277,6 +1297,7 @@ private fun MealConfirmationDialog(
     selectedEpochDay: Long,
     onDismiss: () -> Unit,
     onRefineWithAi: (String) -> Unit,
+    onVerifyOnWeb: () -> Unit = {},
     onConfirm: (
         name: String,
         grams: Float,
@@ -1595,6 +1616,24 @@ private fun MealConfirmationDialog(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(stringResource(R.string.nutrition_ai_recalculate_btn))
                     }
+                }
+                if (pending.isRefining && pending.source != "GROQ_VISION" && pending.source != "GROQ_TEXT") {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                OutlinedButton(
+                    onClick = onVerifyOnWeb,
+                    enabled = !pending.isRefining,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("nutrition_confirm_web_search_btn")
+                ) {
+                    Icon(
+                        imageVector = AppIcons.Search,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.nutrition_verify_on_web_btn))
                 }
             }
         },

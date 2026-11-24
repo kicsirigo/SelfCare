@@ -10,6 +10,8 @@ import com.selfcare.app.data.ml.OnnxAcneDetector
 import com.selfcare.app.data.ml.OnnxSkinSignalsAnalyzer
 import com.selfcare.app.data.remote.AppUpdateManager
 import com.selfcare.app.data.remote.GroqVisionProductClient
+import com.selfcare.app.data.remote.OpenBeautyFactsClient
+import com.selfcare.app.data.remote.OpenFoodFactsNutritionClient
 import com.selfcare.app.data.remote.ProductVisionClient
 import com.selfcare.app.data.repository.BackupRepository
 import com.selfcare.app.data.repository.FaceCheckInRepository
@@ -97,13 +99,22 @@ open class AppContainer(
         InciEngine(InciDatabaseLoader.loadFromContext(context))
     }
 
+    open val openBeautyFactsClient: OpenBeautyFactsClient by lazy {
+        OpenBeautyFactsClient()
+    }
+
     open val productVisionClient: ProductVisionClient by lazy {
         GroqVisionProductClient()
+    }
+
+    open val openFoodFactsNutritionClient: OpenFoodFactsNutritionClient by lazy {
+        OpenFoodFactsNutritionClient()
     }
 
     open val nutritionRepository: NutritionRepository by lazy {
         NutritionRepository(
             nutritionDao = database.nutritionDao(),
+            openFoodFactsClient = openFoodFactsNutritionClient,
             clock = clock
         )
     }
@@ -115,8 +126,8 @@ open class AppContainer(
     open val productRepository: ProductRepository by lazy {
         ProductRepository(
             productDao = database.productDao(),
+            openBeautyFactsClient = openBeautyFactsClient,
             inciEngine = inciEngine,
-            visionClient = productVisionClient,
             clock = clock,
             productsPhotoDir = java.io.File(context.filesDir, "products")
         )

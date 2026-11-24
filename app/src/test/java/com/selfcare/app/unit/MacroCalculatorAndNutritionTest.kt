@@ -487,4 +487,60 @@ class MacroCalculatorAndNutritionTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun `openFoodFacts and usda clients parse nutrients and clickable source URLs`() = runTest {
+        val usda = com.selfcare.app.data.remote.UsdaFoodDataClient()
+        val sampleJson = """
+            {
+              "foods": [
+                {
+                  "fdcId": 171477,
+                  "description": "Chicken, broilers or fryers, breast, meat only, roasted",
+                  "brandOwner": "USDA Foundation",
+                  "foodNutrients": [
+                    {"nutrientId": 1008, "nutrientName": "Energy", "unitName": "KCAL", "value": 165.0},
+                    {"nutrientId": 1003, "nutrientName": "Protein", "unitName": "G", "value": 31.0},
+                    {"nutrientId": 1005, "nutrientName": "Carbohydrate, by difference", "unitName": "G", "value": 0.0},
+                    {"nutrientId": 1004, "nutrientName": "Total lipid (fat)", "unitName": "G", "value": 3.6},
+                    {"nutrientId": 1093, "nutrientName": "Sodium, Na", "unitName": "MG", "value": 400.0}
+                  ]
+                }
+              ]
+            }
+        """.trimIndent()
+        val parsed = usda.parseSearchResponse(sampleJson)
+        assertEquals(1, parsed.size)
+        assertEquals(165f, parsed.first().per100gKcal, 0.1f)
+        assertEquals(1.0f, parsed.first().per100gSalt, 0.05f)
+        assertEquals("https://fdc.nal.usda.gov/food-details/171477/nutrients", parsed.first().sourceUrl)
+        assertEquals("chicken breast", com.selfcare.app.data.remote.UsdaFoodDataClient.translateHungarianHint("csirkemell"))
+
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    {
+                      "status": 1,
+                      "product": {
+                        "code": "5991234567890",
+                        "product_name": "High Protein Pudding",
+                        "brands": "Ehrmann",
+                        "serving_quantity": 200,
+                        "nutriments": {"energy-kcal_100g": 76, "proteins_100g": 10.0, "carbohydrates_100g": 5.5, "fat_100g": 1.5}
+                      }
+                    }
+                    """.trimIndent()
+                )
+            )
+            val off = com.selfcare.app.data.remote.OpenFoodFactsNutritionClient(baseUrl = server.url("/").toString())
+            val found = off.fetchByBarcode("5991234567890")
+            assertTrue(found is FoodLookupResult.Found)
+            assertEquals("https://hu.openfoodfacts.org/product/5991234567890", (found as FoodLookupResult.Found).item.sourceUrl)
+        } finally {
+            server.shutdown()
+        }
+    }
 }

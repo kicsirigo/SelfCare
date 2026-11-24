@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.15.0",
+            title = "Databases Restored (OFF + USDA + OpenBeautyFacts) + On-Demand Web Search Buttons",
+            highlights = listOf(
+                "Restored OpenFoodFacts (3M+ HU+Global), USDA FoodData Central (400k+ cooked & raw foods with HU->EN bridge), and OpenBeautyFacts as the fast, reliable default databases with clickable source links.",
+                "Meal photo & text AI estimation now grounds against the 3-layer database (250+ Offline HU + OpenFoodFacts + USDA) by default so cooked Hungarian dishes stay accurate and fast.",
+                "Added explicit on-demand 'Web Search (AI)' buttons in Nutrition search, inside the Meal Confirmation dialog ('Verify on Web'), and on the Product Shelf so you can trigger live Groq browser_search whenever you want."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.14.0",
             title = "Streamlined AI + Web Search Primary Architecture (Zero External DBs)",
             highlights = listOf(

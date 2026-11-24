@@ -44,19 +44,21 @@ class Tier4UserJourneyTest {
     fun fullUserJourney_shelfConflictToRoutineHygieneCheckInAndTrends() {
         Shadows.shadowOf(e2eRule.app).grantPermissions(Manifest.permission.CAMERA)
 
-        // 1. Shelf: Scan/lookup Night Cream (Retinol) via Groq Web Search
-        runBlocking { e2eRule.settingsRepository.setGeminiApiKey("gsk_e2e_test_key") }
+        // 1. Shelf: Scan/lookup Night Cream (Retinol) via Open Beauty Facts
         e2eRule.mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
                 .setBody(
                     """
                     {
-                      "choices": [{
-                        "message": {
-                          "content": "{\"name\":\"Night Retinol Cream\",\"brand\":\"DermJourney\",\"category\":\"OTHER\",\"routineSlot\":\"EVENING\",\"ingredients\":\"Aqua, Glycerin, Retinol\"}"
-                        }
-                      }]
+                      "status": 1,
+                      "code": "3600523750009",
+                      "product": {
+                        "code": "3600523750009",
+                        "product_name": "Night Retinol Cream",
+                        "brands": "DermJourney",
+                        "ingredients_text_en": "Aqua, Glycerin, Retinol"
+                      }
                     }
                     """.trimIndent()
                 )

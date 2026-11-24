@@ -8,6 +8,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val envFile = rootProject.file(".env").takeIf { it.exists() } ?: rootProject.file(".env.example")
+val envProps = Properties().apply {
+    if (envFile.exists()) {
+        envFile.inputStream().use { load(it) }
+    }
+}
+val openBeautyFactsBaseUrl = envProps.getProperty("OPEN_BEAUTY_FACTS_BASE_URL")
+    ?.trim()
+    ?.removeSurrounding("\"")
+    ?.takeIf { it.isNotEmpty() }
+    ?: error("OPEN_BEAUTY_FACTS_BASE_URL must be defined in .env or .env.example")
+
 android {
     namespace = "com.selfcare.app"
     compileSdk = 36
@@ -16,8 +28,14 @@ android {
         applicationId = "com.selfcare.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 45
-        versionName = "3.14.0"
+        versionCode = 46
+        versionName = "3.15.0"
+
+        buildConfigField(
+            "String",
+            "OPEN_BEAUTY_FACTS_BASE_URL",
+            "\"$openBeautyFactsBaseUrl\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

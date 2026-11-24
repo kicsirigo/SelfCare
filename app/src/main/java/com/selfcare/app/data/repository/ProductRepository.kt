@@ -3,10 +3,10 @@ package com.selfcare.app.data.repository
 import android.graphics.Bitmap
 import com.selfcare.app.data.local.dao.ProductDao
 import com.selfcare.app.data.local.entity.ProductEntity
-import com.selfcare.app.data.remote.ProductVisionClient
-import com.selfcare.app.data.remote.ProductWebLookupResult
-import com.selfcare.app.data.remote.ProductWebSearchResult
-import com.selfcare.app.data.remote.RemoteProductItem
+import com.selfcare.app.data.remote.OpenBeautyFactsClient
+import com.selfcare.app.data.remote.OpenBeautyFactsLookupResult
+import com.selfcare.app.data.remote.OpenBeautyFactsProduct
+import com.selfcare.app.data.remote.OpenBeautyFactsSearchResult
 import com.selfcare.app.domain.inci.DetectedConflict
 import com.selfcare.app.domain.inci.InciEngine
 import com.selfcare.app.domain.inci.InciMatch
@@ -21,7 +21,7 @@ import java.util.UUID
 sealed interface BarcodeLookupOutcome {
     data class LocalFound(val product: ProductEntity) : BarcodeLookupOutcome
     data class RemoteFound(
-        val product: RemoteProductItem,
+        val product: OpenBeautyFactsProduct,
         val parsedMatches: List<InciMatch>
     ) : BarcodeLookupOutcome
     data class NotFound(val barcode: String) : BarcodeLookupOutcome
@@ -30,8 +30,8 @@ sealed interface BarcodeLookupOutcome {
 
 class ProductRepository(
     private val productDao: ProductDao,
+    private val openBeautyFactsClient: OpenBeautyFactsClient,
     private val inciEngine: InciEngine,
-    private val visionClient: ProductVisionClient? = null,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val productsPhotoDir: File? = null
 ) {
@@ -50,6 +50,21 @@ class ProductRepository(
     suspend fun getAllOnce(): List<ProductEntity> = productDao.getAllOnce()
 
     suspend fun getById(id: Long): ProductEntity? = productDao.getById(id)
+
+    suspend fun fetchProductThumbnail(imageUrl: String): Bitmap? =
+        openBeautyFactsClient.fetchProductThumbnail(imageUrl)
+
+    suspend fun findReferenceImageUrls(
+        brand: String,
+        name: String,
+        category: String = "OTHER",
+        desiredCount: Int = 3
+    ): List<String> = openBeautyFactsClient.findReferenceImageUrls(
+        brand = brand,
+        name = name,
+        category = category,
+        desiredCount = desiredCount
+    )
 
     suspend fun saveProductPhoto(bitmap: Bitmap): String? = withContext(Dispatchers.IO) {
         val dir = productsPhotoDir ?: return@withContext null
@@ -80,7 +95,7 @@ class ProductRepository(
     suspend fun getByBarcode(barcode: String): ProductEntity? =
         productDao.getByBarcode(barcode.trim())
 
-    suspend fun lookupByBarcode(barcode: String, apiKey: String = ""): BarcodeLookupOutcome {
+    suspend fun lookupByBarcode(barcode: String): BarcodeLookupOutcome {
         val clean = barcode.trim()
         if (clean.isEmpty()) return BarcodeLookupOutcome.NotFound(barcode)
 
@@ -89,29 +104,19 @@ class ProductRepository(
             return BarcodeLookupOutcome.LocalFound(cached)
         }
 
-        val client = visionClient
-        if (client == null || apiKey.isBlank()) {
-            return BarcodeLookupOutcome.OfflineFallback(clean, "Groq API key required for Web Search")
-        }
-
-        return when (val remote = client.lookupProductBarcodeOnWeb(clean, apiKey)) {
-            is ProductWebLookupResult.Found -> {
+        return when (val remote = openBeautyFactsClient.fetchByBarcode(clean)) {
+            is OpenBeautyFactsLookupResult.Found -> {
                 val matches = inciEngine.parse(remote.product.ingredientsText)
                 BarcodeLookupOutcome.RemoteFound(remote.product, matches)
             }
-            is ProductWebLookupResult.NotFound -> BarcodeLookupOutcome.NotFound(clean)
-            is ProductWebLookupResult.Error ->
+            is OpenBeautyFactsLookupResult.NotFound -> BarcodeLookupOutcome.NotFound(clean)
+            is OpenBeautyFactsLookupResult.OfflineOrError ->
                 BarcodeLookupOutcome.OfflineFallback(clean, remote.reason)
         }
     }
 
-    suspend fun searchRemoteByName(query: String, apiKey: String = ""): ProductWebSearchResult {
-        val client = visionClient
-        if (client == null || apiKey.isBlank()) {
-            return ProductWebSearchResult.Error("Groq API key required for Web Search")
-        }
-        return client.searchProductOnWeb(query, apiKey)
-    }
+    suspend fun searchRemoteByName(query: String): OpenBeautyFactsSearchResult =
+        openBeautyFactsClient.searchByName(query)
 
     suspend fun saveProduct(
         id: Long = 0L,

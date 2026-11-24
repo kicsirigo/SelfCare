@@ -10,9 +10,9 @@ import com.selfcare.app.data.preset.PresetGroup
 import com.selfcare.app.data.preset.PresetProduct
 import com.selfcare.app.data.preset.PresetProductCatalog
 import com.selfcare.app.data.remote.GeminiVisionResult
+import com.selfcare.app.data.remote.OpenBeautyFactsProduct
+import com.selfcare.app.data.remote.OpenBeautyFactsSearchResult
 import com.selfcare.app.data.remote.ProductVisionClient
-import com.selfcare.app.data.remote.ProductWebSearchResult
-import com.selfcare.app.data.remote.RemoteProductItem
 import com.selfcare.app.data.repository.BarcodeLookupOutcome
 import com.selfcare.app.data.repository.ProductRepository
 import com.selfcare.app.data.repository.RoutineRepository
@@ -89,7 +89,7 @@ data class ShelfUiState(
     val conflicts: List<DetectedConflict> = emptyList(),
     val isLookingUp: Boolean = false,
     val offlineFallbackMessage: String? = null,
-    val remoteResults: List<RemoteProductItem> = emptyList(),
+    val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
     val editor: ProductEditorState? = null,
     val isLiveScannerOpen: Boolean = false,
     val liveProductDetected: Boolean = false,
@@ -275,8 +275,7 @@ class ShelfViewModel(
                     presetMatches = emptyList()
                 )
             }
-            val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey?.trim().orEmpty()
-            when (val outcome = productRepository.lookupByBarcode(clean, apiKey)) {
+            when (val outcome = productRepository.lookupByBarcode(clean)) {
                 is BarcodeLookupOutcome.LocalFound -> {
                     lookupStateFlow.update { it.copy(isLookingUp = false) }
                     openEditProductEditor(outcome.product)
@@ -289,7 +288,7 @@ class ShelfViewModel(
                         barcode = outcome.product.barcode,
                         rawIngredientsText = outcome.product.ingredientsText,
                         parsedMatches = outcome.parsedMatches,
-                        source = "WEB_SEARCH"
+                        source = "OPEN_BEAUTY_FACTS"
                     )
                 }
                 is BarcodeLookupOutcome.NotFound -> {
@@ -323,9 +322,8 @@ class ShelfViewModel(
                     presetMatches = localPresetHits
                 )
             }
-            val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey?.trim().orEmpty()
-            when (val result = productRepository.searchRemoteByName(query, apiKey)) {
-                is ProductWebSearchResult.Success -> {
+            when (val result = productRepository.searchRemoteByName(query)) {
+                is OpenBeautyFactsSearchResult.Success -> {
                     lookupStateFlow.update {
                         it.copy(
                             isLookingUp = false,
@@ -337,7 +335,7 @@ class ShelfViewModel(
                         )
                     }
                 }
-                is ProductWebSearchResult.Error -> {
+                is OpenBeautyFactsSearchResult.OfflineOrError -> {
                     lookupStateFlow.update {
                         it.copy(
                             isLookingUp = false,
@@ -346,6 +344,84 @@ class ShelfViewModel(
                                 result.reason.ifBlank { "OFFLINE" }
                             } else null
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    fun searchProductOnWebManual() {
+        val query = searchQueryFlow.value.trim()
+        val client = productVisionClient
+        if (query.isEmpty() || client == null) return
+        viewModelScope.launch {
+            val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey?.trim().orEmpty()
+            if (apiKey.isEmpty()) {
+                lookupStateFlow.update {
+                    it.copy(offlineFallbackMessage = "NO_GROQ_KEY")
+                }
+                return@launch
+            }
+            lookupStateFlow.update {
+                it.copy(
+                    isLookingUp = true,
+                    offlineFallbackMessage = null,
+                    remoteResults = emptyList()
+                )
+            }
+            val isBarcode = query.length >= 8 && query.all { it.isDigit() }
+            if (isBarcode) {
+                when (val res = client.lookupProductBarcodeOnWeb(query, apiKey)) {
+                    is com.selfcare.app.data.remote.ProductWebLookupResult.Found -> {
+                        val p = res.product
+                        val matches = productRepository.parseIngredients(p.ingredientsText)
+                        lookupStateFlow.update { it.copy(isLookingUp = false) }
+                        editorFlow.value = ProductEditorState(
+                            name = p.name,
+                            brand = p.brand,
+                            barcode = p.barcode,
+                            category = p.category,
+                            routineSlot = p.routineSlot,
+                            rawIngredientsText = p.ingredientsText,
+                            parsedMatches = matches,
+                            source = "WEB_SEARCH"
+                        )
+                    }
+                    is com.selfcare.app.data.remote.ProductWebLookupResult.NotFound -> {
+                        lookupStateFlow.update {
+                            it.copy(isLookingUp = false, offlineFallbackMessage = "NOT_FOUND:$query")
+                        }
+                    }
+                    is com.selfcare.app.data.remote.ProductWebLookupResult.Error -> {
+                        lookupStateFlow.update {
+                            it.copy(isLookingUp = false, offlineFallbackMessage = res.reason)
+                        }
+                    }
+                }
+            } else {
+                when (val res = client.searchProductOnWeb(query, apiKey)) {
+                    is com.selfcare.app.data.remote.ProductWebSearchResult.Success -> {
+                        val mapped = res.products.map { p ->
+                            OpenBeautyFactsProduct(
+                                barcode = p.barcode,
+                                name = p.name,
+                                brand = p.brand,
+                                ingredientsText = p.ingredientsText,
+                                imageUrl = p.imageUrl
+                            )
+                        }
+                        lookupStateFlow.update {
+                            it.copy(
+                                isLookingUp = false,
+                                remoteResults = mapped,
+                                offlineFallbackMessage = if (mapped.isEmpty()) "NOT_FOUND:$query" else null
+                            )
+                        }
+                    }
+                    is com.selfcare.app.data.remote.ProductWebSearchResult.Error -> {
+                        lookupStateFlow.update {
+                            it.copy(isLookingUp = false, offlineFallbackMessage = res.reason)
+                        }
                     }
                 }
             }
@@ -483,9 +559,8 @@ class ShelfViewModel(
             searchQueryFlow.value = searchTerm
             lookupStateFlow.update { it.copy(presetMatches = presetHits) }
 
-            val apiKeyForSearch = settingsRepository?.getSettingsOnce()?.geminiApiKey?.trim().orEmpty()
-            when (val result = productRepository.searchRemoteByName(searchTerm, apiKeyForSearch)) {
-                is ProductWebSearchResult.Success -> {
+            when (val result = productRepository.searchRemoteByName(searchTerm)) {
+                is OpenBeautyFactsSearchResult.Success -> {
                     if (result.products.isNotEmpty() || presetHits.isNotEmpty()) {
                         lookupStateFlow.update {
                             it.copy(
@@ -525,7 +600,7 @@ class ShelfViewModel(
                         }
                     }
                 }
-                is ProductWebSearchResult.Error -> {
+                is OpenBeautyFactsSearchResult.OfflineOrError -> {
                     if (presetHits.isNotEmpty()) {
                         lookupStateFlow.update {
                             it.copy(
@@ -573,7 +648,23 @@ class ShelfViewModel(
         name: String,
         category: String = "OTHER",
         targetCount: Int = 3
-    ): List<Bitmap> = emptyList()
+    ): List<Bitmap> {
+        val urls = productRepository.findReferenceImageUrls(
+            brand = brand,
+            name = name,
+            category = category,
+            desiredCount = targetCount
+        )
+        val bitmaps = mutableListOf<Bitmap>()
+        for (url in urls) {
+            if (bitmaps.size >= targetCount) break
+            val bmp = productRepository.fetchProductThumbnail(url)
+            if (bmp != null) {
+                bitmaps.add(bmp)
+            }
+        }
+        return bitmaps
+    }
 
     private fun createPreviewThumbnail(source: Bitmap, maxDim: Int = 420): Bitmap? {
         return runCatching {
@@ -663,9 +754,8 @@ class ShelfViewModel(
         }
 
         viewModelScope.launch {
-            val apiKey = settingsRepository?.getSettingsOnce()?.geminiApiKey?.trim().orEmpty()
-            val searchResult = productRepository.searchRemoteByName(query, apiKey)
-            val bestRemote = (searchResult as? ProductWebSearchResult.Success)?.products?.firstOrNull()
+            val searchResult = productRepository.searchRemoteByName(query)
+            val bestRemote = (searchResult as? OpenBeautyFactsSearchResult.Success)?.products?.firstOrNull()
             val resolvedName = bestRemote?.name?.takeIf { it.isNotBlank() } ?: query
             val resolvedBrand = bestRemote?.brand.orEmpty()
             val resolvedIngredients = bestRemote?.ingredientsText.orEmpty()
@@ -768,7 +858,7 @@ class ShelfViewModel(
         }
     }
 
-    fun selectRemoteProduct(product: RemoteProductItem) {
+    fun selectRemoteProduct(product: OpenBeautyFactsProduct) {
         val matches = productRepository.parseIngredients(product.ingredientsText)
         editorFlow.value = ProductEditorState(
             name = product.name,
@@ -776,7 +866,7 @@ class ShelfViewModel(
             barcode = product.barcode,
             rawIngredientsText = product.ingredientsText,
             parsedMatches = matches,
-            source = "WEB_SEARCH"
+            source = "OPEN_BEAUTY_FACTS"
         )
         lookupStateFlow.update {
             it.copy(remoteResults = emptyList(), presetMatches = emptyList(), offlineFallbackMessage = null)
@@ -894,7 +984,7 @@ class ShelfViewModel(
     private data class LookupTransientState(
         val isLookingUp: Boolean = false,
         val offlineFallbackMessage: String? = null,
-        val remoteResults: List<RemoteProductItem> = emptyList(),
+        val remoteResults: List<OpenBeautyFactsProduct> = emptyList(),
         val presetMatches: List<PresetProduct> = emptyList(),
         val isLiveScannerOpen: Boolean = false,
         val liveProductDetected: Boolean = false,

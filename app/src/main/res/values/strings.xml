@@ -530,8 +530,8 @@
     <string name="notification_water_title">Hydration Check</string>
     <string name="notification_water_body">Time for a glass of water! Tap to log +250 ml in SelfCare.</string>
     <string name="nutrition_portion_multiplier_label">Multiplier / servings (×)</string>
-    <string name="nutrition_db_ai_verified">Web + AI Verified</string>
+    <string name="nutrition_db_ai_verified">DB + AI Verified</string>
     <string name="nutrition_db_sources_label">Verified sources:</string>
-    <string name="settings_ai_web_search_title">Primary AI Web Search</string>
-    <string name="settings_ai_web_search_desc">Use live Groq browser_search as the primary nutrition &amp; product verifier (with clickable source links); falls back to the bundled 250+ Offline HU catalog when offline.</string>
+    <string name="action_web_search_ai">Web Search (AI)</string>
+    <string name="nutrition_verify_on_web_btn">Verify on Web (AI)</string>
 </resources>
