@@ -2,15 +2,15 @@
 
 # SelfCare
 
-**Privacy-First Native Android Daily Routine, Offline INCI Analyzer & On-Device Face/Hair Check-In App**  
-*Zero Telemetry • 100% On-Device Computer Vision • Bundled Offline ML Kit • Material 3*
+**Privacy-First Native Android Self-Care Hub: Smart Routine Coach, Nutrition & Hydration, Offline INCI Analyzer & Dual-ONNX On-Device Face/Hair Check-In**  
+*Zero Telemetry • 100% On-Device Computer Vision • 100% In-App CameraX • Material 3 Expressive (120Hz)*
 
 [![Version](https://img.shields.io/badge/Release-v3.18.1-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.18.1)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Tests](https://img.shields.io/badge/Tests-104%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20CV-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
+[![Tests](https://img.shields.io/badge/Tests-103%20Passing-2EA043?style=for-the-badge&logo=checkmarx&logoColor=white)](#testing)
+[![Privacy](https://img.shields.io/badge/Privacy-100%25%20Local%20DB-0F172A?style=for-the-badge&logo=shield&logoColor=white)](#privacy--permissions)
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## Overview
 
-**SelfCare** is a privacy-first native Android application built with **Kotlin**, **Jetpack Compose**, **Material 3**, **Room**, **CameraX**, and **bundled offline ML Kit**. It brings together daily skincare routine tracking, daily hygiene logging, an offline INCI ingredient & active-conflict engine, and 100% on-device face & hair trend analysis — with **zero ads, zero analytics, and zero cloud uploads of personal photos or logs**.
+**SelfCare** is a privacy-first native Android application built with **Kotlin**, **Jetpack Compose**, **Material 3 Expressive (120Hz)**, **Room**, **CameraX**, **bundled offline ML Kit**, and **Dual-ONNX Runtime**. It unifies daily skincare & habit coaching, calorie/macro/water tracking, an offline INCI ingredient & active-conflict engine, a context-aware AI Coach, and 100% on-device face & hair trend analysis — with **zero ads, zero analytics, zero cloud save, and zero uploads of personal check-in photos or logs**.
 
 ---
 
@@ -26,9 +26,9 @@
 
 <div align="center">
 
-| Daily Routine *(AMOLED Neon)* | Shelf & Rx/Hair *(AMOLED Neon)* | Face & Hair Scan *(AMOLED Neon)* | Personal Trends *(AMOLED Neon)* |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_daily_routine_dark.png" alt="Daily Routine - AMOLED Neon" width="210" /> | <img src="docs/screenshots/02_product_shelf_inci.png" alt="Product Shelf & INCI - AMOLED Neon" width="210" /> | <img src="docs/screenshots/03_face_checkin_amoled.png" alt="Face Check-In - AMOLED Neon" width="210" /> | <img src="docs/screenshots/04_personal_trends_light.png" alt="Personal Trends - AMOLED Neon" width="210" /> |
+| Today Hub & Routine | Nutrition & Water | Face & Hair Check-In | Product Shelf & INCI | Trends & AI Coach |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/01_daily_routine_dark.png" alt="Today Hub & Smart Routine Coach - AMOLED Neon" width="170" /> | <img src="docs/screenshots/05_nutrition_tracker.png" alt="Nutrition, Macros & Animated Water - AMOLED Neon" width="170" /> | <img src="docs/screenshots/03_face_checkin_amoled.png" alt="Dual-ONNX Face & Hair Check-In - AMOLED Neon" width="170" /> | <img src="docs/screenshots/02_product_shelf_inci.png" alt="Product Shelf, INCI & Vitamin Calculator - AMOLED Neon" width="170" /> | <img src="docs/screenshots/04_personal_trends_light.png" alt="Personal Trends & AI Coach - AMOLED Neon" width="170" /> |
 
 </div>
 
@@ -36,69 +36,62 @@
 
 ## Key Features
 
-### Calorie, Macro & Animated Water Tracker (`Nutrition` Tab) + Celebrations
-- **Day Switcher (`< Yesterday | Today >`)** — Browse, log, and edit meals, water intake, and workouts for previous days.
-- **Daily Calorie Ring, Macro Bars & Offline Body Profile** — Tracks Calories (kcal), Protein, Carbs, Fat, Fiber, Sugar, and **Salt (g)** against customizable targets or the built-in 100% offline **Mifflin-St Jeor** auto-calculator (automatically reuses your saved birthday/age).
-- **5 Fast Meal Logging Paths:**
-  - **Meal Photo AI (`Groq Qwen 3.8 27B`):** Snap a photo of a plated meal to estimate calories, macros, and salt with `0.5x / 1x / 1.5x` portion adjustment.
-  - **Nutrition Label Photo Scanner (`Groq Qwen 3.8 27B`):** Scan back-of-package `Tápérték táblázat` (per-100g values) with live gram scaling.
-  - **Groq AI Text Meal Estimation:** Type any Hungarian or English dish (e.g., *csirkepörkölt nokedlivel*, *whopper*) for instant macro & salt estimation.
-  - **OpenFoodFacts Barcode Scanner & Hungarian Search:** Instant per-100g nutrition lookup for packaged foods.
-  - **65+ Offline Hungarian & International Presets + Custom Recipe Builder:** Combine multiple ingredients, divide by servings, and log 1 serving with 1 tap (100% offline).
-- **Exercise & Burned Calories (`MET` Calculator) + Weight Trend:** Log workouts to automatically expand your daily calorie budget, and log body weight to track your 30-day Weight & 7-day Calorie/Protein Trend chart on the `Trends` tab.
-- **Animated Live-Wave Water Glass with Salt Hydration Bonus:** Automatically adds `+150 ml` recommended water per excess gram of salt above the 5g WHO reference, with spring-animated wave physics and twinkling stars.
-- **Zero AI Training Privacy:** Images & text sent to Groq API are never used for AI model training.
+### Today Hub & Smart Routine Coach (`Routine` Tab)
+- **Unified Hero Card & Live Progress Ring** — Centered `HeroScoreRing` updates live in real time whenever any product is checked or unchecked, paired with 3-period status chips (`Morning`, `Evening`, `Hair`), exact `HH:mm` completion timestamps, and an animated streak pill.
+- **Today Pulse Mini-Bar** — Glanceable daily calories, 1-tap `+250 ml` hydration button, and shave countdown right from the home tab.
+- **Smart Skincare Step Ordering + Custom `↑` / `↓` Reorder** — Automatically orders skincare/vitamin steps (Cleanser → Treatment → Moisturizer → SPF) and lets you customize the exact persistent order with 120Hz spring gliding (`animateItem`).
+- **1-Tap Product Nickname / Rename & Live INCI Conflict Guard** — Quickly rename any product inline (pencil icon), check off clear `Done` / `To do` states, and see active ingredient conflicts before applying.
+- **Custom Daily Habits (`+ Add`) & Local Reminders** — Track Teeth, Shower, Lip Balm, and custom habits with automatic midnight rollover and optional `AlarmManager` notifications.
 
-### Daily Routine Tracker
-- **1-Tap Morning, Evening & Hair Care Routine Completion** — Configure your default Morning, Evening, Both, or Hair Care products and log an entire routine in a single tap, with per-product skip/override toggles and duplicate-log prevention.
-- **Quick Daily Hygiene Logging** — Track Shower/Bath, Morning & Evening Teeth Brushing, Lip Balm, and custom habits with automatic midnight date rollover.
-- **Local Routine Reminders** — Optional on-device notifications scheduled via `AlarmManager` / `BroadcastReceiver` (gracefully handled when notification permission is not granted).
-- **Portable SAF JSON Backup** — Export and import all 5 Room tables (`routine_logs`, `products`, `face_check_ins`, `hygiene_logs`, `haircut_baselines`) and app preferences via Android's Storage Access Framework (`kotlinx.serialization.json`).
+### Calorie, Macro & Animated Water Tracker (`Nutrition` Tab)
+- **3 Verified Food Databases + On-Demand Web Search (AI):**
+  - **OpenFoodFacts (3M+ HU & Global)** — Fast barcode & text search with clickable verified source links (`hu.openfoodfacts.org`).
+  - **USDA FoodData Central (400k+ via `DEMO_KEY` + HU→EN bridge)** — Authoritative whole-food & cooked-dish nutrition with verified `fdc.nal.usda.gov` links.
+  - **250+ Offline Hungarian & International Presets + Custom Recipe Builder** — Instant 100% offline meal logging and multi-ingredient per-serving recipes.
+  - **On-Demand `Web Search (AI)` (`openai/gpt-oss-20b` → `120b` with `browser_search`)** — Explicit button in Nutrition Search and Meal Confirmation (`Verify on Web (AI)`) for restaurant or newly released items.
+- **In-App CameraX Meal & Label Scanner (`Groq Vision`)** — Snap plated meals (`0.5x / 1x / 1.5x` portion scaling) or back-of-package `Tápérték táblázat` nutrition labels (`qwen/qwen3.8-27b` primary + `meta-models/muse-spark-open` fallback).
+- **Daily Calorie Ring, Macro Bars, Exercise (`MET`) & Weight Trend** — Tracks Calories, Protein, Carbs, Fat, Fiber, Sugar, and **Salt (g)** against customizable targets or the 100% offline **Mifflin-St Jeor** calculator, with day switching (`< Yesterday | Today >`).
+- **Animated Live-Wave Water Glass with Salt Hydration Bonus** — Automatically adds `+150 ml` recommended water per excess gram of salt above the 5g WHO reference, with spring-animated wave physics.
 
-### Product Shelf, Vitamins/Medications, Offline Vitamin Calculator & INCI Engine
-- **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, occlusives, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`, `Selenium Sulfide`), and **7 active conflict rules** (including *Prescription Antibiotic + Strong Acid/Retinoid*).
-- **Vitamins, Supplements & Medications Support** — Track vitamins (`Vitamin D3`, `Vitamin C`, `Magnesium`, `Omega-3`, `Zinc`, `B-Complex`, `Multivitamin`) and OTC medications/ointments (`Sudocrem`, `Bepanthen Plus`, `Ibuprofen`, `Cetirizine`) alongside skincare, Rx, and hair products, with dedicated filter chips and presets.
-- **100% Offline Age-Based Daily Vitamin Reference Calculator (`VitaminCalculator`)** — Enter your birthday locally (stored strictly on-device) to calculate EFSA/NIH daily vitamin & mineral reference intakes by age, cross-referenced automatically against supplements on your Shelf *(informational only — never replaces a balanced diet or medical advice)*.
-- **Live Barcode Scanner + Groq Vision (`Qwen 3.8 27B`) + Offline INCI OCR + Google Lens Share** — Instant live CameraX EAN/UPC barcode scanning backed by `OpenBeautyFacts` + `OpenFoodFacts`, optional **Groq Vision** (`qwen/qwen3.8-27b` primary + `meta-models/muse-spark-open` fallback with live `/openai/v1/models` discovery, free `gsk_...` key), dedicated 100% offline **INCI OCR** for back-of-bottle ingredient lists, and **Share-to-SelfCare (`ACTION_SEND`) / Google Lens** support. Shows up to **3 multi-source reference photos** (`OpenBeautyFacts` + `OpenFoodFacts` + `Wikimedia Commons`) and privately saves your captured product photo on-device (`filesDir/products/` with `.nomedia`).
-- **Full EN/HU Localized Active Conflict Alerts & Delete Safeguards** — All 7 INCI conflict warnings, routine slots, and caution badges render in English or Hungarian, and every delete action requires confirmation.
-
-### 100% Offline Dual-ONNX Local AI (`YOLOv8s` + `EfficientNet-B0`) + CameraX (`Camera2Interop`) + ML Kit Face, Stubble & Hair Check-In *(Centered Dock Tab)*
+### 100% Offline Dual-ONNX Local AI + ML Kit Face, Stubble & Hair Check-In *(Centered Dock Tab)*
 - **Bundled On-Device Local AI Ensemble (100% Offline, MIT License)** — Runs two INT8-quantized ONNX models in parallel via ONNX Runtime alongside ML Kit FaceMesh & SelfieSegmentation:
   - **`OnnxAcneDetector` (`acne_detector_int8.onnx`, 11.5 MB YOLOv8s INT8):** Detects real blemish lesions (comedones, papules, pustules, nodules) with automatic CIELAB fallback.
   - **`OnnxSkinSignalsAnalyzer` (`skin_signals_int8.onnx`, 5.3 MB 4-Head EfficientNet-B0 INT8):** Predicts global structure, hydration, erythema/UV, and elasticity signals, fused with 1080px local CIELAB ROI metrics (`SkinSignalsHybridFusion`) for lighting resilience.
-  - **Active AI Engine Telemetry UI:** Live camera HUD pill and tappable breakdown strip showing every active on-device engine and exact analysis runtime in ms.
-- **Directional Sobel Stubble Detection & Shave Reminder** — Measures lower-jaw stubble density on-device (`computeStubbleScore` with directional Sobel bristle edge-density + jaw-shadow compensation), tracks days since your last shave with one-tap **"Just Shaved"**, and alerts you when your configurable 1–14 day shave interval or stubble threshold is reached.
-- **Live Face Detection, Brightness HUD, Cooldown & Screen Flash** — Real-time on-device ML Kit FaceMesh checks confirm an actual face is present before turning the framing guide neon green (rejecting covered lenses or empty frames), alongside a live brightness percentage readout, 5-second capture cooldown, and Snapchat-style front screen flash.
-- **Real On-Device Computer Vision Math (`FaceMetricCalculator` + `MlKitFaceAnalyzer`)**:
-  - **Under-Eye Dark Circles:** sRGB-to-CIELAB conversion and $\Delta E / \Delta L^*$ delta between under-eye ROIs and cheek baselines.
-  - **Skin Health:** Erythema/redness index and local spatial texture variance across cheek and forehead ROIs.
-  - **Lip Dryness:** Lip ROI color uniformity and gradient/edge roughness.
-  - **Multi-Zone Hair & Scalp Health (`HairDetailedMetrics` + `HaircutTracker`):** Evaluates **Crown Volume & Density %**, **Hair Shine & Smoothness %**, **Hairline & Temple Symmetry %**, plus **Growth Since Haircut** with **"Just had a haircut"** baseline reset.
-- **Human-Readable Qualitative Gauges (`MetricInterpreter`)** — Translates raw scores into clear status pills (`Optimal`, `Good`, `Moderate`, `High`), animated progress bars, and everyday explanations alongside personal rolling baselines.
-- **Private Check-In Photo Storage** — Photos are saved exclusively inside app-private `filesDir/checkins` (with `.nomedia`), hidden from the device gallery, and can be automatically deleted immediately after numeric metrics are extracted.
+  - **Active AI Engine Telemetry HUD:** Shows every active on-device engine and exact analysis runtime in ms.
+- **Directional Sobel Stubble Detection & Shave Reminder** — Measures lower-jaw stubble density on-device (`computeStubbleScore`), tracks days since your last shave with 1-tap **"Just Shaved"**, and alerts you at your configurable 1–14 day interval.
+- **Live Face Detection, Brightness HUD, Cooldown & Screen Flash** — Real-time ML Kit FaceMesh verification, live brightness percentage readout, 5-second capture cooldown, and front screen flash.
+- **Multi-Zone Face & Hair CV (`FaceMetricCalculator` + `HaircutTracker`)** — Evaluates Under-Eye Dark Circles ($\Delta E / \Delta L^*$), Surface Redness & Texture, Lip Dryness, plus **Crown Density %**, **Hair Shine %**, **Hairline Symmetry %**, and **Growth Since Haircut** with qualitative traffic-light gauges (`MetricInterpreter`).
+- **Private Check-In Photo Storage** — Stored strictly inside app-private `filesDir/checkins` (with `.nomedia`), hidden from the gallery, with optional automatic deletion immediately after metrics are extracted.
 
-### Personal Rolling Trends, AMOLED Neon UI & Smooth Animations
-- **Personal Baseline Trends (Never Medical Diagnoses)** — Displays under-eye, redness, texture, lip dryness, and multi-zone hair metrics relative to your own rolling **7-day and 30-day personal baseline**, alongside routine/hygiene adherence correlation.
-- **AMOLED Pure Black + Cyber Neon Green Default Theme** — Pure `#000000` AMOLED backdrop with `#00FF66` neon green accents (plus Dark & Light modes), unified 24dp monochrome icons in `AppIcons.kt`, and 120Hz `AnimatedContent` / `animateFloatAsState` transitions.
-- **Bilingual Localization (`EN` / `HU`)** — Full English and Hungarian string parity (`241/241` keys, including all INCI active conflict rules and caution badges) with flicker-free in-app **Auto / English / Magyar** switching, 5-tab bottom navigation, and a persistent top-right Settings shortcut.
+### Product Shelf, Vitamins/Medications, Offline Vitamin Calculator & INCI Engine (`Shelf` Tab)
+- **100% In-App CameraX Everywhere** — Live CameraX EAN/UPC barcode scanning (`OpenBeautyFacts` + `OpenFoodFacts`), optional **Groq Vision** product recognition, dedicated 100% offline **In-App CameraX INCI OCR**, on-demand **Web Search (AI)**, and **Share-to-SelfCare (`ACTION_SEND`) / Google Lens** support.
+- **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`), and **7 localized active conflict rules**.
+- **Vitamins, Supplements & Medications + Offline EFSA/NIH Calculator (`VitaminCalculator`)** — Tracks vitamins and OTC/Rx items alongside skincare, cross-referenced automatically against age-based daily reference intakes *(informational only — never replaces a balanced diet or medical advice)*.
+
+### Personal Trends, Floating AI Coach, Expressive Motion & Live Quota Monitor
+- **Personal Rolling Trends (`Trends` Tab)** — 7-day and 30-day rolling personal baselines for skin, hair, 30-day body weight, 7-day calorie/protein adherence, and routine consistency *(never medical diagnoses)*.
+- **Context-Aware Floating AI Coach (`AiCoachChatSheet`)** — Accessible from any tab via the floating AI FAB; reads your local routine, shelf, nutrition, and check-in summary on demand, and strictly matches your message language (English or Hungarian).
+- **Live Groq API Quota Monitor & Protected Key Vault (`Settings`)** — Tracks daily `x-ratelimit-*` headers and token usage with estimated remaining photo scans & Web Searches today, plus a locked masked API key field (`gsk_••••••••1234`) with explicit Change & Delete confirmation safeguards.
+- **2026 Material 3 Expressive Motion Pack (120Hz) & AMOLED Neon UI** — Pure `#000000` AMOLED backdrop with `#00FF66` neon green accents (plus Dark & Light modes), morphing navigation pills, GPU `ExpressiveThinkingDots`, unified 24dp vector icons (`AppIcons.kt`, **zero Unicode emojis**), and **494/494** EN/HU bilingual string parity with flicker-free in-app switching.
+- **Portable Local SAF JSON Backup** — 100% local export/import of all **10 Room tables** and app preferences via Android's Storage Access Framework (`kotlinx.serialization.json`).
 
 ---
 
 ## Privacy & Permissions
 
-SelfCare enforces strict on-device isolation with **zero analytics, crash reporting, ads, or tracking SDKs**, and `android:allowBackup="false"`:
-- `android.permission.CAMERA` — Used solely for on-device CameraX guided selfie check-ins, barcode scanning, and label OCR.
-- `android.permission.POST_NOTIFICATIONS` — Used solely for optional local routine and haircut reminders.
-- **Privacy & Zero AI Training:** Face check-in selfies, trends, body profile, and routine logs are 100% offline on-device. Optional product/meal photos and text sent to Groq API (`qwen/qwen3.8-27b`) are **never used for AI model training** (per Groq's official Services Agreement, including on the free tier).
-- `android.permission.INTERNET` — Permitted **only** for anonymous, read-only public lookups to Open Beauty Facts / OpenFoodFacts (`BuildConfig.OPEN_BEAUTY_FACTS_BASE_URL`), GitHub Release updates, and optional user-initiated Groq Vision requests. Face photos, check-in metrics, haircut status, product shelves, and routine logs never leave the device.
+SelfCare enforces strict on-device isolation with **zero analytics, crash reporting, ads, tracking SDKs, or cloud save**, and `android:allowBackup="false"`:
+- `android.permission.CAMERA` — Used solely for in-app CameraX guided selfie check-ins, barcode scanning, meal/label photography, and offline INCI OCR.
+- `android.permission.POST_NOTIFICATIONS` — Used solely for optional local routine, shave, and haircut reminders.
+- **Zero AI Training:** Face check-in selfies, trends, body profile, and routine logs are 100% offline on-device. Optional product/meal photos, chat messages, and web search queries sent to Groq API are **never used for AI model training** (per Groq's official Services Agreement, including on the free tier).
+- `android.permission.INTERNET` — Permitted **only** for anonymous read-only public lookups (`OpenFoodFacts`, `OpenBeautyFacts`, `USDA FoodData Central`), GitHub Release updates, and optional user-initiated Groq Vision / AI Coach / Web Search requests.
 
 ---
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v3.4.0) page *(APK size includes the bundled offline ML Kit models + ONNX Runtime with INT8 YOLOv8s & EfficientNet-B0 models for 100% offline face, blemish, skin, hair, OCR, and barcode analysis)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v3.18.1) page *(APK size includes the bundled offline ML Kit models + ONNX Runtime with INT8 YOLOv8s & EfficientNet-B0 models for 100% offline face, blemish, skin, hair, OCR, and barcode analysis)*:
 
-- **`SelfCare-release.apk`** (~228 MB) — Recommended. R8-minified and resource-shrunk release build, verified with fail-closed SHA-256 in the in-app Download Manager.
+- **`SelfCare-release.apk`** (~228 MB) — Recommended. Signed, R8-minified, and resource-shrunk release build, verified with fail-closed SHA-256 in the in-app Download Manager.
 - **`SelfCare-debug.apk`** (~241 MB) — Unminified debug build for testing and inspection.
 
 ### Verify APK Integrity
@@ -112,40 +105,46 @@ sha256sum -c SHA256SUMS.txt
 ## Tech Stack & Architecture
 
 - **Language & Build:** Kotlin 2.2.21, JVM 21 toolchain, Gradle Version Catalog (`gradle/libs.versions.toml`), KSP
-- **UI:** Jetpack Compose + Material 3 (Edge-to-Edge, `AppIcons` vector system)
-- **Persistence:** Room 2.8.5 (`SelfCareDatabase`), Jetpack DataStore Preferences
-- **Camera & On-Device ML:** CameraX 1.5.3, bundled ML Kit (`face-mesh-detection`, `segmentation-selfie`, `text-recognition`, `barcode-scanning`) behind testable domain interfaces (`FaceAnalyzer`, `OcrScanner`, `BarcodeScanner`)
+- **UI:** Jetpack Compose + Material 3 Expressive (`ExpressiveMotion.kt`, `AppIcons.kt` 24dp vector system, zero Unicode emojis)
+- **Persistence:** Room 2.8.5 (`SelfCareDatabase` v7, 10 tables), Jetpack DataStore Preferences
+- **Camera & On-Device ML:** 100% In-App CameraX 1.5.3 (`Camera2Interop`), bundled ML Kit (`face-mesh-detection`, `segmentation-selfie`, `text-recognition`, `barcode-scanning`), ONNX Runtime INT8 (`YOLOv8s` + `EfficientNet-B0`)
 - **Min / Target SDK:** API 26 (Android 8.0) / API 36 (Android 16)
 
 ```text
 app/src/main/java/com/selfcare/app/
-├── MainActivity.kt                          # Edge-to-edge host, SAF backup, locale & navigation
+├── MainActivity.kt                          # Edge-to-edge host, 5-tab Expressive dock, AI Coach FAB & SAF backup
 ├── SelfCareApp.kt                           # Application entry point & replaceable test container
-├── di/AppContainer.kt                       # Manual DI container for repos, ML scanners & CV
+├── di/AppContainer.kt                       # Manual DI container for repos, ML/ONNX scanners, remote clients & CV
 ├── data/
 │   ├── local/
-│   │   ├── SelfCareDatabase.kt              # Room database (5 tables)
-│   │   ├── SettingsRepository.kt            # DataStore preferences (theme, language, reminders, privacy)
-│   │   ├── dao/                             # RoutineDao, ProductDao, FaceCheckInDao, HygieneDao, HaircutBaselineDao
-│   │   └── entity/                          # RoutineLogEntity, ProductEntity, FaceCheckInEntity, HygieneLogEntity, HaircutBaselineEntity
-│   ├── ml/                                  # MlKitFaceAnalyzer, MlKitOcrScanner, MlKitBarcodeScanner, TaskAwait
-│   ├── remote/OpenBeautyFactsClient.kt      # Anonymous read-only GET client (OkHttp)
-│   └── repository/                          # RoutineRepository, HygieneRepository, ProductRepository, FaceCheckInRepository, BackupRepository
+│   │   ├── SelfCareDatabase.kt              # Room database (v7, 10 tables)
+│   │   ├── SettingsRepository.kt            # DataStore preferences (theme, locale, routine order, Groq quota)
+│   │   ├── SecretKeyCipher.kt               # Android Keystore AES-GCM encryption for local API key
+│   │   ├── dao/                             # Routine, Product, FaceCheckIn, Hygiene, Haircut, Nutrition, Water, Recipe, Activity, Weight DAOs
+│   │   └── entity/                          # 10 Room entities
+│   ├── ml/                                  # MlKitFaceAnalyzer, MlKitOcrScanner, MlKitBarcodeScanner, OnnxAcneDetector, OnnxSkinSignalsAnalyzer
+│   ├── preset/PresetProductCatalog.kt       # Offline Rx, skincare, hair & vitamin presets
+│   ├── remote/                              # GroqVisionProductClient, OpenFoodFactsNutritionClient, UsdaFoodDataClient, OpenBeautyFactsClient, AppUpdateManager
+│   └── repository/                          # Routine, Hygiene, Nutrition, Product, FaceCheckIn, Backup repositories
 ├── domain/
-│   ├── cv/                                  # LightingQualityChecker, FaceMetricCalculator, HaircutTracker
-│   ├── inci/                                # InciDatabaseLoader, InciParser, InciConflictDetector, InciEngine
+│   ├── ai/AppDataContextBuilder.kt          # Structured local summary builder for AI Coach
+│   ├── cv/                                  # FaceMetricCalculator, LightingQualityChecker, HaircutTracker, MetricInterpreter, SkinSignalsHybridFusion, YoloBlemishPostProcessor
+│   ├── health/                              # MacroCalculator, ActivityCalorieCalculator, FoodPresetCatalog (250+ HU/Intl), MealDatabaseGrounder, MealTimingAnalyzer, StreakCalculator, VitaminCalculator
+│   ├── inci/                                # InciDatabaseLoader, InciParser, InciConflictDetector, InciEngine, SharedProductTextParser
 │   └── ml/                                  # FaceAnalyzer, OcrScanner, BarcodeScanner interfaces
 ├── notifications/                           # NotificationHelper, ReminderReceiver, ReminderScheduler
 └── ui/
+    ├── components/                          # ExpressiveMotion, MetricGaugeComponents, CelebrationAnimations
     ├── icons/AppIcons.kt                    # Centralized 24dp monochrome vector icons
-    ├── localization/LocaleHelper.kt         # In-app Auto / EN / HU locale helper
-    ├── theme/                               # Light, Dark & AMOLED Black Material 3 themes
-    ├── routine/                             # RoutineScreen & RoutineViewModel
-    ├── hygiene/                             # HygieneScreen & HygieneViewModel
-    ├── shelf/                               # ShelfScreen & ShelfViewModel
+    ├── localization/LocaleHelper.kt         # In-app Auto / EN / HU locale helper (494/494 keys)
+    ├── theme/                               # AMOLED Neon, Dark & Light Material 3 themes
+    ├── routine/                             # RoutineScreen (Today Hub) & RoutineViewModel
+    ├── nutrition/                           # NutritionScreen, NutritionViewModel & InAppFoodCameraDialog
     ├── checkin/                             # CheckInScreen & CheckInViewModel
+    ├── shelf/                               # ShelfScreen, ShelfViewModel, ProductLiveScannerView & SmartScanQueryExtractor
     ├── trends/                              # TrendsScreen & TrendsViewModel
-    └── settings/                            # SettingsScreen & SettingsViewModel
+    ├── coach/                               # AiCoachChatSheet & AiCoachViewModel
+    └── settings/                            # SettingsScreen, SettingsViewModel & PatchNotesDialog
 ```
 
 ---
@@ -168,8 +167,11 @@ cp .env.example .env
 # Compile debug Kotlin sources
 ./gradlew compileDebugKotlin
 
-# Run all 58 unit & Robolectric E2E tests
+# Run all 103 unit & Robolectric E2E tests
 ./gradlew testDebugUnitTest
+
+# Run fast unit tests only
+./gradlew testDebugUnitTest --tests "com.selfcare.app.unit.*"
 
 # Build Debug APK
 ./gradlew assembleDebug
@@ -179,17 +181,17 @@ cp .env.example .env
 
 ## Testing
 
-The test suite includes **58 automated tests** across **15 test suites** (`app/src/test/java/com/selfcare/app/`):
-- **Unit Suites (41 tests):**
-  - `RoutineRepositoryTest` (1-tap completion, skip overrides, midnight rollover, duplicate prevention)
-  - `BackupRepositoryTest` (full JSON export/import roundtrip across all 5 Room tables & settings)
-  - `InciEngineTest`, `OpenBeautyFactsTest`, `PresetCatalogAndMetricInterpreterTest`, `SmartScanTest` & `GeminiVisionProductClientTest` (noisy OCR parsing, 69-ingredient matching, active conflict detection, Davercin/Skinoren/Nizoral offline presets, Gemini Vision JSON parsing & normalization, 1-photo smart query extraction & temp-photo deletion, qualitative gauges & multi-zone hair analysis)
-  - `FaceMetricCalculatorTest`, `LightingQualityTest`, `HaircutTrackerTest`, `FaceCheckInRepositoryTest` (CIELAB D65 conversion, redness/texture/lip/hair math, lighting thresholds, baseline reset & private photo auto-delete)
-- **Robolectric + Compose UI E2E Suites (17 tests, injecting deterministic `FaceAnalyzer` / `OcrScanner` / `BarcodeScanner` fakes):**
-  - `Tier1FeatureCoverageTest` — Core routine, OBF + OCR + INCI, face check-in, and haircut flows
+The test suite includes **103 automated tests** across **21 test suites** (`app/src/test/java/com/selfcare/app/`):
+- **Unit Suites (17 suites):**
+  - `RoutineRepositoryTest`, `BackupRepositoryTest` (1-tap completion, skip/reorder persistence, midnight rollover, 10-table SAF JSON roundtrip)
+  - `MacroCalculatorAndNutritionTest`, `VitaminCalculatorAndProductAdviceTest` (Mifflin-St Jeor, salt hydration bonus, MET workouts, 250+ HU presets, EFSA/NIH vitamin calculator)
+  - `GroqVisionProductClientTest`, `OpenBeautyFactsTest`, `InciEngineTest`, `SmartScanTest`, `SharedProductTextParserTest`, `PresetCatalogAndMetricInterpreterTest` (Groq Vision & `gpt-oss` Web Search JSON/reasoning parsing, language detection, 69-INCI conflicts, barcode & OCR extraction)
+  - `FaceMetricCalculatorTest`, `LightingQualityTest`, `HaircutTrackerTest`, `FaceCheckInRepositoryTest`, `SkinSignalsHybridFusionTest`, `BlemishAndUpdateManagerTest`, `YoloBlemishAndPatchNotesTest` (CIELAB D65 math, Dual-ONNX post-processing & fusion, stubble Sobel score, fail-closed SHA-256 update verification)
+- **Robolectric + Compose UI E2E Suites (4 suites, injecting deterministic ML fakes):**
+  - `Tier1FeatureCoverageTest` — Core routine, nutrition, OBF + OCR + INCI, face check-in, and haircut flows
   - `Tier2BoundaryCornerTest` — Empty states, missing camera permission, poor lighting warning, offline API fallback, midnight rollover, duplicate logs, auto-delete verification
-  - `Tier3PersistenceAndLocalizationTest` — Room 5-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, launcher icon & flicker-free locale checks, and EN/HU 241-key parity + zero-emoji verification
-  - `Tier4UserJourneyTest` — Full cross-screen skincare -> routine -> hygiene -> check-in -> personal trends journey
+  - `Tier3PersistenceAndLocalizationTest` — Room 10-entity persistence, SAF JSON roundtrip, privacy/`.gitignore`/manifest checks, launcher icon & flicker-free locale checks, and **494/494** EN/HU parity + zero-emoji verification
+  - `Tier4UserJourneyTest` — Full cross-screen skincare → routine → nutrition → check-in → personal trends journey
 
 ---
 
