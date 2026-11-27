@@ -28,7 +28,7 @@
 
 | Today Hub & Routine | Nutrition & Water | Face & Hair Check-In | Product Shelf & INCI | Trends & AI Coach |
 | :---: | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/v318_01_today_hub.png" alt="Today Hub & Smart Routine Coach - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_02_nutrition_water.png" alt="Nutrition, Macros & Animated Water - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_03_face_hair_checkin.png" alt="Dual-ONNX Face & Hair Check-In - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_04_shelf_inci_vitamins.png" alt="Product Shelf, INCI & Vitamin Calculator - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_05_trends_ai_coach.png" alt="Personal Trends & AI Coach - AMOLED Neon" width="170" /> |
+| <img src="docs/screenshots/v318_real_01_today_hub.png" alt="Today Hub & Smart Routine Coach - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_real_02_nutrition_water.png" alt="Nutrition, Macros & Animated Water - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_real_03_face_hair_checkin.png" alt="Dual-ONNX Face & Hair Check-In - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_real_04_shelf_inci_vitamins.png" alt="Product Shelf, INCI & Vitamin Calculator - AMOLED Neon" width="170" /> | <img src="docs/screenshots/v318_real_05_trends_ai_coach.png" alt="Personal Trends & AI Coach - AMOLED Neon" width="170" /> |
 
 </div>
 
