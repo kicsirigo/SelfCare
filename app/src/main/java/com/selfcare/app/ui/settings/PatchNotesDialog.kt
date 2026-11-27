@@ -30,6 +30,15 @@ data class PatchNoteRelease(
 object PatchNotesCatalog {
     val releases: List<PatchNoteRelease> = listOf(
         PatchNoteRelease(
+            version = "v3.19.0",
+            title = "First-Launch Onboarding Cards & Beginner Groq API Key Guide",
+            highlights = listOf(
+                "Added swipeable 5-card first-launch Onboarding guide (120Hz Expressive indicators, skip anytime, replayable from Settings -> App Guide) introducing Privacy, Today Hub, Nutrition & Water, Offline Face/INCI, and Optional Free AI.",
+                "Added a beginner-friendly 4-step 'How to get a free Groq key?' guide accessible from Onboarding, Settings -> AI Engine, and AI Coach (when no key is saved), complete with 1-tap console.groq.com/keys link and 1-tap Paste from clipboard.",
+                "Removed unused Google Lens manifest queries and aligned local-first privacy documentation."
+            )
+        ),
+        PatchNoteRelease(
             version = "v3.18.1",
             title = "Live Routine % Ring, 'To Do' Uncheck State & Custom Step Reordering",
             highlights = listOf(

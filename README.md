@@ -5,7 +5,7 @@
 **Privacy-First Native Android Self-Care Hub: Smart Routine Coach, Nutrition & Hydration, Offline INCI Analyzer & Dual-ONNX On-Device Face/Hair Check-In**  
 *Zero Telemetry • 100% On-Device Computer Vision • 100% In-App CameraX • Material 3 Expressive (120Hz)*
 
-[![Version](https://img.shields.io/badge/Release-v3.18.1-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.18.1)
+[![Version](https://img.shields.io/badge/Release-v3.19.0-00FF66?style=for-the-badge&logo=github&logoColor=black)](https://github.com/kicsirigo/SelfCare/releases/tag/v3.19.0)
 [![Android](https://img.shields.io/badge/Android-8.0%2B%20(API%2026%E2%80%9336)-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -102,7 +102,7 @@ Nothing is sent unless you explicitly trigger a feature:
 
 ## Download & Verification
 
-Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v3.18.1) page *(APK size includes the bundled offline ML Kit models + ONNX Runtime with INT8 YOLOv8s & EfficientNet-B0 models for 100% offline face, blemish, skin, hair, OCR, and barcode analysis)*:
+Pre-built APKs are available on the [**Releases**](https://github.com/kicsirigo/SelfCare/releases/tag/v3.19.0) page *(APK size includes the bundled offline ML Kit models + ONNX Runtime with INT8 YOLOv8s & EfficientNet-B0 models for 100% offline face, blemish, skin, hair, OCR, and barcode analysis)*:
 
 - **`SelfCare-release.apk`** (~228 MB) — Recommended. Signed, R8-minified, and resource-shrunk release build, verified with fail-closed SHA-256 in the in-app Download Manager.
 - **`SelfCare-debug.apk`** (~241 MB) — Unminified debug build for testing and inspection.
