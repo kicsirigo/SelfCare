@@ -18,7 +18,7 @@
 
 ## Overview
 
-**SelfCare** is a privacy-first native Android application built with **Kotlin**, **Jetpack Compose**, **Material 3 Expressive (120Hz)**, **Room**, **CameraX**, **bundled offline ML Kit**, and **Dual-ONNX Runtime**. It unifies daily skincare & habit coaching, calorie/macro/water tracking, an offline INCI ingredient & active-conflict engine, a context-aware AI Coach, and 100% on-device face & hair trend analysis — with **zero ads, zero analytics, zero cloud save, and zero uploads of personal check-in photos or logs**.
+**SelfCare** is a privacy-first native Android app built with **Kotlin**, **Jetpack Compose**, **Material 3 Expressive (120Hz)**, **Room**, **CameraX**, **bundled offline ML Kit**, and **Dual-ONNX Runtime**. It brings together daily routine coaching, nutrition & hydration tracking, an offline INCI ingredient engine, an optional AI Coach, and 100% on-device face & hair analysis — with **zero ads, zero first-party analytics, zero cloud save, and zero background data collection**. Your check-in selfies never leave your device, and every network request happens strictly on your tap.
 
 ---
 
@@ -64,7 +64,7 @@
 - **Private Check-In Photo Storage** — Stored strictly inside app-private `filesDir/checkins` (with `.nomedia`), hidden from the gallery, with optional automatic deletion immediately after metrics are extracted.
 
 ### Product Shelf, Vitamins/Medications, Offline Vitamin Calculator & INCI Engine (`Shelf` Tab)
-- **100% In-App CameraX Everywhere** — Live CameraX EAN/UPC barcode scanning (`OpenBeautyFacts` + `OpenFoodFacts`), optional **Groq Vision** product recognition, dedicated 100% offline **In-App CameraX INCI OCR**, on-demand **Web Search (AI)**, and **Share-to-SelfCare (`ACTION_SEND`) / Google Lens** support.
+- **100% In-App CameraX Everywhere** — Live CameraX EAN/UPC barcode scanning (`OpenBeautyFacts` + `OpenFoodFacts`), optional **Groq Vision** product recognition, dedicated 100% offline **In-App CameraX INCI OCR**, on-demand **Web Search (AI)**, and **Share-to-SelfCare (`ACTION_SEND`)** text import support.
 - **Bundled 69-Ingredient INCI Database** — Offline `assets/inci_database.json` covering hydrators, AHAs/BHAs/PHAs, retinoids, Vitamin C, soothing agents, peptides, prescription antibiotics (`Erythromycin`, `Clindamycin`), scalp actives (`Ketoconazole`, `Caffeine`, `Minoxidil`), and **7 localized active conflict rules**.
 - **Vitamins, Supplements & Medications + Offline EFSA/NIH Calculator (`VitaminCalculator`)** — Tracks vitamins and OTC/Rx items alongside skincare, cross-referenced automatically against age-based daily reference intakes *(informational only — never replaces a balanced diet or medical advice)*.
 
@@ -79,11 +79,24 @@
 
 ## Privacy & Permissions
 
-SelfCare enforces strict on-device isolation with **zero analytics, crash reporting, ads, tracking SDKs, or cloud save**, and `android:allowBackup="false"`:
-- `android.permission.CAMERA` — Used solely for in-app CameraX guided selfie check-ins, barcode scanning, meal/label photography, and offline INCI OCR.
-- `android.permission.POST_NOTIFICATIONS` — Used solely for optional local routine, shave, and haircut reminders.
-- **Zero AI Training:** Face check-in selfies, trends, body profile, and routine logs are 100% offline on-device. Optional product/meal photos, chat messages, and web search queries sent to Groq API are **never used for AI model training** (per Groq's official Services Agreement, including on the free tier).
-- `android.permission.INTERNET` — Permitted **only** for anonymous read-only public lookups (`OpenFoodFacts`, `OpenBeautyFacts`, `USDA FoodData Central`), GitHub Release updates, and optional user-initiated Groq Vision / AI Coach / Web Search requests.
+SelfCare is built around **local-first privacy**: **zero ads, zero first-party analytics or crash trackers, zero cloud save**, `android:allowBackup="false"`, and **zero background network calls** (even update checks only run when you tap *Check for Updates*).
+
+### What Stays 100% On-Device
+- **Check-in selfies & CV metrics** — Analyzed completely offline via bundled ML Kit + Dual-ONNX Runtime (`YOLOv8s` + `EfficientNet-B0`). Photos are saved only in app-private storage (`filesDir/checkins` with `.nomedia`) and can auto-delete immediately after analysis.
+- **Database & Backups** — All 10 Room tables (routines, shelf, nutrition, water, weight, check-ins) stay strictly local. Backups use Android's local SAF JSON export/import.
+
+### Optional, Strictly User-Initiated Network Requests
+Nothing is sent unless you explicitly trigger a feature:
+- **Public Food & Product Lookups (anonymous GET):** `OpenFoodFacts`, `OpenBeautyFacts`, `USDA FoodData Central`, and `Wikimedia Commons` when you search or scan a barcode.
+- **GitHub Releases Update Check:** `api.github.com` only when you manually tap *Check for Updates* in Settings.
+- **Optional Groq AI (`api.groq.com`, your own `gsk_...` key):** Used only when you trigger *Meal/Label/Product Photo AI* (sends that food/product photo), *Web Search (AI)* (sends your query), or *AI Coach Chat* (sends your message plus an anonymized plain-text summary of the log categories you opt into — never check-in photos, names, emails, or exact birth dates). Per Groq's Services Agreement, API inputs are **not used for model training**.
+- *SDK note:* Bundled Google ML Kit runs all vision/OCR/barcode models offline without uploading images, though Google Play Services may collect anonymous internal ML Kit SDK diagnostics on devices with Play Services installed.
+
+### Permissions
+- `android.permission.CAMERA` — In-app CameraX selfie check-ins, barcode scanning, meal/label photography, and offline INCI OCR.
+- `android.permission.POST_NOTIFICATIONS` — Optional local routine, shave, and haircut reminders.
+- `android.permission.INTERNET` — Only for the user-initiated lookups and optional Groq API calls listed above.
+- `android.permission.REQUEST_INSTALL_PACKAGES` — Only when you tap *Install Update* in the in-app release downloader.
 
 ---
 

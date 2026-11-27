@@ -10,17 +10,11 @@
     <!-- Used strictly for local routine and haircut reminder notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Used strictly for anonymous, read-only public Open Beauty Facts & GitHub Release update lookups -->
+    <!-- Used strictly for user-initiated public food/product lookups, GitHub Release updates, and optional Groq AI -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Used strictly when the user taps Install Update in the in-app GitHub Release download manager -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-
-    <!-- Used strictly when the user explicitly taps "Search in Google Lens" on a scanned product photo -->
-    <queries>
-        <package android:name="com.google.ar.lens" />
-        <package android:name="com.google.android.googlequicksearchbox" />
-    </queries>
 
     <application
         android:name=".SelfCareApp"
