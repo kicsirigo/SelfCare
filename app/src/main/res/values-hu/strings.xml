@@ -528,4 +528,56 @@
     <string name="routine_todo_label">Hátra van</string>
     <string name="routine_move_up">Feljebb</string>
     <string name="routine_move_down">Lejjebb</string>
+
+    <!-- Onboarding & Kezdőbarát Groq API kulcs útmutató -->
+    <string name="onboarding_skip">Kihagyás</string>
+    <string name="onboarding_back">Vissza</string>
+    <string name="onboarding_next">Tovább</string>
+    <string name="onboarding_get_started">Kezdjük el</string>
+    <string name="settings_app_guide_btn">Bemutató</string>
+    <string name="action_paste">Beillesztés</string>
+
+    <string name="onboarding_p1_badge">HELYI ADATVÉDELEM</string>
+    <string name="onboarding_p1_title">Üdv a SelfCare-ben</string>
+    <string name="onboarding_p1_body">Kövesd egy helyen a napi rutinod, az étkezést, a vízfogyasztást, a polcodon lévő termékeket és az arc-/hajtrendeket.</string>
+    <string name="onboarding_p1_tip">0 reklám, 0 felhő, 0 háttér-adatgyűjtés. Minden adatod kizárólag a telefonodon marad.</string>
+
+    <string name="onboarding_p2_badge">MAI ÁTTEKINTŐ ÉS RUTIN</string>
+    <string name="onboarding_p2_title">1 koppintásos napi rutin</string>
+    <string name="onboarding_p2_body">Pipáld ki a Reggeli, Esti és Hajápolás lépéseket, rendezd sorba a termékeidet nyilakkal, és vegyél fel saját napi szokásokat.</string>
+    <string name="onboarding_p2_tip">A főoldali gyors sávban 1 koppintással adhatsz hozzá +250 ml vizet és láthatod a borotválkozás visszaszámlálót.</string>
+
+    <string name="onboarding_p3_badge">TÁPLÁLKOZÁS ÉS VÍZ</string>
+    <string name="onboarding_p3_title">Kalória, makrók és hidratálás</string>
+    <string name="onboarding_p3_body">Naplózz ételeket másodpercek alatt 250+ offline sablonnal, vonalkóddal, OpenFoodFacts és USDA adatbázisból.</string>
+    <string name="onboarding_p3_tip">Az élő vizespohár a napi sóbeviteled alapján automatikusan emeli az ajánlott vízmennyiséget.</string>
+
+    <string name="onboarding_p4_badge">100% OFFLINE AI ÉS INCI</string>
+    <string name="onboarding_p4_title">Arc Check-In és Okos Polc</string>
+    <string name="onboarding_p4_body">Helyi Dual-ONNX bőr-, pattanás-, borosta- és hajelemzés — a szelfik sosem hagyják el a telefonod. Offline INCI ütközésfigyelő és vitamin kalkulátor a Polcon.</string>
+    <string name="onboarding_p4_tip">Kapcsold be az automatikus törlést a Check-In fülön, ha csak a pontszámokat szeretnéd menteni fotók nélkül.</string>
+
+    <string name="onboarding_p5_badge">OPCIONÁLIS INGYENES AI</string>
+    <string name="onboarding_p5_title">Turbózd fel Groq-kal (Opcionális)</string>
+    <string name="onboarding_p5_body">A SelfCare API kulcs nélkül is 100%-ban működik. Ha szeretnél ételfotó-elemzést, termék-felismerést, Webes AI keresést vagy AI Coach chatet, bármikor adhatsz meg ingyenes Groq kulcsot.</string>
+    <string name="onboarding_p5_tip">Még nem használtál Groq-ot? Koppints alább az 1 perces útmutatóhoz — bankkártya nem szükséges.</string>
+
+    <string name="groq_guide_open_btn">Hogyan szerezz ingyenes Groq kulcsot?</string>
+    <string name="groq_guide_short_btn">Kulcs szerzése</string>
+    <string name="groq_guide_title">Ingyenes Groq API kulcs útmutató</string>
+    <string name="groq_guide_what_is_title">Mi az a Groq?</string>
+    <string name="groq_guide_what_is_body">A Groq egy gyors, ingyenesen használható AI szolgáltatás. A SelfCare nélküle is teljes értékűen működik offline — a kulcs csak az opcionális étel-/termékfotó felismeréshez, Webes AI kereséshez és az AI Coach chathez kell. Bankkártya nem szükséges, és nem tanítanak a te kéréseiden.</string>
+    <string name="groq_guide_step1_title">Nyisd meg a Groq Console-t</string>
+    <string name="groq_guide_step1_body">Koppints az alábbi gombra a console.groq.com/keys megnyitásához a böngészőben.</string>
+    <string name="groq_guide_step2_title">Ingyenes bejelentkezés</string>
+    <string name="groq_guide_step2_body">Lépj be ingyenesen Google, GitHub vagy email fiókkal. Fizetési adat nem kell.</string>
+    <string name="groq_guide_step3_title">Kulcs létrehozása és másolása</string>
+    <string name="groq_guide_step3_body">Koppints a Create API Key gombra, nevezd el pl. SelfCare-nek, és másold ki a gsk_... kezdetű kulcsot.</string>
+    <string name="groq_guide_step4_title">Beillesztés és mentés</string>
+    <string name="groq_guide_step4_body">Gyere vissza a Beállítások -> AI Motor részhez, nyomj a Beillesztés, majd a Mentés gombra. A kulcs titkosítva tárolódik a telefonodon.</string>
+    <string name="groq_guide_open_console">console.groq.com/keys megnyitása</string>
+    <string name="groq_guide_go_settings">Beállítások megnyitása</string>
+
+    <string name="ai_coach_no_key_banner_title">Az AI Coach-hoz ingyenes Groq kulcs kell</string>
+    <string name="ai_coach_no_key_banner_body">Az app minden más része kulcs nélkül, offline is működik. 1 perc alatt szerezhetsz ingyenes Groq kulcsot a személyes AI Coach-hoz.</string>
 </resources>

@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -57,17 +58,28 @@ import com.selfcare.app.ui.components.ExpressiveMotion
 import com.selfcare.app.ui.components.ExpressiveThinkingDots
 import com.selfcare.app.ui.components.expressiveSpringSize
 import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.onboarding.GroqSetupGuideDialog
 import com.selfcare.app.ui.theme.NeonGreen
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AiCoachChatSheet(
     viewModel: AiCoachViewModel,
+    hasGroqKey: Boolean = true,
+    onOpenSettings: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var inputText by remember { mutableStateOf("") }
+    var showGroqGuide by remember { mutableStateOf(false) }
+
+    if (showGroqGuide) {
+        GroqSetupGuideDialog(
+            onDismiss = { showGroqGuide = false },
+            onOpenSettings = onOpenSettings
+        )
+    }
 
     state.contextPreview?.let { previewText ->
         AlertDialog(
@@ -276,27 +288,83 @@ fun AiCoachChatSheet(
                 }
             }
 
-            state.errorMessage?.let { err ->
-                val displayErr = if (err == "NO_GROQ_KEY") {
-                    stringResource(R.string.nutrition_err_no_groq_key)
-                } else err
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            if (!hasGroqKey || state.errorMessage == "NO_GROQ_KEY") {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("ai_coach_no_key_banner")
                 ) {
-                    Text(
-                        text = displayErr,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = viewModel::clearError, modifier = Modifier.size(24.dp)) {
-                        Icon(
-                            imageVector = AppIcons.Close,
-                            contentDescription = stringResource(R.string.action_close),
-                            modifier = Modifier.size(16.dp)
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ai_coach_no_key_banner_title),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
                         )
+                        Text(
+                            text = stringResource(R.string.ai_coach_no_key_banner_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { showGroqGuide = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("ai_coach_groq_guide_btn")
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.groq_guide_short_btn),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                            if (onOpenSettings != null) {
+                                Button(
+                                    onClick = onOpenSettings,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("ai_coach_open_settings_btn")
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.groq_guide_go_settings),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            state.errorMessage?.let { err ->
+                if (err != "NO_GROQ_KEY") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = err,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = viewModel::clearError, modifier = Modifier.size(24.dp)) {
+                            Icon(
+                                imageVector = AppIcons.Close,
+                                contentDescription = stringResource(R.string.action_close),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

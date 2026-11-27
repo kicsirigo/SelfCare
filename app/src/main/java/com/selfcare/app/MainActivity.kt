@@ -80,6 +80,7 @@ import com.selfcare.app.ui.icons.AppIcons
 import com.selfcare.app.ui.localization.LocaleHelper
 import com.selfcare.app.ui.nutrition.NutritionScreen
 import com.selfcare.app.ui.nutrition.NutritionViewModel
+import com.selfcare.app.ui.onboarding.OnboardingDialog
 import com.selfcare.app.ui.routine.RoutineScreen
 import com.selfcare.app.ui.routine.RoutineViewModel
 import com.selfcare.app.ui.settings.PatchNotesDialog
@@ -207,20 +208,47 @@ fun SelfCareRoot(
     }.toTypedArray()
 
     val scope = rememberCoroutineScope()
+    var onboardingDismissedInSession by rememberSaveable { mutableStateOf(false) }
     var patchNotesDismissedInSession by rememberSaveable { mutableStateOf(false) }
+    var requestOpenSettingsNonce by rememberSaveable { mutableStateOf(0) }
+
+    val isRobolectric = Build.FINGERPRINT.equals("robolectric", ignoreCase = true)
+    val showAutoOnboarding = loadedSettings != null &&
+        !onboardingDismissedInSession &&
+        !isRobolectric &&
+        !loadedSettings!!.hasCompletedOnboarding &&
+        loadedSettings!!.lastSeenVersionCode == 0
+
     val showAutoPatchNotes = loadedSettings != null &&
+        !showAutoOnboarding &&
         !patchNotesDismissedInSession &&
-        !Build.FINGERPRINT.equals("robolectric", ignoreCase = true) &&
+        !isRobolectric &&
         loadedSettings!!.lastSeenVersionCode < BuildConfig.VERSION_CODE
 
     CompositionLocalProvider(*providers) {
         SelfCareTheme(themeMode = settings.themeMode) {
             SelfCareScaffold(
                 container = container,
+                hasGroqKey = settings.geminiApiKey.isNotBlank(),
+                openSettingsNonce = requestOpenSettingsNonce,
                 sharedProductFlow = sharedProductFlow,
                 onConsumeSharedProduct = onConsumeSharedProduct
             )
-            if (showAutoPatchNotes) {
+            if (showAutoOnboarding) {
+                OnboardingDialog(
+                    onFinish = {
+                        onboardingDismissedInSession = true
+                        patchNotesDismissedInSession = true
+                        scope.launch {
+                            container.settingsRepository.setHasCompletedOnboarding(true)
+                            container.settingsRepository.setLastSeenVersionCode(BuildConfig.VERSION_CODE)
+                        }
+                    },
+                    onOpenSettings = {
+                        requestOpenSettingsNonce += 1
+                    }
+                )
+            } else if (showAutoPatchNotes) {
                 PatchNotesDialog(
                     isNewUpdate = true,
                     onDismiss = {
@@ -238,11 +266,20 @@ fun SelfCareRoot(
 @Composable
 private fun SelfCareScaffold(
     container: AppContainer,
+    hasGroqKey: Boolean = false,
+    openSettingsNonce: Int = 0,
     sharedProductFlow: StateFlow<Pair<String?, String?>?>? = null,
     onConsumeSharedProduct: () -> Unit = {}
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
     var previousDestination by rememberSaveable { mutableStateOf(AppDestination.ROUTINE) }
+
+    LaunchedEffect(openSettingsNonce) {
+        if (openSettingsNonce > 0 && currentDestination != AppDestination.SETTINGS) {
+            previousDestination = currentDestination
+            currentDestination = AppDestination.SETTINGS
+        }
+    }
 
     val bottomDestinations = remember {
         listOf(
@@ -330,6 +367,14 @@ private fun SelfCareScaffold(
     if (showAiCoachSheet) {
         AiCoachChatSheet(
             viewModel = aiCoachViewModel,
+            hasGroqKey = hasGroqKey,
+            onOpenSettings = {
+                showAiCoachSheet = false
+                if (currentDestination != AppDestination.SETTINGS) {
+                    previousDestination = currentDestination
+                    currentDestination = AppDestination.SETTINGS
+                }
+            },
             onDismiss = { showAiCoachSheet = false }
         )
     }

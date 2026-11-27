@@ -528,4 +528,56 @@
     <string name="routine_todo_label">To do</string>
     <string name="routine_move_up">Move up</string>
     <string name="routine_move_down">Move down</string>
+
+    <!-- Onboarding & Beginner Groq API Key Guide -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="settings_app_guide_btn">App Guide</string>
+    <string name="action_paste">Paste</string>
+
+    <string name="onboarding_p1_badge">LOCAL-FIRST PRIVACY</string>
+    <string name="onboarding_p1_title">Welcome to SelfCare</string>
+    <string name="onboarding_p1_body">Track your daily routine, nutrition, hydration, product shelf, and face/hair trends in one fast native app.</string>
+    <string name="onboarding_p1_tip">Zero ads, zero cloud save, zero background tracking. Everything stays on your phone.</string>
+
+    <string name="onboarding_p2_badge">TODAY HUB &amp; ROUTINE</string>
+    <string name="onboarding_p2_title">One-Tap Daily Routine</string>
+    <string name="onboarding_p2_body">Check off Morning, Evening, and Hair Care steps, reorder your products with up/down arrows, and add custom daily habits.</string>
+    <string name="onboarding_p2_tip">Use the Today Pulse bar on the home screen for instant +250 ml water logging and shave reminders.</string>
+
+    <string name="onboarding_p3_badge">NUTRITION &amp; WATER</string>
+    <string name="onboarding_p3_title">Calories, Macros &amp; Hydration</string>
+    <string name="onboarding_p3_body">Log meals in seconds using 250+ offline presets, barcode scanning, OpenFoodFacts, and USDA FoodData Central.</string>
+    <string name="onboarding_p3_tip">The live water glass automatically adjusts your hydration goal based on your daily salt intake.</string>
+
+    <string name="onboarding_p4_badge">100% OFFLINE AI &amp; INCI</string>
+    <string name="onboarding_p4_title">Face Check-In &amp; Smart Shelf</string>
+    <string name="onboarding_p4_body">Run on-device Dual-ONNX skin, blemish, stubble, and hair check-ins — selfies never leave your phone. Scan products for offline INCI conflicts and daily vitamin references.</string>
+    <string name="onboarding_p4_tip">Enable auto-delete in Check-In if you only want to keep numeric trend scores without saving photos.</string>
+
+    <string name="onboarding_p5_badge">OPTIONAL FREE AI</string>
+    <string name="onboarding_p5_title">Supercharge with Groq (Optional)</string>
+    <string name="onboarding_p5_body">SelfCare works 100% without an API key. If you want Meal Photo AI, Product Vision Scan, Web Search AI, or the floating AI Coach, you can add a free Groq key anytime.</string>
+    <string name="onboarding_p5_tip">Never used Groq before? Tap below for a 60-second step-by-step guide — no credit card required.</string>
+
+    <string name="groq_guide_open_btn">How to get a free Groq key?</string>
+    <string name="groq_guide_short_btn">How to get a key</string>
+    <string name="groq_guide_title">Free Groq API Key Guide</string>
+    <string name="groq_guide_what_is_title">What is Groq?</string>
+    <string name="groq_guide_what_is_body">Groq is a fast, free-tier AI service. SelfCare works fully offline without it — a Groq key is only needed for optional Meal/Product Photo AI, Web Search AI, and the AI Coach chat. No credit card is required, and Groq does not train models on your API requests.</string>
+    <string name="groq_guide_step1_title">Open the Groq Console</string>
+    <string name="groq_guide_step1_body">Tap the button below to open console.groq.com/keys in your browser.</string>
+    <string name="groq_guide_step2_title">Sign in for free</string>
+    <string name="groq_guide_step2_body">Create a free account with Google, GitHub, or email. No payment details needed.</string>
+    <string name="groq_guide_step3_title">Create &amp; copy your key</string>
+    <string name="groq_guide_step3_body">Tap Create API Key, name it SelfCare, and copy the key starting with gsk_...</string>
+    <string name="groq_guide_step4_title">Paste &amp; Save in SelfCare</string>
+    <string name="groq_guide_step4_body">Return to Settings -> AI Engine, tap Paste, and tap Save. Your key is encrypted locally on your device.</string>
+    <string name="groq_guide_open_console">Open console.groq.com/keys</string>
+    <string name="groq_guide_go_settings">Open Settings</string>
+
+    <string name="ai_coach_no_key_banner_title">Free Groq API key needed for AI Coach</string>
+    <string name="ai_coach_no_key_banner_body">The rest of SelfCare works offline without a key. Add a free Groq key in 60 seconds to chat with your personal AI Coach.</string>
 </resources>

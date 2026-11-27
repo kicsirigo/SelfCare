@@ -1,6 +1,8 @@
 package com.selfcare.app.ui.settings
 
 import android.Manifest
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -60,6 +62,8 @@ import com.selfcare.app.ui.components.ExpressiveMotion
 import com.selfcare.app.ui.components.expressiveMorphShape
 import com.selfcare.app.ui.components.expressiveSpringSize
 import com.selfcare.app.ui.icons.AppIcons
+import com.selfcare.app.ui.onboarding.GroqSetupGuideDialog
+import com.selfcare.app.ui.onboarding.OnboardingDialog
 import com.selfcare.app.ui.theme.ThemeMode
 import kotlin.math.roundToInt
 
@@ -608,6 +612,11 @@ fun SettingsScreenContent(
                 mutableStateOf(settings.geminiApiKey.isBlank())
             }
             var showClearKeyConfirmDialog by remember { mutableStateOf(false) }
+            var showGroqSetupGuide by remember { mutableStateOf(false) }
+
+            if (showGroqSetupGuide) {
+                GroqSetupGuideDialog(onDismiss = { showGroqSetupGuide = false })
+            }
 
             if (showClearKeyConfirmDialog) {
                 AlertDialog(
@@ -666,6 +675,22 @@ fun SettingsScreenContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    OutlinedButton(
+                        onClick = { showGroqSetupGuide = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_groq_guide_btn")
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sparkle,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "  ${stringResource(R.string.groq_guide_open_btn)}",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                     if (settings.geminiApiKey.isNotBlank() && !isEditingSavedKey) {
                         val maskedKey = remember(settings.geminiApiKey) {
                             val k = settings.geminiApiKey
@@ -735,6 +760,24 @@ fun SettingsScreenContent(
                                 keyboardType = KeyboardType.Password,
                                 autoCorrectEnabled = false
                             ),
+                            trailingIcon = {
+                                TextButton(
+                                    onClick = {
+                                        val cm = localContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                        val clip = cm?.primaryClip?.getItemAt(0)?.coerceToText(localContext)?.toString()?.trim()
+                                        if (!clip.isNullOrBlank()) {
+                                            keyInput = clip
+                                            savedNotice = false
+                                        }
+                                    },
+                                    modifier = Modifier.testTag("settings_gemini_key_paste_btn")
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.action_paste),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("settings_gemini_key_input")
@@ -919,10 +962,16 @@ fun SettingsScreenContent(
         // App Updates (In-App GitHub Releases Download Manager) & Patch Notes
         item {
             var showPatchNotes by remember { mutableStateOf(false) }
+            var showOnboardingGuide by remember { mutableStateOf(false) }
             if (showPatchNotes) {
                 PatchNotesDialog(
                     isNewUpdate = false,
                     onDismiss = { showPatchNotes = false }
+                )
+            }
+            if (showOnboardingGuide) {
+                OnboardingDialog(
+                    onFinish = { showOnboardingGuide = false }
                 )
             }
             Card(
@@ -954,6 +1003,16 @@ fun SettingsScreenContent(
                             Text(
                                 text = stringResource(R.string.settings_updates_title),
                                 style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                        TextButton(
+                            onClick = { showOnboardingGuide = true },
+                            modifier = Modifier.testTag("settings_replay_onboarding_btn")
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_app_guide_btn),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                         TextButton(

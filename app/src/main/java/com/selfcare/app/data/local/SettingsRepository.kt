@@ -67,7 +67,8 @@ data class UserSettings(
     val groqLimitTokensPerMin: Int = 0,
     val groqRemainingTokensPerMin: Int = -1,
     val groqLastModelUsed: String = "",
-    val routineProductOrderIds: List<Long> = emptyList()
+    val routineProductOrderIds: List<Long> = emptyList(),
+    val hasCompletedOnboarding: Boolean = false
 ) {
     companion object {
         const val DEFAULT_HAIRCUT_THRESHOLD_PERCENT = 20
@@ -154,7 +155,8 @@ class SettingsRepository(
             routineProductOrderIds = prefs[KEY_ROUTINE_PRODUCT_ORDER]
                 .orEmpty()
                 .split(",")
-                .mapNotNull { it.trim().toLongOrNull() }
+                .mapNotNull { it.trim().toLongOrNull() },
+            hasCompletedOnboarding = prefs[KEY_HAS_COMPLETED_ONBOARDING] ?: false
         )
     }
 
@@ -265,6 +267,12 @@ class SettingsRepository(
     suspend fun setLastSeenVersionCode(versionCode: Int) {
         dataStore.edit { prefs ->
             prefs[KEY_LAST_SEEN_VERSION_CODE] = versionCode
+        }
+    }
+
+    suspend fun setHasCompletedOnboarding(completed: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[KEY_HAS_COMPLETED_ONBOARDING] = completed
         }
     }
 
@@ -427,6 +435,7 @@ class SettingsRepository(
         private val KEY_GROQ_REMAINING_TPM = intPreferencesKey("groq_remaining_tpm")
         private val KEY_GROQ_LAST_MODEL = stringPreferencesKey("groq_last_model")
         private val KEY_ROUTINE_PRODUCT_ORDER = stringPreferencesKey("routine_product_order")
+        private val KEY_HAS_COMPLETED_ONBOARDING = booleanPreferencesKey("has_completed_onboarding")
 
         fun create(context: Context): SettingsRepository =
             SettingsRepository(context.applicationContext.selfCareSettingsDataStore)
